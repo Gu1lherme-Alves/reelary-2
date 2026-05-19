@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Instagram, Plus, Trash2, AlertCircle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { getInstagramAuthUrl, META_APP_ID_CONFIGURED } from "@/lib/instagram";
+import { buildInstagramAuthUrl } from "@/lib/instagram";
+import { getMetaAppId } from "@/lib/instagram.functions";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Contas — Reelary" }] }),
