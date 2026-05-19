@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Instagram, Plus, Trash2, AlertCircle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { getInstagramAuthUrl, META_APP_ID_CONFIGURED } from "@/lib/instagram";
+import { buildInstagramAuthUrl } from "@/lib/instagram";
+import { getMetaAppId } from "@/lib/instagram.functions";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Contas — Reelary" }] }),
@@ -27,6 +30,9 @@ type IgAccount = {
 function Dashboard() {
   const [accounts, setAccounts] = useState<IgAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [appId, setAppId] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const fetchAppId = useServerFn(getMetaAppId);
 
   async function load() {
     const { data, error } = await supabase
@@ -38,7 +44,10 @@ function Dashboard() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    fetchAppId().then((r) => setAppId(r.appId)).catch(() => setAppId(null));
+  }, [fetchAppId]);
 
   async function disconnect(id: string) {
     if (!confirm("Desconectar esta conta?")) return;
@@ -49,12 +58,15 @@ function Dashboard() {
   }
 
   function connect() {
-    if (!META_APP_ID_CONFIGURED) {
-      toast.error("Configure VITE_META_APP_ID nas variáveis de ambiente");
+    if (!appId) {
+      toast.error("Meta App ID não configurado no servidor");
       return;
     }
-    window.location.href = getInstagramAuthUrl();
+    setConnecting(true);
+    window.location.href = buildInstagramAuthUrl(appId);
   }
+
+  const configured = !!appId;
 
   return (
     <div>
@@ -63,23 +75,24 @@ function Dashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Suas contas</h1>
           <p className="text-muted-foreground mt-1">Conecte contas do Instagram para agendar Reels</p>
         </div>
-        <Button onClick={connect} className="bg-gradient-brand text-primary-foreground border-0 hover:opacity-90">
+        <Button onClick={connect} disabled={connecting} className="bg-gradient-brand text-primary-foreground border-0 hover:opacity-90">
           <Plus className="size-4" /> Conectar Instagram
         </Button>
       </div>
 
-      {!META_APP_ID_CONFIGURED && (
+      {!configured && (
         <div className="rounded-xl border border-warning/40 bg-warning/10 p-4 mb-6 flex gap-3">
           <AlertCircle className="size-5 text-warning shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-foreground">Configuração pendente</p>
             <p className="text-muted-foreground mt-1">
-              Adicione <code className="text-xs bg-secondary px-1.5 py-0.5 rounded">VITE_META_APP_ID</code> e{" "}
-              <code className="text-xs bg-secondary px-1.5 py-0.5 rounded">VITE_META_APP_SECRET</code> ao seu <code className="text-xs bg-secondary px-1.5 py-0.5 rounded">.env</code> para ativar o login do Instagram.
+              Adicione os secrets <code className="text-xs bg-secondary px-1.5 py-0.5 rounded">META_APP_ID</code> e{" "}
+              <code className="text-xs bg-secondary px-1.5 py-0.5 rounded">META_APP_SECRET</code> em Lovable Cloud para ativar o login do Instagram.
             </p>
           </div>
         </div>
       )}
+
 
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
