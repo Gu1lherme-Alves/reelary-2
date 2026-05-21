@@ -2,10 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+function getConfiguredMetaAppId() {
+  const rawAppId = process.env.META_APP_ID ?? import.meta.env.VITE_META_APP_ID;
+  return rawAppId?.match(/\d+/)?.[0] ?? null;
+}
+
 // Returns the public Meta App ID so the client can build the OAuth URL.
 export const getMetaAppId = createServerFn({ method: "GET" }).handler(async () => {
-  const appId = process.env.META_APP_ID;
-  return { appId: appId ?? null };
+  return { appId: getConfiguredMetaAppId() };
 });
 
 // Exchanges the OAuth `code` for an access_token, fetches the IG account
@@ -21,7 +25,7 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const appId = process.env.META_APP_ID;
+    const appId = getConfiguredMetaAppId();
     const appSecret = process.env.META_APP_SECRET;
     if (!appId || !appSecret) {
       throw new Error("Meta App credentials não configuradas no servidor.");
