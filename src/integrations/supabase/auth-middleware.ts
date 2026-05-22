@@ -6,7 +6,30 @@ import type { Database } from './types'
 
 
 
-export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
+export const requireSupabaseAuth = createMiddleware({ type: 'function' }).client(
+  async ({ next }) => {
+    // Read the Supabase session token from localStorage and inject it
+    // into the outgoing request so the server middleware can authenticate.
+    let token = '';
+    if (typeof window !== 'undefined') {
+      try {
+        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+        // Supabase stores the session under this key pattern
+        const storageKey = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
+        const raw = localStorage.getItem(storageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          token = parsed?.access_token ?? '';
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+    return next({
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  },
+).server(
   async ({ next }) => {
     
     const SUPABASE_URL = process.env.SUPABASE_URL;
