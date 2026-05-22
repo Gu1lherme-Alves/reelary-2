@@ -5,13 +5,14 @@ export const INSTAGRAM_REDIRECT_PATH = "/auth/instagram/callback";
 
 export function buildInstagramAuthUrl(appId: string): string {
   const redirectUri = `${window.location.origin}${INSTAGRAM_REDIRECT_PATH}`;
-  const scope = "instagram_content_publish";
+  const scope = "instagram_content_publish,pages_show_list,instagram_basic,pages_read_engagement";
 
   const params = new URLSearchParams({
     client_id: appId,
     redirect_uri: redirectUri,
     response_type: "code",
     scope,
+    auth_type: "rerequest",
   });
   return `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
 }
