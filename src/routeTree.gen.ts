@@ -12,8 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as PostsRouteImport } from './routes/posts'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthIndexRouteImport } from './routes/auth.index'
 import { Route as AuthInstagramCallbackRouteImport } from './routes/auth.instagram.callback'
 
 const ScheduleRoute = ScheduleRouteImport.update({
@@ -31,80 +31,81 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthIndexRoute = AuthIndexRouteImport.update({
+  id: '/auth/',
+  path: '/auth/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthInstagramCallbackRoute = AuthInstagramCallbackRouteImport.update({
-  id: '/instagram/callback',
-  path: '/instagram/callback',
-  getParentRoute: () => AuthRoute,
+  id: '/auth/instagram/callback',
+  path: '/auth/instagram/callback',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/posts': typeof PostsRoute
   '/schedule': typeof ScheduleRoute
+  '/auth/': typeof AuthIndexRoute
   '/auth/instagram/callback': typeof AuthInstagramCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/posts': typeof PostsRoute
   '/schedule': typeof ScheduleRoute
+  '/auth': typeof AuthIndexRoute
   '/auth/instagram/callback': typeof AuthInstagramCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/posts': typeof PostsRoute
   '/schedule': typeof ScheduleRoute
+  '/auth/': typeof AuthIndexRoute
   '/auth/instagram/callback': typeof AuthInstagramCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/auth'
     | '/dashboard'
     | '/posts'
     | '/schedule'
+    | '/auth/'
     | '/auth/instagram/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/auth'
     | '/dashboard'
     | '/posts'
     | '/schedule'
+    | '/auth'
     | '/auth/instagram/callback'
   id:
     | '__root__'
     | '/'
-    | '/auth'
     | '/dashboard'
     | '/posts'
     | '/schedule'
+    | '/auth/'
     | '/auth/instagram/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   PostsRoute: typeof PostsRoute
   ScheduleRoute: typeof ScheduleRoute
+  AuthIndexRoute: typeof AuthIndexRoute
+  AuthInstagramCallbackRoute: typeof AuthInstagramCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -130,13 +131,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -144,32 +138,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/': {
+      id: '/auth/'
+      path: '/auth'
+      fullPath: '/auth/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/instagram/callback': {
       id: '/auth/instagram/callback'
-      path: '/instagram/callback'
+      path: '/auth/instagram/callback'
       fullPath: '/auth/instagram/callback'
       preLoaderRoute: typeof AuthInstagramCallbackRouteImport
-      parentRoute: typeof AuthRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface AuthRouteChildren {
-  AuthInstagramCallbackRoute: typeof AuthInstagramCallbackRoute
-}
-
-const AuthRouteChildren: AuthRouteChildren = {
-  AuthInstagramCallbackRoute: AuthInstagramCallbackRoute,
-}
-
-const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthRoute: AuthRouteWithChildren,
   DashboardRoute: DashboardRoute,
   PostsRoute: PostsRoute,
   ScheduleRoute: ScheduleRoute,
+  AuthIndexRoute: AuthIndexRoute,
+  AuthInstagramCallbackRoute: AuthInstagramCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
