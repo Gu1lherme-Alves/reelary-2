@@ -87,11 +87,19 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
       }>;
     };
 
+    console.log("[Meta API] /me/accounts raw response:", JSON.stringify(pagesJson, null, 2));
+
     const pageWithIg = pagesJson.data.find((p) => p.instagram_business_account);
     if (!pageWithIg || !pageWithIg.instagram_business_account) {
-      throw new Error(
-        "Nenhuma conta Instagram Business encontrada. Conecte uma conta IG profissional à sua Página do Facebook.",
-      );
+      const pageDetails = pagesJson.data
+        .map((p) => `Página "${p.name}" (ID: ${p.id}) -> IG Vinculado: ${p.instagram_business_account ? `@${p.instagram_business_account.username}` : "NENHUM"}`)
+        .join(" | ");
+      
+      const errorMsg = pagesJson.data.length === 0
+        ? "Nenhuma página do Facebook foi retornada pelo Meta para esta conta. Verifique se você selecionou a Página na tela de permissões do Facebook."
+        : `Nenhuma conta Instagram Business encontrada vinculada às suas páginas. Páginas encontradas: [ ${pageDetails} ]. Conecte uma conta IG profissional (Business ou Creator) à sua Página do Facebook nas configurações da Página.`;
+        
+      throw new Error(errorMsg);
     }
 
     const ig = pageWithIg.instagram_business_account;
