@@ -32,8 +32,8 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).client
 ).server(
   async ({ next }) => {
     
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+    const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
       const missing = [
@@ -52,8 +52,10 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).client
     }
 
     const authHeader = request.headers.get('authorization');
+    console.log('[Supabase Auth] Authorization header present:', !!authHeader);
 
     if (!authHeader) {
+      console.error('[Supabase Auth] No authorization header found in request');
       throw new Error('Unauthorized: No authorization header provided');
     }
 
@@ -85,6 +87,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).client
 
     const { data, error } = await supabase.auth.getClaims(token);
     if (error || !data?.claims) {
+      console.error('[Supabase Auth] Token validation failed:', error?.message ?? 'no claims');
       throw new Error('Unauthorized: Invalid token');
     }
 
