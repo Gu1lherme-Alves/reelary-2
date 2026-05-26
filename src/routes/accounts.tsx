@@ -41,9 +41,9 @@ function AccountsPage() {
         .select("id, username, instagram_user_id, token_expires_at, created_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      
+
       setAccounts(data ?? []);
-      
+
       // Load current active account
       const storedId = localStorage.getItem("active_ig_account_id");
       if (storedId) {
@@ -61,7 +61,9 @@ function AccountsPage() {
 
   useEffect(() => {
     load();
-    fetchAppId().then((r) => setAppId(r.appId)).catch(() => setAppId(null));
+    fetchAppId()
+      .then((r) => setAppId(r.appId))
+      .catch(() => setAppId(null));
 
     // Sync active account if changed elsewhere (e.g. topbar)
     const handleActiveAccountChange = () => {
@@ -75,20 +77,25 @@ function AccountsPage() {
   }, [fetchAppId]);
 
   async function disconnect(id: string) {
-    if (!confirm("Desconectar esta conta do Instagram? Os agendamentos pendentes dela serão removidos.")) return;
+    if (
+      !confirm(
+        "Desconectar esta conta do Instagram? Os agendamentos pendentes dela serão removidos.",
+      )
+    )
+      return;
     try {
       const { error } = await supabase.from("instagram_accounts").delete().eq("id", id);
       if (error) throw error;
-      
+
       toast.success("Conta desconectada com sucesso!");
-      
+
       // If the disconnected account was the active one, clear/change active account
       const storedId = localStorage.getItem("active_ig_account_id");
       if (storedId === id) {
         localStorage.removeItem("active_ig_account_id");
         window.dispatchEvent(new Event("active-account-changed"));
       }
-      
+
       load();
     } catch (err: any) {
       toast.error(err.message || "Erro ao desconectar conta");
@@ -122,9 +129,9 @@ function AccountsPage() {
             Conecte suas contas comerciais do Instagram para agendar Reels automaticamente.
           </p>
         </div>
-        <Button 
-          onClick={connect} 
-          disabled={connecting} 
+        <Button
+          onClick={connect}
+          disabled={connecting}
           className="bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold shadow-glow shrink-0"
         >
           <Instagram className="size-4 mr-2" /> Conectar Novo Instagram
@@ -137,8 +144,15 @@ function AccountsPage() {
           <div className="text-sm">
             <p className="font-bold text-foreground">Configuração da Meta pendente</p>
             <p className="text-muted-foreground mt-1.5 leading-relaxed">
-              Adicione os secrets <code className="text-xs bg-secondary px-1.5 py-0.5 rounded text-foreground font-mono">META_APP_ID</code> e{" "}
-              <code className="text-xs bg-secondary px-1.5 py-0.5 rounded text-foreground font-mono">META_APP_SECRET</code> nas variáveis de ambiente da Lovable Cloud para ativar o login do Instagram.
+              Adicione os secrets{" "}
+              <code className="text-xs bg-secondary px-1.5 py-0.5 rounded text-foreground font-mono">
+                META_APP_ID
+              </code>{" "}
+              e{" "}
+              <code className="text-xs bg-secondary px-1.5 py-0.5 rounded text-foreground font-mono">
+                META_APP_SECRET
+              </code>{" "}
+              nas variáveis de ambiente da Lovable Cloud para ativar o login do Instagram.
             </p>
           </div>
         </div>
@@ -147,7 +161,10 @@ function AccountsPage() {
       {loading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-44 rounded-2xl bg-card border border-border/50 animate-pulse" />
+            <div
+              key={i}
+              className="h-44 rounded-2xl bg-card border border-border/50 animate-pulse"
+            />
           ))}
         </div>
       ) : accounts.length === 0 ? (
@@ -157,9 +174,13 @@ function AccountsPage() {
           </div>
           <h3 className="font-bold text-xl">Nenhuma conta vinculada</h3>
           <p className="text-muted-foreground text-sm mt-2.5 max-w-md mx-auto leading-relaxed">
-            Vincule sua primeira conta do Instagram para desbloquear o agendamento de Reels e acompanhar suas publicações em nosso calendário integrado.
+            Vincule sua primeira conta do Instagram para desbloquear o agendamento de Reels e
+            acompanhar suas publicações em nosso calendário integrado.
           </p>
-          <Button onClick={connect} className="mt-8 bg-gradient-brand text-primary-foreground border-0 font-semibold shadow-glow">
+          <Button
+            onClick={connect}
+            className="mt-8 bg-gradient-brand text-primary-foreground border-0 font-semibold shadow-glow"
+          >
             <Instagram className="size-4 mr-2" /> Conectar Conta Comercial
           </Button>
         </div>
@@ -168,11 +189,11 @@ function AccountsPage() {
           {accounts.map((a) => {
             const isActive = activeAccountId === a.id;
             return (
-              <div 
-                key={a.id} 
+              <div
+                key={a.id}
                 className={`rounded-2xl border transition-all duration-300 p-5 shadow-card group bg-card/45 relative flex flex-col justify-between ${
-                  isActive 
-                    ? "border-primary/80 ring-1 ring-primary/45 bg-primary/[0.02]" 
+                  isActive
+                    ? "border-primary/80 ring-1 ring-primary/45 bg-primary/[0.02]"
                     : "border-border/50 hover:border-muted-foreground/40 hover:bg-card/75"
                 }`}
               >
@@ -186,7 +207,10 @@ function AccountsPage() {
                         <div className="font-bold text-base truncate flex items-center gap-1.5">
                           @{a.username}
                           {isActive && (
-                            <span className="size-2 rounded-full bg-success animate-pulse" title="Conta ativa" />
+                            <span
+                              className="size-2 rounded-full bg-success animate-pulse"
+                              title="Conta ativa"
+                            />
                           )}
                         </div>
                         <div className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -207,9 +231,7 @@ function AccountsPage() {
                   </div>
 
                   <div className="mt-4 pt-4 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>
-                      Vinculada em {new Date(a.created_at).toLocaleDateString("pt-BR")}
-                    </span>
+                    <span>Vinculada em {new Date(a.created_at).toLocaleDateString("pt-BR")}</span>
                     {a.token_expires_at && (
                       <span className="text-warning">
                         Expira em {new Date(a.token_expires_at).toLocaleDateString("pt-BR")}
@@ -220,23 +242,28 @@ function AccountsPage() {
 
                 <div className="mt-6 pt-3 border-t border-border/40 flex gap-2">
                   {isActive ? (
-                    <Button 
-                      disabled 
+                    <Button
+                      disabled
                       className="flex-1 bg-primary/10 text-primary hover:bg-primary/10 border border-primary/20 h-9 font-semibold text-xs rounded-xl"
                     >
-                      <Star className="size-3.5 mr-1.5 fill-primary text-primary" /> Conta Selecionada
+                      <Star className="size-3.5 mr-1.5 fill-primary text-primary" /> Conta
+                      Selecionada
                     </Button>
                   ) : (
-                    <Button 
+                    <Button
                       onClick={() => makeActive(a)}
-                      variant="outline" 
+                      variant="outline"
                       className="flex-1 border-border hover:border-primary/50 text-muted-foreground hover:text-foreground h-9 font-semibold text-xs rounded-xl transition cursor-pointer"
                     >
                       <Star className="size-3.5 mr-1.5 text-muted-foreground" /> Tornar Ativa
                     </Button>
                   )}
                   <Link to="/calendar" className="shrink-0">
-                    <Button size="icon" className="size-9 bg-secondary hover:bg-secondary/70 text-foreground border border-border/60 rounded-xl" title="Ir para o calendário de postagens">
+                    <Button
+                      size="icon"
+                      className="size-9 bg-secondary hover:bg-secondary/70 text-foreground border border-border/60 rounded-xl"
+                      title="Ir para o calendário de postagens"
+                    >
                       <Plus className="size-4 text-primary" />
                     </Button>
                   </Link>

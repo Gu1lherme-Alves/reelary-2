@@ -1,1 +1,324 @@
-import{j as e,h as t,L as A,s as p,t as o}from"./index-CDMAuvnc.js";import{u as C,a as S,b as k}from"./instagram.functions-DyDQqZvx.js";import{a as z}from"./AppShell-C8I5-jDj.js";import{b as E,B as s}from"./button-BCDv24mv.js";import{I as d}from"./instagram-BnzdXG05.js";import{C as L}from"./circle-alert-WZ3Kx3vi.js";import{T as D}from"./trash-2-F1jD8W3K.js";import{P}from"./plus-CeI0anFx.js";import"./use-auth-CcoCM9Hr.js";const M=[["path",{d:"M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z",key:"r04s7s"}]],h=E("star",M);function R(){const[l,f]=t.useState([]),[b,v]=t.useState(!0),[i,m]=t.useState(null),[j,N]=t.useState(!1),[_,n]=t.useState(null),x=C(S);async function u(){try{const{data:a,error:r}=await p.from("instagram_accounts").select("id, username, instagram_user_id, token_expires_at, created_at").order("created_at",{ascending:!1});if(r)throw r;f(a??[]);const c=localStorage.getItem("active_ig_account_id");c?n(c):a&&a.length>0&&(n(a[0].id),localStorage.setItem("active_ig_account_id",a[0].id))}catch(a){o.error(a.message||"Erro ao carregar contas")}finally{v(!1)}}t.useEffect(()=>{u(),x().then(r=>m(r.appId)).catch(()=>m(null));const a=()=>{const r=localStorage.getItem("active_ig_account_id");r&&n(r)};return window.addEventListener("active-account-changed",a),()=>window.removeEventListener("active-account-changed",a)},[x]);async function w(a){if(confirm("Desconectar esta conta do Instagram? Os agendamentos pendentes dela serão removidos."))try{const{error:r}=await p.from("instagram_accounts").delete().eq("id",a);if(r)throw r;o.success("Conta desconectada com sucesso!"),localStorage.getItem("active_ig_account_id")===a&&(localStorage.removeItem("active_ig_account_id"),window.dispatchEvent(new Event("active-account-changed"))),u()}catch(r){o.error(r.message||"Erro ao desconectar conta")}}function y(a){localStorage.setItem("active_ig_account_id",a.id),n(a.id),window.dispatchEvent(new Event("active-account-changed")),o.success(`Conta ativa alterada para @${a.username}`)}function g(){if(!i){o.error("Meta App ID não configurado no servidor");return}N(!0),window.location.href=k(i)}const I=!!i;return e.jsxs("div",{className:"space-y-6",children:[e.jsxs("div",{className:"flex flex-col md:flex-row md:items-center justify-between gap-4",children:[e.jsxs("div",{children:[e.jsx("h1",{className:"text-3xl font-extrabold tracking-tight",children:"Contas do Instagram"}),e.jsx("p",{className:"text-muted-foreground mt-1.5",children:"Conecte suas contas comerciais do Instagram para agendar Reels automaticamente."})]}),e.jsxs(s,{onClick:g,disabled:j,className:"bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold shadow-glow shrink-0",children:[e.jsx(d,{className:"size-4 mr-2"})," Conectar Novo Instagram"]})]}),!I&&e.jsxs("div",{className:"rounded-2xl border border-warning/30 bg-warning/10 p-5 flex gap-4 animate-in fade-in duration-300",children:[e.jsx(L,{className:"size-5 text-warning shrink-0 mt-0.5"}),e.jsxs("div",{className:"text-sm",children:[e.jsx("p",{className:"font-bold text-foreground",children:"Configuração da Meta pendente"}),e.jsxs("p",{className:"text-muted-foreground mt-1.5 leading-relaxed",children:["Adicione os secrets ",e.jsx("code",{className:"text-xs bg-secondary px-1.5 py-0.5 rounded text-foreground font-mono",children:"META_APP_ID"})," e"," ",e.jsx("code",{className:"text-xs bg-secondary px-1.5 py-0.5 rounded text-foreground font-mono",children:"META_APP_SECRET"})," nas variáveis de ambiente da Lovable Cloud para ativar o login do Instagram."]})]})]}),b?e.jsx("div",{className:"grid gap-6 md:grid-cols-2 lg:grid-cols-3",children:[1,2,3].map(a=>e.jsx("div",{className:"h-44 rounded-2xl bg-card border border-border/50 animate-pulse"},a))}):l.length===0?e.jsxs("div",{className:"rounded-3xl border border-dashed border-border/80 p-16 text-center bg-card/25 backdrop-blur-sm max-w-2xl mx-auto",children:[e.jsx("div",{className:"size-16 rounded-2xl bg-gradient-brand grid place-items-center mx-auto mb-6 shadow-glow",children:e.jsx(d,{className:"size-8 text-primary-foreground"})}),e.jsx("h3",{className:"font-bold text-xl",children:"Nenhuma conta vinculada"}),e.jsx("p",{className:"text-muted-foreground text-sm mt-2.5 max-w-md mx-auto leading-relaxed",children:"Vincule sua primeira conta do Instagram para desbloquear o agendamento de Reels e acompanhar suas publicações em nosso calendário integrado."}),e.jsxs(s,{onClick:g,className:"mt-8 bg-gradient-brand text-primary-foreground border-0 font-semibold shadow-glow",children:[e.jsx(d,{className:"size-4 mr-2"})," Conectar Conta Comercial"]})]}):e.jsx("div",{className:"grid gap-6 md:grid-cols-2 lg:grid-cols-3",children:l.map(a=>{const r=_===a.id;return e.jsxs("div",{className:`rounded-2xl border transition-all duration-300 p-5 shadow-card group bg-card/45 relative flex flex-col justify-between ${r?"border-primary/80 ring-1 ring-primary/45 bg-primary/[0.02]":"border-border/50 hover:border-muted-foreground/40 hover:bg-card/75"}`,children:[e.jsxs("div",{children:[e.jsxs("div",{className:"flex items-start justify-between gap-3",children:[e.jsxs("div",{className:"flex items-center gap-3",children:[e.jsx("div",{className:"size-12 rounded-2xl bg-gradient-brand grid place-items-center shrink-0",children:e.jsx(d,{className:"size-6 text-primary-foreground"})}),e.jsxs("div",{className:"min-w-0",children:[e.jsxs("div",{className:"font-bold text-base truncate flex items-center gap-1.5",children:["@",a.username,r&&e.jsx("span",{className:"size-2 rounded-full bg-success animate-pulse",title:"Conta ativa"})]}),e.jsxs("div",{className:"text-xs text-muted-foreground mt-0.5 truncate",children:["ID: ",a.instagram_user_id]})]})]}),e.jsx(s,{variant:"ghost",size:"icon",onClick:()=>w(a.id),className:"size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 transition",title:"Desconectar conta",children:e.jsx(D,{className:"size-4"})})]}),e.jsxs("div",{className:"mt-4 pt-4 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground",children:[e.jsxs("span",{children:["Vinculada em ",new Date(a.created_at).toLocaleDateString("pt-BR")]}),a.token_expires_at&&e.jsxs("span",{className:"text-warning",children:["Expira em ",new Date(a.token_expires_at).toLocaleDateString("pt-BR")]})]})]}),e.jsxs("div",{className:"mt-6 pt-3 border-t border-border/40 flex gap-2",children:[r?e.jsxs(s,{disabled:!0,className:"flex-1 bg-primary/10 text-primary hover:bg-primary/10 border border-primary/20 h-9 font-semibold text-xs rounded-xl",children:[e.jsx(h,{className:"size-3.5 mr-1.5 fill-primary text-primary"})," Conta Selecionada"]}):e.jsxs(s,{onClick:()=>y(a),variant:"outline",className:"flex-1 border-border hover:border-primary/50 text-muted-foreground hover:text-foreground h-9 font-semibold text-xs rounded-xl transition cursor-pointer",children:[e.jsx(h,{className:"size-3.5 mr-1.5 text-muted-foreground"})," Tornar Ativa"]}),e.jsx(A,{to:"/calendar",className:"shrink-0",children:e.jsx(s,{size:"icon",className:"size-9 bg-secondary hover:bg-secondary/70 text-foreground border border-border/60 rounded-xl",title:"Ir para o calendário de postagens",children:e.jsx(P,{className:"size-4 text-primary"})})})]})]},a.id)})})]})}const H=()=>e.jsx(z,{children:e.jsx(R,{})});export{H as component};
+import { j as e, h as t, L as A, s as p, t as o } from "./index-CDMAuvnc.js";
+import { u as C, a as S, b as k } from "./instagram.functions-DyDQqZvx.js";
+import { a as z } from "./AppShell-C8I5-jDj.js";
+import { b as E, B as s } from "./button-BCDv24mv.js";
+import { I as d } from "./instagram-BnzdXG05.js";
+import { C as L } from "./circle-alert-WZ3Kx3vi.js";
+import { T as D } from "./trash-2-F1jD8W3K.js";
+import { P } from "./plus-CeI0anFx.js";
+import "./use-auth-CcoCM9Hr.js";
+const M = [
+    [
+      "path",
+      {
+        d: "M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z",
+        key: "r04s7s",
+      },
+    ],
+  ],
+  h = E("star", M);
+function R() {
+  const [l, f] = t.useState([]),
+    [b, v] = t.useState(!0),
+    [i, m] = t.useState(null),
+    [j, N] = t.useState(!1),
+    [_, n] = t.useState(null),
+    x = C(S);
+  async function u() {
+    try {
+      const { data: a, error: r } = await p
+        .from("instagram_accounts")
+        .select("id, username, instagram_user_id, token_expires_at, created_at")
+        .order("created_at", { ascending: !1 });
+      if (r) throw r;
+      f(a ?? []);
+      const c = localStorage.getItem("active_ig_account_id");
+      c
+        ? n(c)
+        : a && a.length > 0 && (n(a[0].id), localStorage.setItem("active_ig_account_id", a[0].id));
+    } catch (a) {
+      o.error(a.message || "Erro ao carregar contas");
+    } finally {
+      v(!1);
+    }
+  }
+  t.useEffect(() => {
+    (u(),
+      x()
+        .then((r) => m(r.appId))
+        .catch(() => m(null)));
+    const a = () => {
+      const r = localStorage.getItem("active_ig_account_id");
+      r && n(r);
+    };
+    return (
+      window.addEventListener("active-account-changed", a),
+      () => window.removeEventListener("active-account-changed", a)
+    );
+  }, [x]);
+  async function w(a) {
+    if (
+      confirm(
+        "Desconectar esta conta do Instagram? Os agendamentos pendentes dela serão removidos.",
+      )
+    )
+      try {
+        const { error: r } = await p.from("instagram_accounts").delete().eq("id", a);
+        if (r) throw r;
+        (o.success("Conta desconectada com sucesso!"),
+          localStorage.getItem("active_ig_account_id") === a &&
+            (localStorage.removeItem("active_ig_account_id"),
+            window.dispatchEvent(new Event("active-account-changed"))),
+          u());
+      } catch (r) {
+        o.error(r.message || "Erro ao desconectar conta");
+      }
+  }
+  function y(a) {
+    (localStorage.setItem("active_ig_account_id", a.id),
+      n(a.id),
+      window.dispatchEvent(new Event("active-account-changed")),
+      o.success(`Conta ativa alterada para @${a.username}`));
+  }
+  function g() {
+    if (!i) {
+      o.error("Meta App ID não configurado no servidor");
+      return;
+    }
+    (N(!0), (window.location.href = k(i)));
+  }
+  const I = !!i;
+  return e.jsxs("div", {
+    className: "space-y-6",
+    children: [
+      e.jsxs("div", {
+        className: "flex flex-col md:flex-row md:items-center justify-between gap-4",
+        children: [
+          e.jsxs("div", {
+            children: [
+              e.jsx("h1", {
+                className: "text-3xl font-extrabold tracking-tight",
+                children: "Contas do Instagram",
+              }),
+              e.jsx("p", {
+                className: "text-muted-foreground mt-1.5",
+                children:
+                  "Conecte suas contas comerciais do Instagram para agendar Reels automaticamente.",
+              }),
+            ],
+          }),
+          e.jsxs(s, {
+            onClick: g,
+            disabled: j,
+            className:
+              "bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold shadow-glow shrink-0",
+            children: [e.jsx(d, { className: "size-4 mr-2" }), " Conectar Novo Instagram"],
+          }),
+        ],
+      }),
+      !I &&
+        e.jsxs("div", {
+          className:
+            "rounded-2xl border border-warning/30 bg-warning/10 p-5 flex gap-4 animate-in fade-in duration-300",
+          children: [
+            e.jsx(L, { className: "size-5 text-warning shrink-0 mt-0.5" }),
+            e.jsxs("div", {
+              className: "text-sm",
+              children: [
+                e.jsx("p", {
+                  className: "font-bold text-foreground",
+                  children: "Configuração da Meta pendente",
+                }),
+                e.jsxs("p", {
+                  className: "text-muted-foreground mt-1.5 leading-relaxed",
+                  children: [
+                    "Adicione os secrets ",
+                    e.jsx("code", {
+                      className:
+                        "text-xs bg-secondary px-1.5 py-0.5 rounded text-foreground font-mono",
+                      children: "META_APP_ID",
+                    }),
+                    " e",
+                    " ",
+                    e.jsx("code", {
+                      className:
+                        "text-xs bg-secondary px-1.5 py-0.5 rounded text-foreground font-mono",
+                      children: "META_APP_SECRET",
+                    }),
+                    " nas variáveis de ambiente da Lovable Cloud para ativar o login do Instagram.",
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      b
+        ? e.jsx("div", {
+            className: "grid gap-6 md:grid-cols-2 lg:grid-cols-3",
+            children: [1, 2, 3].map((a) =>
+              e.jsx(
+                "div",
+                { className: "h-44 rounded-2xl bg-card border border-border/50 animate-pulse" },
+                a,
+              ),
+            ),
+          })
+        : l.length === 0
+          ? e.jsxs("div", {
+              className:
+                "rounded-3xl border border-dashed border-border/80 p-16 text-center bg-card/25 backdrop-blur-sm max-w-2xl mx-auto",
+              children: [
+                e.jsx("div", {
+                  className:
+                    "size-16 rounded-2xl bg-gradient-brand grid place-items-center mx-auto mb-6 shadow-glow",
+                  children: e.jsx(d, { className: "size-8 text-primary-foreground" }),
+                }),
+                e.jsx("h3", {
+                  className: "font-bold text-xl",
+                  children: "Nenhuma conta vinculada",
+                }),
+                e.jsx("p", {
+                  className:
+                    "text-muted-foreground text-sm mt-2.5 max-w-md mx-auto leading-relaxed",
+                  children:
+                    "Vincule sua primeira conta do Instagram para desbloquear o agendamento de Reels e acompanhar suas publicações em nosso calendário integrado.",
+                }),
+                e.jsxs(s, {
+                  onClick: g,
+                  className:
+                    "mt-8 bg-gradient-brand text-primary-foreground border-0 font-semibold shadow-glow",
+                  children: [e.jsx(d, { className: "size-4 mr-2" }), " Conectar Conta Comercial"],
+                }),
+              ],
+            })
+          : e.jsx("div", {
+              className: "grid gap-6 md:grid-cols-2 lg:grid-cols-3",
+              children: l.map((a) => {
+                const r = _ === a.id;
+                return e.jsxs(
+                  "div",
+                  {
+                    className: `rounded-2xl border transition-all duration-300 p-5 shadow-card group bg-card/45 relative flex flex-col justify-between ${r ? "border-primary/80 ring-1 ring-primary/45 bg-primary/[0.02]" : "border-border/50 hover:border-muted-foreground/40 hover:bg-card/75"}`,
+                    children: [
+                      e.jsxs("div", {
+                        children: [
+                          e.jsxs("div", {
+                            className: "flex items-start justify-between gap-3",
+                            children: [
+                              e.jsxs("div", {
+                                className: "flex items-center gap-3",
+                                children: [
+                                  e.jsx("div", {
+                                    className:
+                                      "size-12 rounded-2xl bg-gradient-brand grid place-items-center shrink-0",
+                                    children: e.jsx(d, {
+                                      className: "size-6 text-primary-foreground",
+                                    }),
+                                  }),
+                                  e.jsxs("div", {
+                                    className: "min-w-0",
+                                    children: [
+                                      e.jsxs("div", {
+                                        className:
+                                          "font-bold text-base truncate flex items-center gap-1.5",
+                                        children: [
+                                          "@",
+                                          a.username,
+                                          r &&
+                                            e.jsx("span", {
+                                              className:
+                                                "size-2 rounded-full bg-success animate-pulse",
+                                              title: "Conta ativa",
+                                            }),
+                                        ],
+                                      }),
+                                      e.jsxs("div", {
+                                        className: "text-xs text-muted-foreground mt-0.5 truncate",
+                                        children: ["ID: ", a.instagram_user_id],
+                                      }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                              e.jsx(s, {
+                                variant: "ghost",
+                                size: "icon",
+                                onClick: () => w(a.id),
+                                className:
+                                  "size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 transition",
+                                title: "Desconectar conta",
+                                children: e.jsx(D, { className: "size-4" }),
+                              }),
+                            ],
+                          }),
+                          e.jsxs("div", {
+                            className:
+                              "mt-4 pt-4 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground",
+                            children: [
+                              e.jsxs("span", {
+                                children: [
+                                  "Vinculada em ",
+                                  new Date(a.created_at).toLocaleDateString("pt-BR"),
+                                ],
+                              }),
+                              a.token_expires_at &&
+                                e.jsxs("span", {
+                                  className: "text-warning",
+                                  children: [
+                                    "Expira em ",
+                                    new Date(a.token_expires_at).toLocaleDateString("pt-BR"),
+                                  ],
+                                }),
+                            ],
+                          }),
+                        ],
+                      }),
+                      e.jsxs("div", {
+                        className: "mt-6 pt-3 border-t border-border/40 flex gap-2",
+                        children: [
+                          r
+                            ? e.jsxs(s, {
+                                disabled: !0,
+                                className:
+                                  "flex-1 bg-primary/10 text-primary hover:bg-primary/10 border border-primary/20 h-9 font-semibold text-xs rounded-xl",
+                                children: [
+                                  e.jsx(h, {
+                                    className: "size-3.5 mr-1.5 fill-primary text-primary",
+                                  }),
+                                  " Conta Selecionada",
+                                ],
+                              })
+                            : e.jsxs(s, {
+                                onClick: () => y(a),
+                                variant: "outline",
+                                className:
+                                  "flex-1 border-border hover:border-primary/50 text-muted-foreground hover:text-foreground h-9 font-semibold text-xs rounded-xl transition cursor-pointer",
+                                children: [
+                                  e.jsx(h, { className: "size-3.5 mr-1.5 text-muted-foreground" }),
+                                  " Tornar Ativa",
+                                ],
+                              }),
+                          e.jsx(A, {
+                            to: "/calendar",
+                            className: "shrink-0",
+                            children: e.jsx(s, {
+                              size: "icon",
+                              className:
+                                "size-9 bg-secondary hover:bg-secondary/70 text-foreground border border-border/60 rounded-xl",
+                              title: "Ir para o calendário de postagens",
+                              children: e.jsx(P, { className: "size-4 text-primary" }),
+                            }),
+                          }),
+                        ],
+                      }),
+                    ],
+                  },
+                  a.id,
+                );
+              }),
+            }),
+    ],
+  });
+}
+const H = () => e.jsx(z, { children: e.jsx(R, {}) });
+export { H as component };

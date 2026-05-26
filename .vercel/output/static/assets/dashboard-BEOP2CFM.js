@@ -1,1 +1,490 @@
-import{j as e,h as d,u as R,L as a,s as f,t as E}from"./index-CDMAuvnc.js";import{a as T,C as b,f as L}from"./AppShell-C8I5-jDj.js";import{B as o}from"./button-BCDv24mv.js";import{S as I,c as V,d as F,a as B,b as j}from"./select-DI3knHpR.js";import{C as N}from"./circle-check-KfMURPra.js";import{I as c}from"./instagram-BnzdXG05.js";import{C as v}from"./clock-CY4rnrr8.js";import{S as H}from"./use-auth-CcoCM9Hr.js";import{P as G}from"./plus-CeI0anFx.js";function O(){const[i,w]=d.useState([]),[y,z]=d.useState([]),[S,C]=d.useState(!0),[l,_]=d.useState("all");R();async function m(){try{const{data:s,error:t}=await f.from("instagram_accounts").select("id, username").order("created_at",{ascending:!1});if(t)throw t;w(s||[]);const{data:D,error:p}=await f.from("scheduled_posts").select("id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)").order("scheduled_at",{ascending:!0});if(p)throw p;z(D||[])}catch(s){console.error("Dashboard error:",s),E.error(s.message||"Erro ao carregar dados do painel")}finally{C(!1)}}d.useEffect(()=>{m();const s=()=>{m()};return window.addEventListener("active-account-changed",s),()=>window.removeEventListener("active-account-changed",s)},[]);const r=y.filter(s=>l==="all"?!0:s.instagram_account_id===l),x=i.length,u=new Date;u.setHours(0,0,0,0);const g=new Date;g.setHours(23,59,59,999);const A=r.filter(s=>{const t=new Date(s.scheduled_at);return s.status==="pending"&&t>=u&&t<=g}).length,P=r.filter(s=>s.status==="published").length,h=r.filter(s=>s.status==="failed").length,k=new Date,n=r.filter(s=>s.status==="pending"&&new Date(s.scheduled_at)>k).slice(0,3);return e.jsxs("div",{className:"space-y-8",children:[e.jsxs("div",{className:"flex flex-col sm:flex-row sm:items-center justify-between gap-4",children:[e.jsxs("div",{children:[e.jsx("h1",{className:"text-3xl font-extrabold tracking-tight",children:"Painel Geral"}),e.jsx("p",{className:"text-muted-foreground mt-1",children:"Acompanhe as métricas de postagem dos seus Reels."})]}),e.jsxs("div",{className:"flex items-center gap-3",children:[e.jsx("span",{className:"text-sm text-muted-foreground font-medium shrink-0",children:"Filtrar por conta:"}),e.jsxs(I,{value:l,onValueChange:_,children:[e.jsx(V,{className:"w-56 bg-card border-border/60 rounded-xl h-10 font-medium",children:e.jsx(F,{placeholder:"Todas as contas"})}),e.jsxs(B,{className:"bg-card border-border/60",children:[e.jsx(j,{value:"all",className:"cursor-pointer",children:"✨ Todas as contas"}),i.map(s=>e.jsxs(j,{value:s.id,className:"cursor-pointer",children:["📸 @",s.username]},s.id))]})]})]})]}),S?e.jsx("div",{className:"grid gap-6 md:grid-cols-3",children:[1,2,3].map(s=>e.jsx("div",{className:"h-32 rounded-2xl bg-card border border-border/50 animate-pulse"},s))}):e.jsxs(e.Fragment,{children:[e.jsxs("div",{className:"grid gap-6 md:grid-cols-3",children:[e.jsxs("div",{className:"rounded-2xl border border-border/50 bg-card/45 p-6 shadow-card hover:bg-card/75 transition relative overflow-hidden group",children:[e.jsx("div",{className:"absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-300",children:e.jsx(b,{className:"size-20 text-primary"})}),e.jsxs("div",{className:"flex items-center gap-3 text-muted-foreground text-sm font-semibold mb-3",children:[e.jsx("div",{className:"size-8 rounded-lg bg-primary/10 grid place-items-center text-primary",children:e.jsx(b,{className:"size-4"})}),"Reels Agendados (Hoje)"]}),e.jsxs("div",{className:"flex items-baseline gap-2",children:[e.jsx("span",{className:"text-4xl font-extrabold text-gradient-brand",children:A}),e.jsx("span",{className:"text-xs text-muted-foreground",children:"reels hoje"})]}),e.jsx("p",{className:"text-xs text-muted-foreground mt-4 leading-relaxed",children:"Prontos para postagem automática nas próximas horas."})]}),e.jsxs("div",{className:"rounded-2xl border border-border/50 bg-card/45 p-6 shadow-card hover:bg-card/75 transition relative overflow-hidden group",children:[e.jsx("div",{className:"absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-300",children:e.jsx(N,{className:"size-20 text-success"})}),e.jsxs("div",{className:"flex items-center gap-3 text-muted-foreground text-sm font-semibold mb-3",children:[e.jsx("div",{className:"size-8 rounded-lg bg-success/10 grid place-items-center text-success",children:e.jsx(N,{className:"size-4"})}),"Reels Publicados"]}),e.jsxs("div",{className:"flex items-baseline gap-2",children:[e.jsx("span",{className:"text-4xl font-extrabold text-success",children:P}),e.jsx("span",{className:"text-xs text-muted-foreground",children:"publicados com sucesso"})]}),e.jsx("p",{className:"text-xs text-muted-foreground mt-4 leading-relaxed flex items-center gap-1",children:h>0?e.jsxs("span",{className:"text-destructive font-semibold flex items-center gap-0.5",children:["⚠️ ",h," falhas registradas"]}):e.jsx("span",{children:"Sem falhas de publicação."})})]}),e.jsxs("div",{className:"rounded-2xl border border-border/50 bg-card/45 p-6 shadow-card hover:bg-card/75 transition relative overflow-hidden group",children:[e.jsx("div",{className:"absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-300",children:e.jsx(c,{className:"size-20 text-accent"})}),e.jsxs("div",{className:"flex items-center gap-3 text-muted-foreground text-sm font-semibold mb-3",children:[e.jsx("div",{className:"size-8 rounded-lg bg-accent/10 grid place-items-center text-accent",children:e.jsx(c,{className:"size-4"})}),"Contas Conectadas"]}),e.jsxs("div",{className:"flex items-baseline gap-2",children:[e.jsx("span",{className:"text-4xl font-extrabold text-accent",children:x}),e.jsx("span",{className:"text-xs text-muted-foreground",children:"perfis ativos"})]}),e.jsx("p",{className:"text-xs text-muted-foreground mt-4 leading-relaxed",children:"Todas gerenciadas a partir de um único painel."})]})]}),e.jsxs("div",{className:"grid gap-6 lg:grid-cols-3",children:[e.jsxs("div",{className:"lg:col-span-2 rounded-2xl border border-border/50 bg-card/30 p-6 flex flex-col justify-between",children:[e.jsxs("div",{children:[e.jsxs("div",{className:"flex items-center justify-between mb-6",children:[e.jsxs("h3",{className:"font-bold text-lg flex items-center gap-2",children:[e.jsx(v,{className:"size-5 text-primary"})," Próximas Publicações"]}),e.jsxs(a,{to:"/calendar",className:"text-xs text-primary hover:underline font-semibold flex items-center gap-0.5",children:["Ver calendário completo ",e.jsx(L,{className:"size-3"})]})]}),n.length===0?e.jsxs("div",{className:"text-center py-10 border border-dashed border-border/60 rounded-xl bg-card/10",children:[e.jsx("p",{className:"text-muted-foreground text-sm",children:"Nenhum Reel agendado para o futuro."}),e.jsx(a,{to:"/calendar",className:"inline-block mt-4",children:e.jsx(o,{size:"sm",className:"bg-gradient-brand text-primary-foreground border-0",children:"Agendar Primeiro Reel"})})]}):e.jsx("div",{className:"space-y-4",children:n.map(s=>e.jsxs("div",{className:"flex gap-4 p-3 rounded-xl bg-card/65 border border-border/40 hover:bg-card/90 transition shadow-sm",children:[e.jsx("video",{src:s.video_url,className:"size-16 rounded-lg object-cover bg-background shrink-0",muted:!0}),e.jsxs("div",{className:"min-w-0 flex-1 flex flex-col justify-between py-0.5",children:[e.jsxs("div",{children:[e.jsxs("div",{className:"flex items-center gap-2 text-xs",children:[e.jsxs("span",{className:"font-bold text-primary",children:["@",s.instagram_accounts?.username||"instagram"]}),e.jsx("span",{className:"text-muted-foreground",children:"•"}),e.jsx("span",{className:"text-muted-foreground",children:new Date(s.scheduled_at).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})})]}),e.jsx("p",{className:"text-sm font-medium mt-1 truncate text-foreground/90",children:s.caption||e.jsx("span",{className:"text-muted-foreground italic",children:"Sem legenda"})})]}),e.jsxs("span",{className:"inline-flex items-center gap-1 text-[10px] font-semibold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full max-w-max",children:[e.jsx(v,{className:"size-2.5 animate-pulse"})," Agendado"]})]})]},s.id))})]}),n.length>0&&e.jsx("div",{className:"pt-4 border-t border-border/40 mt-4 flex justify-end",children:e.jsx(a,{to:"/calendar",children:e.jsxs(o,{variant:"ghost",size:"sm",className:"text-muted-foreground hover:text-foreground text-xs font-semibold",children:["Gerenciar Agendamentos (",r.filter(s=>s.status==="pending").length,") →"]})})})]}),e.jsxs("div",{className:"rounded-2xl border border-border/50 bg-gradient-brand/5 p-6 flex flex-col justify-between shadow-card",children:[e.jsxs("div",{className:"space-y-4",children:[e.jsx("div",{className:"size-12 rounded-xl bg-gradient-brand grid place-items-center",children:e.jsx(H,{className:"size-6 text-primary-foreground"})}),e.jsx("h3",{className:"font-extrabold text-xl",children:"Agendamento Automático"}),e.jsx("p",{className:"text-sm text-muted-foreground leading-relaxed",children:"Agende novos Reels adicionando arquivos de vídeo locais, legendas personalizadas e escolhendo o dia e hora exatos de postagem."})]}),e.jsxs("div",{className:"space-y-3 mt-8",children:[x>0?e.jsx(a,{to:"/calendar",className:"block w-full",children:e.jsxs(o,{className:"w-full bg-gradient-brand text-primary-foreground border-0 shadow-glow font-bold h-11 hover:opacity-95",children:[e.jsx(G,{className:"size-4 mr-2"})," Agendar Novo Reel"]})}):e.jsx(a,{to:"/accounts",className:"block w-full",children:e.jsxs(o,{className:"w-full bg-gradient-brand text-primary-foreground border-0 shadow-glow font-bold h-11 hover:opacity-95",children:[e.jsx(c,{className:"size-4 mr-2"})," Conectar Conta"]})}),e.jsx(a,{to:"/accounts",className:"block w-full",children:e.jsx(o,{variant:"outline",className:"w-full border-border hover:bg-secondary h-11 font-semibold text-sm rounded-xl",children:"Ver Contas Vinculadas"})})]})]})]})]})]})}const Z=()=>e.jsx(T,{children:e.jsx(O,{})});export{Z as component};
+import { j as e, h as d, u as R, L as a, s as f, t as E } from "./index-CDMAuvnc.js";
+import { a as T, C as b, f as L } from "./AppShell-C8I5-jDj.js";
+import { B as o } from "./button-BCDv24mv.js";
+import { S as I, c as V, d as F, a as B, b as j } from "./select-DI3knHpR.js";
+import { C as N } from "./circle-check-KfMURPra.js";
+import { I as c } from "./instagram-BnzdXG05.js";
+import { C as v } from "./clock-CY4rnrr8.js";
+import { S as H } from "./use-auth-CcoCM9Hr.js";
+import { P as G } from "./plus-CeI0anFx.js";
+function O() {
+  const [i, w] = d.useState([]),
+    [y, z] = d.useState([]),
+    [S, C] = d.useState(!0),
+    [l, _] = d.useState("all");
+  R();
+  async function m() {
+    try {
+      const { data: s, error: t } = await f
+        .from("instagram_accounts")
+        .select("id, username")
+        .order("created_at", { ascending: !1 });
+      if (t) throw t;
+      w(s || []);
+      const { data: D, error: p } = await f
+        .from("scheduled_posts")
+        .select(
+          "id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)",
+        )
+        .order("scheduled_at", { ascending: !0 });
+      if (p) throw p;
+      z(D || []);
+    } catch (s) {
+      (console.error("Dashboard error:", s),
+        E.error(s.message || "Erro ao carregar dados do painel"));
+    } finally {
+      C(!1);
+    }
+  }
+  d.useEffect(() => {
+    m();
+    const s = () => {
+      m();
+    };
+    return (
+      window.addEventListener("active-account-changed", s),
+      () => window.removeEventListener("active-account-changed", s)
+    );
+  }, []);
+  const r = y.filter((s) => (l === "all" ? !0 : s.instagram_account_id === l)),
+    x = i.length,
+    u = new Date();
+  u.setHours(0, 0, 0, 0);
+  const g = new Date();
+  g.setHours(23, 59, 59, 999);
+  const A = r.filter((s) => {
+      const t = new Date(s.scheduled_at);
+      return s.status === "pending" && t >= u && t <= g;
+    }).length,
+    P = r.filter((s) => s.status === "published").length,
+    h = r.filter((s) => s.status === "failed").length,
+    k = new Date(),
+    n = r.filter((s) => s.status === "pending" && new Date(s.scheduled_at) > k).slice(0, 3);
+  return e.jsxs("div", {
+    className: "space-y-8",
+    children: [
+      e.jsxs("div", {
+        className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4",
+        children: [
+          e.jsxs("div", {
+            children: [
+              e.jsx("h1", {
+                className: "text-3xl font-extrabold tracking-tight",
+                children: "Painel Geral",
+              }),
+              e.jsx("p", {
+                className: "text-muted-foreground mt-1",
+                children: "Acompanhe as métricas de postagem dos seus Reels.",
+              }),
+            ],
+          }),
+          e.jsxs("div", {
+            className: "flex items-center gap-3",
+            children: [
+              e.jsx("span", {
+                className: "text-sm text-muted-foreground font-medium shrink-0",
+                children: "Filtrar por conta:",
+              }),
+              e.jsxs(I, {
+                value: l,
+                onValueChange: _,
+                children: [
+                  e.jsx(V, {
+                    className: "w-56 bg-card border-border/60 rounded-xl h-10 font-medium",
+                    children: e.jsx(F, { placeholder: "Todas as contas" }),
+                  }),
+                  e.jsxs(B, {
+                    className: "bg-card border-border/60",
+                    children: [
+                      e.jsx(j, {
+                        value: "all",
+                        className: "cursor-pointer",
+                        children: "✨ Todas as contas",
+                      }),
+                      i.map((s) =>
+                        e.jsxs(
+                          j,
+                          {
+                            value: s.id,
+                            className: "cursor-pointer",
+                            children: ["📸 @", s.username],
+                          },
+                          s.id,
+                        ),
+                      ),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      S
+        ? e.jsx("div", {
+            className: "grid gap-6 md:grid-cols-3",
+            children: [1, 2, 3].map((s) =>
+              e.jsx(
+                "div",
+                { className: "h-32 rounded-2xl bg-card border border-border/50 animate-pulse" },
+                s,
+              ),
+            ),
+          })
+        : e.jsxs(e.Fragment, {
+            children: [
+              e.jsxs("div", {
+                className: "grid gap-6 md:grid-cols-3",
+                children: [
+                  e.jsxs("div", {
+                    className:
+                      "rounded-2xl border border-border/50 bg-card/45 p-6 shadow-card hover:bg-card/75 transition relative overflow-hidden group",
+                    children: [
+                      e.jsx("div", {
+                        className:
+                          "absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-300",
+                        children: e.jsx(b, { className: "size-20 text-primary" }),
+                      }),
+                      e.jsxs("div", {
+                        className:
+                          "flex items-center gap-3 text-muted-foreground text-sm font-semibold mb-3",
+                        children: [
+                          e.jsx("div", {
+                            className:
+                              "size-8 rounded-lg bg-primary/10 grid place-items-center text-primary",
+                            children: e.jsx(b, { className: "size-4" }),
+                          }),
+                          "Reels Agendados (Hoje)",
+                        ],
+                      }),
+                      e.jsxs("div", {
+                        className: "flex items-baseline gap-2",
+                        children: [
+                          e.jsx("span", {
+                            className: "text-4xl font-extrabold text-gradient-brand",
+                            children: A,
+                          }),
+                          e.jsx("span", {
+                            className: "text-xs text-muted-foreground",
+                            children: "reels hoje",
+                          }),
+                        ],
+                      }),
+                      e.jsx("p", {
+                        className: "text-xs text-muted-foreground mt-4 leading-relaxed",
+                        children: "Prontos para postagem automática nas próximas horas.",
+                      }),
+                    ],
+                  }),
+                  e.jsxs("div", {
+                    className:
+                      "rounded-2xl border border-border/50 bg-card/45 p-6 shadow-card hover:bg-card/75 transition relative overflow-hidden group",
+                    children: [
+                      e.jsx("div", {
+                        className:
+                          "absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-300",
+                        children: e.jsx(N, { className: "size-20 text-success" }),
+                      }),
+                      e.jsxs("div", {
+                        className:
+                          "flex items-center gap-3 text-muted-foreground text-sm font-semibold mb-3",
+                        children: [
+                          e.jsx("div", {
+                            className:
+                              "size-8 rounded-lg bg-success/10 grid place-items-center text-success",
+                            children: e.jsx(N, { className: "size-4" }),
+                          }),
+                          "Reels Publicados",
+                        ],
+                      }),
+                      e.jsxs("div", {
+                        className: "flex items-baseline gap-2",
+                        children: [
+                          e.jsx("span", {
+                            className: "text-4xl font-extrabold text-success",
+                            children: P,
+                          }),
+                          e.jsx("span", {
+                            className: "text-xs text-muted-foreground",
+                            children: "publicados com sucesso",
+                          }),
+                        ],
+                      }),
+                      e.jsx("p", {
+                        className:
+                          "text-xs text-muted-foreground mt-4 leading-relaxed flex items-center gap-1",
+                        children:
+                          h > 0
+                            ? e.jsxs("span", {
+                                className:
+                                  "text-destructive font-semibold flex items-center gap-0.5",
+                                children: ["⚠️ ", h, " falhas registradas"],
+                              })
+                            : e.jsx("span", { children: "Sem falhas de publicação." }),
+                      }),
+                    ],
+                  }),
+                  e.jsxs("div", {
+                    className:
+                      "rounded-2xl border border-border/50 bg-card/45 p-6 shadow-card hover:bg-card/75 transition relative overflow-hidden group",
+                    children: [
+                      e.jsx("div", {
+                        className:
+                          "absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-300",
+                        children: e.jsx(c, { className: "size-20 text-accent" }),
+                      }),
+                      e.jsxs("div", {
+                        className:
+                          "flex items-center gap-3 text-muted-foreground text-sm font-semibold mb-3",
+                        children: [
+                          e.jsx("div", {
+                            className:
+                              "size-8 rounded-lg bg-accent/10 grid place-items-center text-accent",
+                            children: e.jsx(c, { className: "size-4" }),
+                          }),
+                          "Contas Conectadas",
+                        ],
+                      }),
+                      e.jsxs("div", {
+                        className: "flex items-baseline gap-2",
+                        children: [
+                          e.jsx("span", {
+                            className: "text-4xl font-extrabold text-accent",
+                            children: x,
+                          }),
+                          e.jsx("span", {
+                            className: "text-xs text-muted-foreground",
+                            children: "perfis ativos",
+                          }),
+                        ],
+                      }),
+                      e.jsx("p", {
+                        className: "text-xs text-muted-foreground mt-4 leading-relaxed",
+                        children: "Todas gerenciadas a partir de um único painel.",
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              e.jsxs("div", {
+                className: "grid gap-6 lg:grid-cols-3",
+                children: [
+                  e.jsxs("div", {
+                    className:
+                      "lg:col-span-2 rounded-2xl border border-border/50 bg-card/30 p-6 flex flex-col justify-between",
+                    children: [
+                      e.jsxs("div", {
+                        children: [
+                          e.jsxs("div", {
+                            className: "flex items-center justify-between mb-6",
+                            children: [
+                              e.jsxs("h3", {
+                                className: "font-bold text-lg flex items-center gap-2",
+                                children: [
+                                  e.jsx(v, { className: "size-5 text-primary" }),
+                                  " Próximas Publicações",
+                                ],
+                              }),
+                              e.jsxs(a, {
+                                to: "/calendar",
+                                className:
+                                  "text-xs text-primary hover:underline font-semibold flex items-center gap-0.5",
+                                children: [
+                                  "Ver calendário completo ",
+                                  e.jsx(L, { className: "size-3" }),
+                                ],
+                              }),
+                            ],
+                          }),
+                          n.length === 0
+                            ? e.jsxs("div", {
+                                className:
+                                  "text-center py-10 border border-dashed border-border/60 rounded-xl bg-card/10",
+                                children: [
+                                  e.jsx("p", {
+                                    className: "text-muted-foreground text-sm",
+                                    children: "Nenhum Reel agendado para o futuro.",
+                                  }),
+                                  e.jsx(a, {
+                                    to: "/calendar",
+                                    className: "inline-block mt-4",
+                                    children: e.jsx(o, {
+                                      size: "sm",
+                                      className:
+                                        "bg-gradient-brand text-primary-foreground border-0",
+                                      children: "Agendar Primeiro Reel",
+                                    }),
+                                  }),
+                                ],
+                              })
+                            : e.jsx("div", {
+                                className: "space-y-4",
+                                children: n.map((s) =>
+                                  e.jsxs(
+                                    "div",
+                                    {
+                                      className:
+                                        "flex gap-4 p-3 rounded-xl bg-card/65 border border-border/40 hover:bg-card/90 transition shadow-sm",
+                                      children: [
+                                        e.jsx("video", {
+                                          src: s.video_url,
+                                          className:
+                                            "size-16 rounded-lg object-cover bg-background shrink-0",
+                                          muted: !0,
+                                        }),
+                                        e.jsxs("div", {
+                                          className:
+                                            "min-w-0 flex-1 flex flex-col justify-between py-0.5",
+                                          children: [
+                                            e.jsxs("div", {
+                                              children: [
+                                                e.jsxs("div", {
+                                                  className: "flex items-center gap-2 text-xs",
+                                                  children: [
+                                                    e.jsxs("span", {
+                                                      className: "font-bold text-primary",
+                                                      children: [
+                                                        "@",
+                                                        s.instagram_accounts?.username ||
+                                                          "instagram",
+                                                      ],
+                                                    }),
+                                                    e.jsx("span", {
+                                                      className: "text-muted-foreground",
+                                                      children: "•",
+                                                    }),
+                                                    e.jsx("span", {
+                                                      className: "text-muted-foreground",
+                                                      children: new Date(
+                                                        s.scheduled_at,
+                                                      ).toLocaleString("pt-BR", {
+                                                        dateStyle: "short",
+                                                        timeStyle: "short",
+                                                      }),
+                                                    }),
+                                                  ],
+                                                }),
+                                                e.jsx("p", {
+                                                  className:
+                                                    "text-sm font-medium mt-1 truncate text-foreground/90",
+                                                  children:
+                                                    s.caption ||
+                                                    e.jsx("span", {
+                                                      className: "text-muted-foreground italic",
+                                                      children: "Sem legenda",
+                                                    }),
+                                                }),
+                                              ],
+                                            }),
+                                            e.jsxs("span", {
+                                              className:
+                                                "inline-flex items-center gap-1 text-[10px] font-semibold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full max-w-max",
+                                              children: [
+                                                e.jsx(v, { className: "size-2.5 animate-pulse" }),
+                                                " Agendado",
+                                              ],
+                                            }),
+                                          ],
+                                        }),
+                                      ],
+                                    },
+                                    s.id,
+                                  ),
+                                ),
+                              }),
+                        ],
+                      }),
+                      n.length > 0 &&
+                        e.jsx("div", {
+                          className: "pt-4 border-t border-border/40 mt-4 flex justify-end",
+                          children: e.jsx(a, {
+                            to: "/calendar",
+                            children: e.jsxs(o, {
+                              variant: "ghost",
+                              size: "sm",
+                              className:
+                                "text-muted-foreground hover:text-foreground text-xs font-semibold",
+                              children: [
+                                "Gerenciar Agendamentos (",
+                                r.filter((s) => s.status === "pending").length,
+                                ") →",
+                              ],
+                            }),
+                          }),
+                        }),
+                    ],
+                  }),
+                  e.jsxs("div", {
+                    className:
+                      "rounded-2xl border border-border/50 bg-gradient-brand/5 p-6 flex flex-col justify-between shadow-card",
+                    children: [
+                      e.jsxs("div", {
+                        className: "space-y-4",
+                        children: [
+                          e.jsx("div", {
+                            className:
+                              "size-12 rounded-xl bg-gradient-brand grid place-items-center",
+                            children: e.jsx(H, { className: "size-6 text-primary-foreground" }),
+                          }),
+                          e.jsx("h3", {
+                            className: "font-extrabold text-xl",
+                            children: "Agendamento Automático",
+                          }),
+                          e.jsx("p", {
+                            className: "text-sm text-muted-foreground leading-relaxed",
+                            children:
+                              "Agende novos Reels adicionando arquivos de vídeo locais, legendas personalizadas e escolhendo o dia e hora exatos de postagem.",
+                          }),
+                        ],
+                      }),
+                      e.jsxs("div", {
+                        className: "space-y-3 mt-8",
+                        children: [
+                          x > 0
+                            ? e.jsx(a, {
+                                to: "/calendar",
+                                className: "block w-full",
+                                children: e.jsxs(o, {
+                                  className:
+                                    "w-full bg-gradient-brand text-primary-foreground border-0 shadow-glow font-bold h-11 hover:opacity-95",
+                                  children: [
+                                    e.jsx(G, { className: "size-4 mr-2" }),
+                                    " Agendar Novo Reel",
+                                  ],
+                                }),
+                              })
+                            : e.jsx(a, {
+                                to: "/accounts",
+                                className: "block w-full",
+                                children: e.jsxs(o, {
+                                  className:
+                                    "w-full bg-gradient-brand text-primary-foreground border-0 shadow-glow font-bold h-11 hover:opacity-95",
+                                  children: [
+                                    e.jsx(c, { className: "size-4 mr-2" }),
+                                    " Conectar Conta",
+                                  ],
+                                }),
+                              }),
+                          e.jsx(a, {
+                            to: "/accounts",
+                            className: "block w-full",
+                            children: e.jsx(o, {
+                              variant: "outline",
+                              className:
+                                "w-full border-border hover:bg-secondary h-11 font-semibold text-sm rounded-xl",
+                              children: "Ver Contas Vinculadas",
+                            }),
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+    ],
+  });
+}
+const Z = () => e.jsx(T, { children: e.jsx(O, {}) });
+export { Z as component };

@@ -1,9 +1,17 @@
-import { c as computePosition, o as offset$1, s as shift$1, f as flip$1, d as size$1, h as hide$1, a as arrow$2, l as limitShift$1 } from "./floating-ui__dom.mjs";
+import {
+  c as computePosition,
+  o as offset$1,
+  s as shift$1,
+  f as flip$1,
+  d as size$1,
+  h as hide$1,
+  a as arrow$2,
+  l as limitShift$1,
+} from "./floating-ui__dom.mjs";
 import { r as reactExports } from "./react.mjs";
 import { r as reactDomExports } from "./react-dom.mjs";
 var isClient = typeof document !== "undefined";
-var noop = function noop2() {
-};
+var noop = function noop2() {};
 var index = isClient ? reactExports.useLayoutEffect : noop;
 function deepEqual(a, b) {
   if (a === b) {
@@ -79,13 +87,10 @@ function useFloating(options) {
     strategy = "absolute",
     middleware = [],
     platform,
-    elements: {
-      reference: externalReference,
-      floating: externalFloating
-    } = {},
+    elements: { reference: externalReference, floating: externalFloating } = {},
     transform = true,
     whileElementsMounted,
-    open
+    open,
   } = options;
   const [data, setData] = reactExports.useState({
     x: 0,
@@ -93,7 +98,7 @@ function useFloating(options) {
     strategy,
     placement,
     middlewareData: {},
-    isPositioned: false
+    isPositioned: false,
   });
   const [latestMiddleware, setLatestMiddleware] = reactExports.useState(middleware);
   if (!deepEqual(latestMiddleware, middleware)) {
@@ -129,7 +134,7 @@ function useFloating(options) {
     const config = {
       placement,
       strategy,
-      middleware: latestMiddleware
+      middleware: latestMiddleware,
     };
     if (platformRef.current) {
       config.platform = platformRef.current;
@@ -141,7 +146,7 @@ function useFloating(options) {
         // but still mounted (such as when transitioning out). To ensure
         // `isPositioned` will be `false` initially on the next open, avoid
         // setting it to `true` when `open === false` (must be specified).
-        isPositioned: openRef.current !== false
+        isPositioned: openRef.current !== false,
       };
       if (isMountedRef.current && !deepEqual(dataRef.current, fullData)) {
         dataRef.current = fullData;
@@ -156,7 +161,7 @@ function useFloating(options) {
       dataRef.current.isPositioned = false;
       setData((data2) => ({
         ...data2,
-        isPositioned: false
+        isPositioned: false,
       }));
     }
   }, [open]);
@@ -177,21 +182,27 @@ function useFloating(options) {
       update();
     }
   }, [referenceEl, floatingEl, update, whileElementsMountedRef, hasWhileElementsMounted]);
-  const refs = reactExports.useMemo(() => ({
-    reference: referenceRef,
-    floating: floatingRef,
-    setReference,
-    setFloating
-  }), [setReference, setFloating]);
-  const elements = reactExports.useMemo(() => ({
-    reference: referenceEl,
-    floating: floatingEl
-  }), [referenceEl, floatingEl]);
+  const refs = reactExports.useMemo(
+    () => ({
+      reference: referenceRef,
+      floating: floatingRef,
+      setReference,
+      setFloating,
+    }),
+    [setReference, setFloating],
+  );
+  const elements = reactExports.useMemo(
+    () => ({
+      reference: referenceEl,
+      floating: floatingEl,
+    }),
+    [referenceEl, floatingEl],
+  );
   const floatingStyles = reactExports.useMemo(() => {
     const initialStyles = {
       position: strategy,
       left: 0,
-      top: 0
+      top: 0,
     };
     if (!elements.floating) {
       return initialStyles;
@@ -202,24 +213,27 @@ function useFloating(options) {
       return {
         ...initialStyles,
         transform: "translate(" + x + "px, " + y + "px)",
-        ...getDPR(elements.floating) >= 1.5 && {
-          willChange: "transform"
-        }
+        ...(getDPR(elements.floating) >= 1.5 && {
+          willChange: "transform",
+        }),
       };
     }
     return {
       position: strategy,
       left: x,
-      top: y
+      top: y,
     };
   }, [strategy, transform, elements.floating, data.x, data.y]);
-  return reactExports.useMemo(() => ({
-    ...data,
-    update,
-    refs,
-    elements,
-    floatingStyles
-  }), [data, update, refs, elements, floatingStyles]);
+  return reactExports.useMemo(
+    () => ({
+      ...data,
+      update,
+      refs,
+      elements,
+      floatingStyles,
+    }),
+    [data, update, refs, elements, floatingStyles],
+  );
 }
 const arrow$1 = (options) => {
   function isRef(value) {
@@ -229,15 +243,12 @@ const arrow$1 = (options) => {
     name: "arrow",
     options,
     fn(state) {
-      const {
-        element,
-        padding
-      } = typeof options === "function" ? options(state) : options;
+      const { element, padding } = typeof options === "function" ? options(state) : options;
       if (element && isRef(element)) {
         if (element.current != null) {
           return arrow$2({
             element: element.current,
-            padding
+            padding,
           }).fn(state);
         }
         return {};
@@ -245,11 +256,11 @@ const arrow$1 = (options) => {
       if (element) {
         return arrow$2({
           element,
-          padding
+          padding,
         }).fn(state);
       }
       return {};
-    }
+    },
   };
 };
 const offset = (options, deps) => {
@@ -257,7 +268,7 @@ const offset = (options, deps) => {
   return {
     name: result.name,
     fn: result.fn,
-    options: [options, deps]
+    options: [options, deps],
   };
 };
 const shift = (options, deps) => {
@@ -265,14 +276,14 @@ const shift = (options, deps) => {
   return {
     name: result.name,
     fn: result.fn,
-    options: [options, deps]
+    options: [options, deps],
   };
 };
 const limitShift = (options, deps) => {
   const result = limitShift$1(options);
   return {
     fn: result.fn,
-    options: [options, deps]
+    options: [options, deps],
   };
 };
 const flip = (options, deps) => {
@@ -280,7 +291,7 @@ const flip = (options, deps) => {
   return {
     name: result.name,
     fn: result.fn,
-    options: [options, deps]
+    options: [options, deps],
   };
 };
 const size = (options, deps) => {
@@ -288,7 +299,7 @@ const size = (options, deps) => {
   return {
     name: result.name,
     fn: result.fn,
-    options: [options, deps]
+    options: [options, deps],
   };
 };
 const hide = (options, deps) => {
@@ -296,7 +307,7 @@ const hide = (options, deps) => {
   return {
     name: result.name,
     fn: result.fn,
-    options: [options, deps]
+    options: [options, deps],
   };
 };
 const arrow = (options, deps) => {
@@ -304,7 +315,7 @@ const arrow = (options, deps) => {
   return {
     name: result.name,
     fn: result.fn,
-    options: [options, deps]
+    options: [options, deps],
   };
 };
 export {
@@ -315,5 +326,5 @@ export {
   limitShift as l,
   offset as o,
   shift as s,
-  useFloating as u
+  useFloating as u,
 };

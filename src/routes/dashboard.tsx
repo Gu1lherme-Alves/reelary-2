@@ -1,20 +1,26 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { 
-  Instagram, 
-  Plus, 
-  Calendar, 
-  CheckCircle2, 
-  Layers, 
-  ChevronRight, 
-  Clock, 
-  AlertCircle, 
+import {
+  Instagram,
+  Plus,
+  Calendar,
+  CheckCircle2,
+  Layers,
+  ChevronRight,
+  Clock,
+  AlertCircle,
   ArrowUpRight,
-  Sparkles
+  Sparkles,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -62,11 +68,12 @@ function DashboardPage() {
       // 2. Fetch scheduled posts
       const { data: postsData, error: postsErr } = await supabase
         .from("scheduled_posts")
-        .select("id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)")
+        .select(
+          "id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)",
+        )
         .order("scheduled_at", { ascending: true });
       if (postsErr) throw postsErr;
       setPosts((postsData as any) || []);
-      
     } catch (err: any) {
       console.error("Dashboard error:", err);
       toast.error(err.message || "Erro ao carregar dados do painel");
@@ -87,8 +94,8 @@ function DashboardPage() {
   }, []);
 
   // Filter calculations
-  const filteredPosts = posts.filter(p => 
-    filterAccountId === "all" ? true : p.instagram_account_id === filterAccountId
+  const filteredPosts = posts.filter((p) =>
+    filterAccountId === "all" ? true : p.instagram_account_id === filterAccountId,
   );
 
   const totalAccounts = accounts.length;
@@ -99,18 +106,18 @@ function DashboardPage() {
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
 
-  const scheduledToday = filteredPosts.filter(p => {
+  const scheduledToday = filteredPosts.filter((p) => {
     const d = new Date(p.scheduled_at);
     return p.status === "pending" && d >= startOfToday && d <= endOfToday;
   }).length;
 
-  const totalPublished = filteredPosts.filter(p => p.status === "published").length;
-  const totalFailed = filteredPosts.filter(p => p.status === "failed").length;
+  const totalPublished = filteredPosts.filter((p) => p.status === "published").length;
+  const totalFailed = filteredPosts.filter((p) => p.status === "failed").length;
 
   // Get upcoming posts (scheduled after now, pending)
   const now = new Date();
   const upcomingPosts = filteredPosts
-    .filter(p => p.status === "pending" && new Date(p.scheduled_at) > now)
+    .filter((p) => p.status === "pending" && new Date(p.scheduled_at) > now)
     .slice(0, 3); // Get top 3
 
   return (
@@ -119,18 +126,24 @@ function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Painel Geral</h1>
-          <p className="text-muted-foreground mt-1">Acompanhe as métricas de postagem dos seus Reels.</p>
+          <p className="text-muted-foreground mt-1">
+            Acompanhe as métricas de postagem dos seus Reels.
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground font-medium shrink-0">Filtrar por conta:</span>
+          <span className="text-sm text-muted-foreground font-medium shrink-0">
+            Filtrar por conta:
+          </span>
           <Select value={filterAccountId} onValueChange={setFilterAccountId}>
             <SelectTrigger className="w-56 bg-card border-border/60 rounded-xl h-10 font-medium">
               <SelectValue placeholder="Todas as contas" />
             </SelectTrigger>
             <SelectContent className="bg-card border-border/60">
-              <SelectItem value="all" className="cursor-pointer">✨ Todas as contas</SelectItem>
-              {accounts.map(acc => (
+              <SelectItem value="all" className="cursor-pointer">
+                ✨ Todas as contas
+              </SelectItem>
+              {accounts.map((acc) => (
                 <SelectItem key={acc.id} value={acc.id} className="cursor-pointer">
                   📸 @{acc.username}
                 </SelectItem>
@@ -142,8 +155,11 @@ function DashboardPage() {
 
       {loading ? (
         <div className="grid gap-6 md:grid-cols-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-32 rounded-2xl bg-card border border-border/50 animate-pulse" />
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-32 rounded-2xl bg-card border border-border/50 animate-pulse"
+            />
           ))}
         </div>
       ) : (
@@ -162,7 +178,9 @@ function DashboardPage() {
                 Reels Agendados (Hoje)
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-extrabold text-gradient-brand">{scheduledToday}</span>
+                <span className="text-4xl font-extrabold text-gradient-brand">
+                  {scheduledToday}
+                </span>
                 <span className="text-xs text-muted-foreground">reels hoje</span>
               </div>
               <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
@@ -226,36 +244,58 @@ function DashboardPage() {
                   <h3 className="font-bold text-lg flex items-center gap-2">
                     <Clock className="size-5 text-primary" /> Próximas Publicações
                   </h3>
-                  <Link to="/calendar" className="text-xs text-primary hover:underline font-semibold flex items-center gap-0.5">
+                  <Link
+                    to="/calendar"
+                    className="text-xs text-primary hover:underline font-semibold flex items-center gap-0.5"
+                  >
                     Ver calendário completo <ChevronRight className="size-3" />
                   </Link>
                 </div>
 
                 {upcomingPosts.length === 0 ? (
                   <div className="text-center py-10 border border-dashed border-border/60 rounded-xl bg-card/10">
-                    <p className="text-muted-foreground text-sm">Nenhum Reel agendado para o futuro.</p>
+                    <p className="text-muted-foreground text-sm">
+                      Nenhum Reel agendado para o futuro.
+                    </p>
                     <Link to="/calendar" className="inline-block mt-4">
-                      <Button size="sm" className="bg-gradient-brand text-primary-foreground border-0">
+                      <Button
+                        size="sm"
+                        className="bg-gradient-brand text-primary-foreground border-0"
+                      >
                         Agendar Primeiro Reel
                       </Button>
                     </Link>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {upcomingPosts.map(p => (
-                      <div key={p.id} className="flex gap-4 p-3 rounded-xl bg-card/65 border border-border/40 hover:bg-card/90 transition shadow-sm">
-                        <video src={p.video_url} className="size-16 rounded-lg object-cover bg-background shrink-0" muted />
+                    {upcomingPosts.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex gap-4 p-3 rounded-xl bg-card/65 border border-border/40 hover:bg-card/90 transition shadow-sm"
+                      >
+                        <video
+                          src={p.video_url}
+                          className="size-16 rounded-lg object-cover bg-background shrink-0"
+                          muted
+                        />
                         <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
                           <div>
                             <div className="flex items-center gap-2 text-xs">
-                              <span className="font-bold text-primary">@{p.instagram_accounts?.username || "instagram"}</span>
+                              <span className="font-bold text-primary">
+                                @{p.instagram_accounts?.username || "instagram"}
+                              </span>
                               <span className="text-muted-foreground">•</span>
                               <span className="text-muted-foreground">
-                                {new Date(p.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                                {new Date(p.scheduled_at).toLocaleString("pt-BR", {
+                                  dateStyle: "short",
+                                  timeStyle: "short",
+                                })}
                               </span>
                             </div>
                             <p className="text-sm font-medium mt-1 truncate text-foreground/90">
-                              {p.caption || <span className="text-muted-foreground italic">Sem legenda</span>}
+                              {p.caption || (
+                                <span className="text-muted-foreground italic">Sem legenda</span>
+                              )}
                             </p>
                           </div>
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full max-w-max">
@@ -271,8 +311,13 @@ function DashboardPage() {
               {upcomingPosts.length > 0 && (
                 <div className="pt-4 border-t border-border/40 mt-4 flex justify-end">
                   <Link to="/calendar">
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground text-xs font-semibold">
-                      Gerenciar Agendamentos ({filteredPosts.filter(p => p.status === "pending").length}) →
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground text-xs font-semibold"
+                    >
+                      Gerenciar Agendamentos (
+                      {filteredPosts.filter((p) => p.status === "pending").length}) →
                     </Button>
                   </Link>
                 </div>
@@ -287,7 +332,8 @@ function DashboardPage() {
                 </div>
                 <h3 className="font-extrabold text-xl">Agendamento Automático</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Agende novos Reels adicionando arquivos de vídeo locais, legendas personalizadas e escolhendo o dia e hora exatos de postagem.
+                  Agende novos Reels adicionando arquivos de vídeo locais, legendas personalizadas e
+                  escolhendo o dia e hora exatos de postagem.
                 </p>
               </div>
 
@@ -305,9 +351,12 @@ function DashboardPage() {
                     </Button>
                   </Link>
                 )}
-                
+
                 <Link to="/accounts" className="block w-full">
-                  <Button variant="outline" className="w-full border-border hover:bg-secondary h-11 font-semibold text-sm rounded-xl">
+                  <Button
+                    variant="outline"
+                    className="w-full border-border hover:bg-secondary h-11 font-semibold text-sm rounded-xl"
+                  >
                     Ver Contas Vinculadas
                   </Button>
                 </Link>

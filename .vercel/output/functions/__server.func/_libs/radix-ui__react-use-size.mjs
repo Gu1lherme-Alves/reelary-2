@@ -34,6 +34,4 @@ function useSize(element) {
   }, [element]);
   return size;
 }
-export {
-  useSize as u
-};
+export { useSize as u };

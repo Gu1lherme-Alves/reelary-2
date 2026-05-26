@@ -7,7 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -33,7 +37,9 @@ function SchedulePage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.from("instagram_accounts").select("id, username")
+    supabase
+      .from("instagram_accounts")
+      .select("id, username")
       .order("created_at", { ascending: false })
       .then(({ data }) => setAccounts(data ?? []));
   }, []);
@@ -86,11 +92,18 @@ function SchedulePage() {
       {accounts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/80 p-12 text-center bg-card/30">
           <p className="font-medium">Nenhuma conta conectada</p>
-          <p className="text-sm text-muted-foreground mt-1">Conecte uma conta do Instagram primeiro.</p>
-          <Button className="mt-4" onClick={() => navigate({ to: "/dashboard" })}>Ir para contas</Button>
+          <p className="text-sm text-muted-foreground mt-1">
+            Conecte uma conta do Instagram primeiro.
+          </p>
+          <Button className="mt-4" onClick={() => navigate({ to: "/dashboard" })}>
+            Ir para contas
+          </Button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-border/60 bg-card p-6 shadow-card">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6 rounded-2xl border border-border/60 bg-card p-6 shadow-card"
+        >
           <div className="space-y-2">
             <Label>Vídeo</Label>
             <label className="block cursor-pointer">
@@ -124,10 +137,14 @@ function SchedulePage() {
           <div className="space-y-2">
             <Label>Conta</Label>
             <Select value={accountId} onValueChange={setAccountId} required>
-              <SelectTrigger><SelectValue placeholder="Escolha uma conta" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Escolha uma conta" />
+              </SelectTrigger>
               <SelectContent>
                 {accounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>@{a.username}</SelectItem>
+                  <SelectItem key={a.id} value={a.id}>
+                    @{a.username}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -161,7 +178,13 @@ function SchedulePage() {
             disabled={submitting}
             className="w-full bg-gradient-brand text-primary-foreground border-0 hover:opacity-90 h-11"
           >
-            {submitting ? <><Loader2 className="size-4 animate-spin" /> Enviando…</> : "Agendar publicação"}
+            {submitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" /> Enviando…
+              </>
+            ) : (
+              "Agendar publicação"
+            )}
           </Button>
         </form>
       )}

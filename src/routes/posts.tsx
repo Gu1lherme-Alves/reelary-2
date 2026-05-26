@@ -26,9 +26,17 @@ type Post = {
 };
 
 const statusMeta = {
-  pending:   { label: "Agendado",  icon: Clock,        cls: "bg-warning/15 text-warning border-warning/30" },
-  published: { label: "Publicado", icon: CheckCircle2, cls: "bg-success/15 text-success border-success/30" },
-  failed:    { label: "Falhou",    icon: XCircle,      cls: "bg-destructive/15 text-destructive border-destructive/30" },
+  pending: { label: "Agendado", icon: Clock, cls: "bg-warning/15 text-warning border-warning/30" },
+  published: {
+    label: "Publicado",
+    icon: CheckCircle2,
+    cls: "bg-success/15 text-success border-success/30",
+  },
+  failed: {
+    label: "Falhou",
+    icon: XCircle,
+    cls: "bg-destructive/15 text-destructive border-destructive/30",
+  },
 };
 
 function PostsPage() {
@@ -38,14 +46,18 @@ function PostsPage() {
   async function load() {
     const { data, error } = await supabase
       .from("scheduled_posts")
-      .select("id, caption, video_url, scheduled_at, status, error_message, instagram_accounts(username)")
+      .select(
+        "id, caption, video_url, scheduled_at, status, error_message, instagram_accounts(username)",
+      )
       .order("scheduled_at", { ascending: true });
     if (error) toast.error(error.message);
     setPosts((data as any) ?? []);
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   async function remove(id: string) {
     if (!confirm("Excluir este agendamento?")) return;
@@ -71,7 +83,9 @@ function PostsPage() {
 
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => <div key={i} className="h-24 rounded-2xl bg-card animate-pulse" />)}
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 rounded-2xl bg-card animate-pulse" />
+          ))}
         </div>
       ) : posts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/80 p-16 text-center bg-card/30">
@@ -79,7 +93,9 @@ function PostsPage() {
             <CalendarClock className="size-7 text-muted-foreground" />
           </div>
           <h3 className="font-semibold text-lg">Nada agendado</h3>
-          <p className="text-muted-foreground text-sm mt-2">Crie seu primeiro agendamento de Reel.</p>
+          <p className="text-muted-foreground text-sm mt-2">
+            Crie seu primeiro agendamento de Reel.
+          </p>
           <Link to="/schedule">
             <Button className="mt-6 bg-gradient-brand text-primary-foreground border-0">
               <Plus className="size-4" /> Agendar Reel
@@ -92,7 +108,10 @@ function PostsPage() {
             const meta = statusMeta[p.status];
             const Icon = meta.icon;
             return (
-              <div key={p.id} className="rounded-2xl border border-border/60 bg-card p-4 flex gap-4 shadow-card">
+              <div
+                key={p.id}
+                className="rounded-2xl border border-border/60 bg-card p-4 flex gap-4 shadow-card"
+              >
                 <video
                   src={p.video_url}
                   className="size-24 rounded-xl object-cover bg-background shrink-0"
@@ -102,19 +121,30 @@ function PostsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">@{p.instagram_accounts?.username ?? "—"}</span>
+                        <span className="font-medium text-foreground">
+                          @{p.instagram_accounts?.username ?? "—"}
+                        </span>
                         <span>•</span>
-                        <span>{new Date(p.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>
+                        <span>
+                          {new Date(p.scheduled_at).toLocaleString("pt-BR", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}
+                        </span>
                       </div>
                       <p className="mt-1.5 text-sm line-clamp-2 text-foreground/90">
-                        {p.caption || <span className="text-muted-foreground italic">Sem legenda</span>}
+                        {p.caption || (
+                          <span className="text-muted-foreground italic">Sem legenda</span>
+                        )}
                       </p>
                       {p.error_message && (
                         <p className="mt-1 text-xs text-destructive">{p.error_message}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${meta.cls}`}>
+                      <span
+                        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${meta.cls}`}
+                      >
                         <Icon className="size-3" /> {meta.label}
                       </span>
                       <Button variant="ghost" size="icon" onClick={() => remove(p.id)}>

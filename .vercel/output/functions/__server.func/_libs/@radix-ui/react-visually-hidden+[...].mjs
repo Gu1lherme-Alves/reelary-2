@@ -11,22 +11,15 @@ var VISUALLY_HIDDEN_STYLES = Object.freeze({
   overflow: "hidden",
   clip: "rect(0, 0, 0, 0)",
   whiteSpace: "nowrap",
-  wordWrap: "normal"
+  wordWrap: "normal",
 });
 var NAME = "VisuallyHidden";
-var VisuallyHidden = reactExports.forwardRef(
-  (props, forwardedRef) => {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx(
-      Primitive.span,
-      {
-        ...props,
-        ref: forwardedRef,
-        style: { ...VISUALLY_HIDDEN_STYLES, ...props.style }
-      }
-    );
-  }
-);
+var VisuallyHidden = reactExports.forwardRef((props, forwardedRef) => {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(Primitive.span, {
+    ...props,
+    ref: forwardedRef,
+    style: { ...VISUALLY_HIDDEN_STYLES, ...props.style },
+  });
+});
 VisuallyHidden.displayName = NAME;
-export {
-  VISUALLY_HIDDEN_STYLES as V
-};
+export { VISUALLY_HIDDEN_STYLES as V };

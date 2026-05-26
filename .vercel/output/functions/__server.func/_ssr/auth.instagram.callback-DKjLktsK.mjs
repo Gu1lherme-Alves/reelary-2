@@ -1,6 +1,10 @@
 import { r as reactExports, j as jsxRuntimeExports } from "../_libs/react.mjs";
 import { u as useNavigate } from "../_libs/tanstack__react-router.mjs";
-import { u as useServerFn, g as getInstagramRedirectUri, c as connectInstagramAccount } from "./instagram.functions-2J8nGUyq.mjs";
+import {
+  u as useServerFn,
+  g as getInstagramRedirectUri,
+  c as connectInstagramAccount,
+} from "./instagram.functions-2J8nGUyq.mjs";
 import { B as Button } from "./button-DjOZMqFS.mjs";
 import { t as toast } from "../_libs/sonner.mjs";
 import "../_libs/seroval.mjs";
@@ -53,7 +57,7 @@ function CallbackPage() {
     const code = params.get("code");
     console.log("[Callback] Params:", {
       error,
-      code: code ? `${code.slice(0, 20)}...` : null
+      code: code ? `${code.slice(0, 20)}...` : null,
     });
     if (error) {
       console.error("[Callback] OAuth error from Meta:", error);
@@ -73,16 +77,20 @@ function CallbackPage() {
         const res = await connect({
           data: {
             code,
-            redirectUri: getInstagramRedirectUri()
-          }
+            redirectUri: getInstagramRedirectUri(),
+          },
         });
         console.log("[Callback] Success:", res);
         setUsername(res.username);
         setState("done");
         toast.success(`@${res.username} conectada!`);
-        setTimeout(() => navigate({
-          to: "/dashboard"
-        }), 1200);
+        setTimeout(
+          () =>
+            navigate({
+              to: "/dashboard",
+            }),
+          1200,
+        );
       } catch (e) {
         const msg = e?.message ?? e?.toString?.() ?? "Erro desconhecido";
         console.error("[Callback] Server function error:", msg, e);
@@ -91,30 +99,68 @@ function CallbackPage() {
       }
     })();
   }, [connect, navigate]);
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "min-h-screen flex items-center justify-center p-6", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full max-w-md rounded-2xl border border-border/60 bg-card p-8 shadow-card", children: [
-    state === "loading" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center gap-3 py-6", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, { className: "size-8 animate-spin text-primary" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-muted-foreground", children: "Conectando sua conta do Instagram…" })
-    ] }),
-    state === "error" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, { className: "size-10 text-destructive mx-auto" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "mt-4 font-semibold text-lg", children: "Erro na conexão" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-muted-foreground mt-2 break-words", children: errorMsg }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { className: "mt-6 w-full", onClick: () => navigate({
-        to: "/dashboard"
-      }), children: "Voltar ao Dashboard" })
-    ] }),
-    state === "done" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center gap-3 py-6", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheck, { className: "size-10 text-success" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "font-medium", children: [
-        "@",
-        username,
-        " conectada"
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-muted-foreground", children: "Redirecionando…" })
-    ] })
-  ] }) });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", {
+    className: "min-h-screen flex items-center justify-center p-6",
+    children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", {
+      className: "w-full max-w-md rounded-2xl border border-border/60 bg-card p-8 shadow-card",
+      children: [
+        state === "loading" &&
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", {
+            className: "flex flex-col items-center gap-3 py-6",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(LoaderCircle, {
+                className: "size-8 animate-spin text-primary",
+              }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", {
+                className: "text-sm text-muted-foreground",
+                children: "Conectando sua conta do Instagram…",
+              }),
+            ],
+          }),
+        state === "error" &&
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", {
+            className: "text-center",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, {
+                className: "size-10 text-destructive mx-auto",
+              }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("h2", {
+                className: "mt-4 font-semibold text-lg",
+                children: "Erro na conexão",
+              }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", {
+                className: "text-sm text-muted-foreground mt-2 break-words",
+                children: errorMsg,
+              }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Button, {
+                className: "mt-6 w-full",
+                onClick: () =>
+                  navigate({
+                    to: "/dashboard",
+                  }),
+                children: "Voltar ao Dashboard",
+              }),
+            ],
+          }),
+        state === "done" &&
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", {
+            className: "flex flex-col items-center gap-3 py-6",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheck, {
+                className: "size-10 text-success",
+              }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("p", {
+                className: "font-medium",
+                children: ["@", username, " conectada"],
+              }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", {
+                className: "text-sm text-muted-foreground",
+                children: "Redirecionando…",
+              }),
+            ],
+          }),
+      ],
+    }),
+  });
 }
-export {
-  CallbackPage as component
-};
+export { CallbackPage as component };

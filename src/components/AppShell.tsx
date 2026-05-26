@@ -1,17 +1,17 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { 
-  Calendar, 
-  LayoutDashboard, 
-  LogOut, 
-  Sparkles, 
-  Plus, 
-  Menu, 
-  ChevronLeft, 
-  ChevronRight, 
-  Instagram, 
-  Check, 
+import {
+  Calendar,
+  LayoutDashboard,
+  LogOut,
+  Sparkles,
+  Plus,
+  Menu,
+  ChevronLeft,
+  ChevronRight,
+  Instagram,
+  Check,
   UserCircle2,
-  ChevronDown
+  ChevronDown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -74,7 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         active = list[0];
         localStorage.setItem("active_ig_account_id", list[0].id);
       }
-      
+
       setActiveAccount(active || null);
     } catch (err) {
       console.error("Error loading accounts in AppShell:", err);
@@ -130,7 +130,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex bg-background text-foreground transition-all duration-300">
       {/* Sidebar - Desktop */}
-      <aside 
+      <aside
         className={`hidden md:flex flex-col border-r border-border/50 bg-card/60 backdrop-blur-xl shrink-0 transition-all duration-300 relative z-30 ${
           collapsed ? "w-20" : "w-64"
         }`}
@@ -147,9 +147,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
             )}
           </Link>
-          
+
           {!collapsed && (
-            <button 
+            <button
               onClick={toggleSidebar}
               className="size-7 rounded-lg hover:bg-secondary grid place-items-center text-muted-foreground hover:text-foreground transition cursor-pointer"
               title="Recolher menu"
@@ -162,7 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Botão de Expandir se estiver recolhido */}
         {collapsed && (
           <div className="flex justify-center py-4 border-b border-border/40">
-            <button 
+            <button
               onClick={toggleSidebar}
               className="size-8 rounded-lg bg-secondary/80 hover:bg-secondary grid place-items-center text-muted-foreground hover:text-foreground transition cursor-pointer"
               title="Expandir menu"
@@ -181,14 +181,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={item.to}
                 to={item.to}
                 className={`flex items-center gap-3 px-3 h-11 rounded-xl text-sm font-medium transition-all duration-200 group ${
-                  active 
-                    ? "bg-gradient-brand text-primary-foreground shadow-glow" 
+                  active
+                    ? "bg-gradient-brand text-primary-foreground shadow-glow"
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/70"
                 }`}
               >
-                <item.icon className={`size-5 shrink-0 transition-transform group-hover:scale-105 ${active ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary"}`} />
+                <item.icon
+                  className={`size-5 shrink-0 transition-transform group-hover:scale-105 ${active ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary"}`}
+                />
                 {!collapsed && (
-                  <span className="animate-in fade-in slide-in-from-left-2 duration-200">{item.label}</span>
+                  <span className="animate-in fade-in slide-in-from-left-2 duration-200">
+                    {item.label}
+                  </span>
                 )}
               </Link>
             );
@@ -208,7 +212,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             )}
           </div>
-          
+
           <Button
             variant="ghost"
             onClick={async () => {
@@ -252,13 +256,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             {accounts.length > 0 ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 text-xs md:text-sm font-semibold rounded-full px-4 h-9 gap-2 shadow-sm text-foreground flex items-center"
                   >
                     <span className="size-1.5 rounded-full bg-success animate-pulse shrink-0" />
-                    <span>Estou na conta: <strong className="text-primary font-bold">@{activeAccount?.username}</strong></span>
+                    <span>
+                      Estou na conta:{" "}
+                      <strong className="text-primary font-bold">@{activeAccount?.username}</strong>
+                    </span>
                     <ChevronDown className="size-3 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -268,30 +275,30 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {accounts.map((acc) => (
-                    <DropdownMenuItem 
-                      key={acc.id} 
+                    <DropdownMenuItem
+                      key={acc.id}
                       onClick={() => selectActiveAccount(acc)}
                       className="flex items-center justify-between py-2 cursor-pointer text-sm"
                     >
                       <span className="flex items-center gap-2 font-medium">
-                        <Instagram className="size-4 text-primary" />
-                        @{acc.username}
+                        <Instagram className="size-4 text-primary" />@{acc.username}
                       </span>
-                      {activeAccount?.id === acc.id && (
-                        <Check className="size-4 text-success" />
-                      )}
+                      {activeAccount?.id === acc.id && <Check className="size-4 text-success" />}
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate({ to: "/accounts" })} className="py-2 text-center text-xs text-primary hover:underline font-semibold cursor-pointer">
+                  <DropdownMenuItem
+                    onClick={() => navigate({ to: "/accounts" })}
+                    className="py-2 text-center text-xs text-primary hover:underline font-semibold cursor-pointer"
+                  >
                     Gerenciar Contas
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => navigate({ to: "/accounts" })}
                 className="border-dashed border-muted-foreground/40 text-xs text-muted-foreground rounded-full px-3 h-8.5 gap-1.5"
               >
@@ -339,9 +346,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {/* Main Content View */}
         <main className="flex-1 px-4 md:px-8 py-8 pb-24 md:pb-8 overflow-y-auto">
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {children}
-          </div>
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">{children}</div>
         </main>
       </div>
     </div>

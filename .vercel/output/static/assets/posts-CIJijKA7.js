@@ -1,1 +1,192 @@
-import{j as e,h as t,L as n,s as i,t as a}from"./index-CDMAuvnc.js";import{a as p}from"./AppShell-C8I5-jDj.js";import{b as f,B as c}from"./button-BCDv24mv.js";import{P as l}from"./plus-CeI0anFx.js";import{C as b}from"./calendar-clock-CVPEyjx1.js";import{C as j}from"./circle-check-KfMURPra.js";import{C as N}from"./clock-CY4rnrr8.js";import{T as v}from"./trash-2-F1jD8W3K.js";import"./use-auth-CcoCM9Hr.js";import"./instagram-BnzdXG05.js";const y=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"m15 9-6 6",key:"1uzhvr"}],["path",{d:"m9 9 6 6",key:"z0biqf"}]],_=f("circle-x",y),k={pending:{label:"Agendado",icon:N,cls:"bg-warning/15 text-warning border-warning/30"},published:{label:"Publicado",icon:j,cls:"bg-success/15 text-success border-success/30"},failed:{label:"Falhou",icon:_,cls:"bg-destructive/15 text-destructive border-destructive/30"}};function C(){const[d,m]=t.useState([]),[x,u]=t.useState(!0);async function o(){const{data:s,error:r}=await i.from("scheduled_posts").select("id, caption, video_url, scheduled_at, status, error_message, instagram_accounts(username)").order("scheduled_at",{ascending:!0});r&&a.error(r.message),m(s??[]),u(!1)}t.useEffect(()=>{o()},[]);async function h(s){if(!confirm("Excluir este agendamento?"))return;const{error:r}=await i.from("scheduled_posts").delete().eq("id",s);if(r)return a.error(r.message);a.success("Agendamento excluído"),o()}return e.jsxs("div",{children:[e.jsxs("div",{className:"flex items-center justify-between mb-8",children:[e.jsxs("div",{children:[e.jsx("h1",{className:"text-3xl font-bold tracking-tight",children:"Reels agendados"}),e.jsx("p",{className:"text-muted-foreground mt-1",children:"Acompanhe o status de cada publicação"})]}),e.jsx(n,{to:"/schedule",children:e.jsxs(c,{className:"bg-gradient-brand text-primary-foreground border-0 hover:opacity-90",children:[e.jsx(l,{className:"size-4"})," Novo Reel"]})})]}),x?e.jsx("div",{className:"space-y-3",children:[1,2,3].map(s=>e.jsx("div",{className:"h-24 rounded-2xl bg-card animate-pulse"},s))}):d.length===0?e.jsxs("div",{className:"rounded-2xl border border-dashed border-border/80 p-16 text-center bg-card/30",children:[e.jsx("div",{className:"size-14 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4",children:e.jsx(b,{className:"size-7 text-muted-foreground"})}),e.jsx("h3",{className:"font-semibold text-lg",children:"Nada agendado"}),e.jsx("p",{className:"text-muted-foreground text-sm mt-2",children:"Crie seu primeiro agendamento de Reel."}),e.jsx(n,{to:"/schedule",children:e.jsxs(c,{className:"mt-6 bg-gradient-brand text-primary-foreground border-0",children:[e.jsx(l,{className:"size-4"})," Agendar Reel"]})})]}):e.jsx("div",{className:"space-y-3",children:d.map(s=>{const r=k[s.status],g=r.icon;return e.jsxs("div",{className:"rounded-2xl border border-border/60 bg-card p-4 flex gap-4 shadow-card",children:[e.jsx("video",{src:s.video_url,className:"size-24 rounded-xl object-cover bg-background shrink-0",muted:!0}),e.jsx("div",{className:"flex-1 min-w-0",children:e.jsxs("div",{className:"flex items-start justify-between gap-3",children:[e.jsxs("div",{className:"min-w-0",children:[e.jsxs("div",{className:"flex items-center gap-2 text-xs text-muted-foreground",children:[e.jsxs("span",{className:"font-medium text-foreground",children:["@",s.instagram_accounts?.username??"—"]}),e.jsx("span",{children:"•"}),e.jsx("span",{children:new Date(s.scheduled_at).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})})]}),e.jsx("p",{className:"mt-1.5 text-sm line-clamp-2 text-foreground/90",children:s.caption||e.jsx("span",{className:"text-muted-foreground italic",children:"Sem legenda"})}),s.error_message&&e.jsx("p",{className:"mt-1 text-xs text-destructive",children:s.error_message})]}),e.jsxs("div",{className:"flex items-center gap-2 shrink-0",children:[e.jsxs("span",{className:`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${r.cls}`,children:[e.jsx(g,{className:"size-3"})," ",r.label]}),e.jsx(c,{variant:"ghost",size:"icon",onClick:()=>h(s.id),children:e.jsx(v,{className:"size-4 text-muted-foreground hover:text-destructive"})})]})]})})]},s.id)})})]})}const I=()=>e.jsx(p,{children:e.jsx(C,{})});export{I as component};
+import { j as e, h as t, L as n, s as i, t as a } from "./index-CDMAuvnc.js";
+import { a as p } from "./AppShell-C8I5-jDj.js";
+import { b as f, B as c } from "./button-BCDv24mv.js";
+import { P as l } from "./plus-CeI0anFx.js";
+import { C as b } from "./calendar-clock-CVPEyjx1.js";
+import { C as j } from "./circle-check-KfMURPra.js";
+import { C as N } from "./clock-CY4rnrr8.js";
+import { T as v } from "./trash-2-F1jD8W3K.js";
+import "./use-auth-CcoCM9Hr.js";
+import "./instagram-BnzdXG05.js";
+const y = [
+    ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+    ["path", { d: "m15 9-6 6", key: "1uzhvr" }],
+    ["path", { d: "m9 9 6 6", key: "z0biqf" }],
+  ],
+  _ = f("circle-x", y),
+  k = {
+    pending: { label: "Agendado", icon: N, cls: "bg-warning/15 text-warning border-warning/30" },
+    published: { label: "Publicado", icon: j, cls: "bg-success/15 text-success border-success/30" },
+    failed: {
+      label: "Falhou",
+      icon: _,
+      cls: "bg-destructive/15 text-destructive border-destructive/30",
+    },
+  };
+function C() {
+  const [d, m] = t.useState([]),
+    [x, u] = t.useState(!0);
+  async function o() {
+    const { data: s, error: r } = await i
+      .from("scheduled_posts")
+      .select(
+        "id, caption, video_url, scheduled_at, status, error_message, instagram_accounts(username)",
+      )
+      .order("scheduled_at", { ascending: !0 });
+    (r && a.error(r.message), m(s ?? []), u(!1));
+  }
+  t.useEffect(() => {
+    o();
+  }, []);
+  async function h(s) {
+    if (!confirm("Excluir este agendamento?")) return;
+    const { error: r } = await i.from("scheduled_posts").delete().eq("id", s);
+    if (r) return a.error(r.message);
+    (a.success("Agendamento excluído"), o());
+  }
+  return e.jsxs("div", {
+    children: [
+      e.jsxs("div", {
+        className: "flex items-center justify-between mb-8",
+        children: [
+          e.jsxs("div", {
+            children: [
+              e.jsx("h1", {
+                className: "text-3xl font-bold tracking-tight",
+                children: "Reels agendados",
+              }),
+              e.jsx("p", {
+                className: "text-muted-foreground mt-1",
+                children: "Acompanhe o status de cada publicação",
+              }),
+            ],
+          }),
+          e.jsx(n, {
+            to: "/schedule",
+            children: e.jsxs(c, {
+              className: "bg-gradient-brand text-primary-foreground border-0 hover:opacity-90",
+              children: [e.jsx(l, { className: "size-4" }), " Novo Reel"],
+            }),
+          }),
+        ],
+      }),
+      x
+        ? e.jsx("div", {
+            className: "space-y-3",
+            children: [1, 2, 3].map((s) =>
+              e.jsx("div", { className: "h-24 rounded-2xl bg-card animate-pulse" }, s),
+            ),
+          })
+        : d.length === 0
+          ? e.jsxs("div", {
+              className:
+                "rounded-2xl border border-dashed border-border/80 p-16 text-center bg-card/30",
+              children: [
+                e.jsx("div", {
+                  className:
+                    "size-14 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4",
+                  children: e.jsx(b, { className: "size-7 text-muted-foreground" }),
+                }),
+                e.jsx("h3", { className: "font-semibold text-lg", children: "Nada agendado" }),
+                e.jsx("p", {
+                  className: "text-muted-foreground text-sm mt-2",
+                  children: "Crie seu primeiro agendamento de Reel.",
+                }),
+                e.jsx(n, {
+                  to: "/schedule",
+                  children: e.jsxs(c, {
+                    className: "mt-6 bg-gradient-brand text-primary-foreground border-0",
+                    children: [e.jsx(l, { className: "size-4" }), " Agendar Reel"],
+                  }),
+                }),
+              ],
+            })
+          : e.jsx("div", {
+              className: "space-y-3",
+              children: d.map((s) => {
+                const r = k[s.status],
+                  g = r.icon;
+                return e.jsxs(
+                  "div",
+                  {
+                    className:
+                      "rounded-2xl border border-border/60 bg-card p-4 flex gap-4 shadow-card",
+                    children: [
+                      e.jsx("video", {
+                        src: s.video_url,
+                        className: "size-24 rounded-xl object-cover bg-background shrink-0",
+                        muted: !0,
+                      }),
+                      e.jsx("div", {
+                        className: "flex-1 min-w-0",
+                        children: e.jsxs("div", {
+                          className: "flex items-start justify-between gap-3",
+                          children: [
+                            e.jsxs("div", {
+                              className: "min-w-0",
+                              children: [
+                                e.jsxs("div", {
+                                  className:
+                                    "flex items-center gap-2 text-xs text-muted-foreground",
+                                  children: [
+                                    e.jsxs("span", {
+                                      className: "font-medium text-foreground",
+                                      children: ["@", s.instagram_accounts?.username ?? "—"],
+                                    }),
+                                    e.jsx("span", { children: "•" }),
+                                    e.jsx("span", {
+                                      children: new Date(s.scheduled_at).toLocaleString("pt-BR", {
+                                        dateStyle: "short",
+                                        timeStyle: "short",
+                                      }),
+                                    }),
+                                  ],
+                                }),
+                                e.jsx("p", {
+                                  className: "mt-1.5 text-sm line-clamp-2 text-foreground/90",
+                                  children:
+                                    s.caption ||
+                                    e.jsx("span", {
+                                      className: "text-muted-foreground italic",
+                                      children: "Sem legenda",
+                                    }),
+                                }),
+                                s.error_message &&
+                                  e.jsx("p", {
+                                    className: "mt-1 text-xs text-destructive",
+                                    children: s.error_message,
+                                  }),
+                              ],
+                            }),
+                            e.jsxs("div", {
+                              className: "flex items-center gap-2 shrink-0",
+                              children: [
+                                e.jsxs("span", {
+                                  className: `inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${r.cls}`,
+                                  children: [e.jsx(g, { className: "size-3" }), " ", r.label],
+                                }),
+                                e.jsx(c, {
+                                  variant: "ghost",
+                                  size: "icon",
+                                  onClick: () => h(s.id),
+                                  children: e.jsx(v, {
+                                    className:
+                                      "size-4 text-muted-foreground hover:text-destructive",
+                                  }),
+                                }),
+                              ],
+                            }),
+                          ],
+                        }),
+                      }),
+                    ],
+                  },
+                  s.id,
+                );
+              }),
+            }),
+    ],
+  });
+}
+const I = () => e.jsx(p, { children: e.jsx(C, {}) });
+export { I as component };

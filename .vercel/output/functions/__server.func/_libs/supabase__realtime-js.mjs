@@ -3,8 +3,7 @@ class WebSocketFactory {
   /**
    * Static-only utility – prevent instantiation.
    */
-  constructor() {
-  }
+  constructor() {}
   static detectEnvironment() {
     var _a;
     if (typeof WebSocket !== "undefined") {
@@ -18,18 +17,32 @@ class WebSocketFactory {
     if (gl && typeof gl.WebSocket !== "undefined") {
       return { type: "native", wsConstructor: gl.WebSocket };
     }
-    if (typeof globalThis !== "undefined" && typeof gt.WebSocketPair !== "undefined" && typeof globalThis.WebSocket === "undefined") {
+    if (
+      typeof globalThis !== "undefined" &&
+      typeof gt.WebSocketPair !== "undefined" &&
+      typeof globalThis.WebSocket === "undefined"
+    ) {
       return {
         type: "cloudflare",
-        error: "Cloudflare Workers detected. WebSocket clients are not supported in Cloudflare Workers.",
-        workaround: "Use Cloudflare Workers WebSocket API for server-side WebSocket handling, or deploy to a different runtime."
+        error:
+          "Cloudflare Workers detected. WebSocket clients are not supported in Cloudflare Workers.",
+        workaround:
+          "Use Cloudflare Workers WebSocket API for server-side WebSocket handling, or deploy to a different runtime.",
       };
     }
-    if (typeof globalThis !== "undefined" && gt.EdgeRuntime || typeof navigator !== "undefined" && ((_a = navigator.userAgent) === null || _a === void 0 ? void 0 : _a.includes("Vercel-Edge"))) {
+    if (
+      (typeof globalThis !== "undefined" && gt.EdgeRuntime) ||
+      (typeof navigator !== "undefined" &&
+        ((_a = navigator.userAgent) === null || _a === void 0
+          ? void 0
+          : _a.includes("Vercel-Edge")))
+    ) {
       return {
         type: "unsupported",
-        error: "Edge runtime detected (Vercel Edge/Netlify Edge). WebSockets are not supported in edge functions.",
-        workaround: "Use serverless functions or a different deployment target for WebSocket functionality."
+        error:
+          "Edge runtime detected (Vercel Edge/Netlify Edge). WebSockets are not supported in edge functions.",
+        workaround:
+          "Use serverless functions or a different deployment target for WebSocket functionality.",
       };
     }
     const _process = globalThis["process"];
@@ -45,20 +58,22 @@ class WebSocketFactory {
           return {
             type: "unsupported",
             error: `Node.js ${nodeVersion} detected but native WebSocket not found.`,
-            workaround: "Provide a WebSocket implementation via the transport option."
+            workaround: "Provide a WebSocket implementation via the transport option.",
           };
         }
         return {
           type: "unsupported",
           error: `Node.js ${nodeVersion} detected without native WebSocket support.`,
-          workaround: 'For Node.js < 22, install "ws" package and provide it via the transport option:\nimport ws from "ws"\nnew RealtimeClient(url, { transport: ws })'
+          workaround:
+            'For Node.js < 22, install "ws" package and provide it via the transport option:\nimport ws from "ws"\nnew RealtimeClient(url, { transport: ws })',
         };
       }
     }
     return {
       type: "unsupported",
       error: "Unknown JavaScript runtime without WebSocket support.",
-      workaround: "Ensure you're running in a supported environment (browser, Node.js, Deno) or provide a custom WebSocket implementation."
+      workaround:
+        "Ensure you're running in a supported environment (browser, Node.js, Deno) or provide a custom WebSocket implementation.",
     };
   }
   /**
@@ -123,19 +138,19 @@ const CHANNEL_STATES = {
   errored: "errored",
   joined: "joined",
   joining: "joining",
-  leaving: "leaving"
+  leaving: "leaving",
 };
 const CHANNEL_EVENTS = {
   close: "phx_close",
   error: "phx_error",
   join: "phx_join",
   leave: "phx_leave",
-  access_token: "access_token"
+  access_token: "access_token",
 };
 const CONNECTION_STATE = {
   connecting: "connecting",
   closing: "closing",
-  closed: "closed"
+  closed: "closed",
 };
 class Serializer {
   constructor(allowedMetadataKeys) {
@@ -146,10 +161,15 @@ class Serializer {
     this.JSON_ENCODING = 1;
     this.BROADCAST_EVENT = "broadcast";
     this.allowedMetadataKeys = [];
-    this.allowedMetadataKeys = allowedMetadataKeys !== null && allowedMetadataKeys !== void 0 ? allowedMetadataKeys : [];
+    this.allowedMetadataKeys =
+      allowedMetadataKeys !== null && allowedMetadataKeys !== void 0 ? allowedMetadataKeys : [];
   }
   encode(msg, callback) {
-    if (msg.event === this.BROADCAST_EVENT && !(msg.payload instanceof ArrayBuffer) && typeof msg.payload.event === "string") {
+    if (
+      msg.event === this.BROADCAST_EVENT &&
+      !(msg.payload instanceof ArrayBuffer) &&
+      typeof msg.payload.event === "string"
+    ) {
       return callback(this._binaryEncodeUserBroadcastPush(msg));
     }
     let payload = [msg.join_ref, msg.ref, msg.topic, msg.event, msg.payload];
@@ -157,7 +177,9 @@ class Serializer {
   }
   _binaryEncodeUserBroadcastPush(message) {
     var _a;
-    if (this._isArrayBuffer((_a = message.payload) === null || _a === void 0 ? void 0 : _a.payload)) {
+    if (
+      this._isArrayBuffer((_a = message.payload) === null || _a === void 0 ? void 0 : _a.payload)
+    ) {
       return this._encodeBinaryUserBroadcastPush(message);
     } else {
       return this._encodeJsonUserBroadcastPush(message);
@@ -165,12 +187,20 @@ class Serializer {
   }
   _encodeBinaryUserBroadcastPush(message) {
     var _a, _b;
-    const userPayload = (_b = (_a = message.payload) === null || _a === void 0 ? void 0 : _a.payload) !== null && _b !== void 0 ? _b : new ArrayBuffer(0);
+    const userPayload =
+      (_b = (_a = message.payload) === null || _a === void 0 ? void 0 : _a.payload) !== null &&
+      _b !== void 0
+        ? _b
+        : new ArrayBuffer(0);
     return this._encodeUserBroadcastPush(message, this.BINARY_ENCODING, userPayload);
   }
   _encodeJsonUserBroadcastPush(message) {
     var _a, _b;
-    const userPayload = (_b = (_a = message.payload) === null || _a === void 0 ? void 0 : _a.payload) !== null && _b !== void 0 ? _b : {};
+    const userPayload =
+      (_b = (_a = message.payload) === null || _a === void 0 ? void 0 : _a.payload) !== null &&
+      _b !== void 0
+        ? _b
+        : {};
     const encoder = new TextEncoder();
     const encodedUserPayload = encoder.encode(JSON.stringify(userPayload)).buffer;
     return this._encodeUserBroadcastPush(message, this.JSON_ENCODING, encodedUserPayload);
@@ -181,7 +211,9 @@ class Serializer {
     const ref = (_a = message.ref) !== null && _a !== void 0 ? _a : "";
     const joinRef = (_b = message.join_ref) !== null && _b !== void 0 ? _b : "";
     const userEvent = message.payload.event;
-    const rest = this.allowedMetadataKeys ? this._pick(message.payload, this.allowedMetadataKeys) : {};
+    const rest = this.allowedMetadataKeys
+      ? this._pick(message.payload, this.allowedMetadataKeys)
+      : {};
     const metadata = Object.keys(rest).length === 0 ? "" : JSON.stringify(rest);
     if (joinRef.length > 255) {
       throw new Error(`joinRef length ${joinRef.length} exceeds maximum of 255`);
@@ -198,7 +230,13 @@ class Serializer {
     if (metadata.length > 255) {
       throw new Error(`metadata length ${metadata.length} exceeds maximum of 255`);
     }
-    const metaLength = this.USER_BROADCAST_PUSH_META_LENGTH + joinRef.length + ref.length + topic.length + userEvent.length + metadata.length;
+    const metaLength =
+      this.USER_BROADCAST_PUSH_META_LENGTH +
+      joinRef.length +
+      ref.length +
+      topic.length +
+      userEvent.length +
+      metadata.length;
     const header = new ArrayBuffer(this.HEADER_LENGTH + metaLength);
     let view = new DataView(header);
     let offset = 0;
@@ -253,11 +291,12 @@ class Serializer {
     const metadata = decoder.decode(buffer.slice(offset, offset + metadataSize));
     offset = offset + metadataSize;
     const payload = buffer.slice(offset, buffer.byteLength);
-    const parsedPayload = payloadEncoding === this.JSON_ENCODING ? JSON.parse(decoder.decode(payload)) : payload;
+    const parsedPayload =
+      payloadEncoding === this.JSON_ENCODING ? JSON.parse(decoder.decode(payload)) : payload;
     const data = {
       type: this.BROADCAST_EVENT,
       event: userEvent,
-      payload: parsedPayload
+      payload: parsedPayload,
     };
     if (metadataSize > 0) {
       data["meta"] = JSON.parse(metadata);
@@ -266,7 +305,13 @@ class Serializer {
   }
   _isArrayBuffer(buffer) {
     var _a;
-    return buffer instanceof ArrayBuffer || ((_a = buffer === null || buffer === void 0 ? void 0 : buffer.constructor) === null || _a === void 0 ? void 0 : _a.name) === "ArrayBuffer";
+    return (
+      buffer instanceof ArrayBuffer ||
+      ((_a = buffer === null || buffer === void 0 ? void 0 : buffer.constructor) === null ||
+      _a === void 0
+        ? void 0
+        : _a.name) === "ArrayBuffer"
+    );
   }
   _pick(obj, keys) {
     if (!obj || typeof obj !== "object") {
@@ -276,7 +321,7 @@ class Serializer {
   }
 }
 var PostgresTypes;
-(function(PostgresTypes2) {
+(function (PostgresTypes2) {
   PostgresTypes2["abstime"] = "abstime";
   PostgresTypes2["bool"] = "bool";
   PostgresTypes2["date"] = "date";
@@ -428,7 +473,11 @@ const toTimestampString = (value) => {
 const httpEndpointURL = (socketUrl) => {
   const wsUrl = new URL(socketUrl);
   wsUrl.protocol = wsUrl.protocol.replace(/^ws/i, "http");
-  wsUrl.pathname = wsUrl.pathname.replace(/\/+$/, "").replace(/\/socket\/websocket$/i, "").replace(/\/socket$/i, "").replace(/\/websocket$/i, "");
+  wsUrl.pathname = wsUrl.pathname
+    .replace(/\/+$/, "")
+    .replace(/\/socket\/websocket$/i, "")
+    .replace(/\/socket$/i, "")
+    .replace(/\/websocket$/i, "");
   if (wsUrl.pathname === "" || wsUrl.pathname === "/") {
     wsUrl.pathname = "/api/broadcast";
   } else {
@@ -493,7 +542,7 @@ class PresenceAdapter {
       event: "join",
       key,
       currentPresences,
-      newPresences
+      newPresences,
     };
   }
   static onLeavePayload(key, currentPresence, leftPresence) {
@@ -503,7 +552,7 @@ class PresenceAdapter {
       event: "leave",
       key,
       currentPresences,
-      leftPresences
+      leftPresences,
     };
   }
 }
@@ -522,10 +571,14 @@ function phoenixPresenceOptions(opts) {
   return (opts === null || opts === void 0 ? void 0 : opts.events) && { events: opts.events };
 }
 function parseCurrentPresences(currentPresences) {
-  return (currentPresences === null || currentPresences === void 0 ? void 0 : currentPresences.metas) ? transformState(currentPresences) : [];
+  return (
+    currentPresences === null || currentPresences === void 0 ? void 0 : currentPresences.metas
+  )
+    ? transformState(currentPresences)
+    : [];
 }
 var REALTIME_PRESENCE_LISTEN_EVENTS;
-(function(REALTIME_PRESENCE_LISTEN_EVENTS2) {
+(function (REALTIME_PRESENCE_LISTEN_EVENTS2) {
   REALTIME_PRESENCE_LISTEN_EVENTS2["SYNC"] = "sync";
   REALTIME_PRESENCE_LISTEN_EVENTS2["JOIN"] = "join";
   REALTIME_PRESENCE_LISTEN_EVENTS2["LEAVE"] = "leave";
@@ -620,12 +673,18 @@ class ChannelAdapter {
     try {
       push = this.channel.push(event, payload, timeout);
     } catch (error) {
-      throw new Error(`tried to push '${event}' to '${this.channel.topic}' before joining. Use channel.subscribe() before pushing events`);
+      throw new Error(
+        `tried to push '${event}' to '${this.channel.topic}' before joining. Use channel.subscribe() before pushing events`,
+      );
     }
     if (this.channel.pushBuffer.length > MAX_PUSH_BUFFER_SIZE) {
       const removedPush = this.channel.pushBuffer.shift();
       removedPush.cancelTimeout();
-      this.socket.log("channel", `discarded push due to buffer overflow: ${removedPush.event}`, removedPush.payload());
+      this.socket.log(
+        "channel",
+        `discarded push due to buffer overflow: ${removedPush.event}`,
+        removedPush.payload(),
+      );
     }
     return push;
   }
@@ -663,29 +722,32 @@ class ChannelAdapter {
 }
 function phoenixChannelParams(options) {
   return {
-    config: Object.assign({
-      broadcast: { ack: false, self: false },
-      presence: { key: "", enabled: false },
-      private: false
-    }, options.config)
+    config: Object.assign(
+      {
+        broadcast: { ack: false, self: false },
+        presence: { key: "", enabled: false },
+        private: false,
+      },
+      options.config,
+    ),
   };
 }
 var REALTIME_POSTGRES_CHANGES_LISTEN_EVENT;
-(function(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT2) {
+(function (REALTIME_POSTGRES_CHANGES_LISTEN_EVENT2) {
   REALTIME_POSTGRES_CHANGES_LISTEN_EVENT2["ALL"] = "*";
   REALTIME_POSTGRES_CHANGES_LISTEN_EVENT2["INSERT"] = "INSERT";
   REALTIME_POSTGRES_CHANGES_LISTEN_EVENT2["UPDATE"] = "UPDATE";
   REALTIME_POSTGRES_CHANGES_LISTEN_EVENT2["DELETE"] = "DELETE";
 })(REALTIME_POSTGRES_CHANGES_LISTEN_EVENT || (REALTIME_POSTGRES_CHANGES_LISTEN_EVENT = {}));
 var REALTIME_LISTEN_TYPES;
-(function(REALTIME_LISTEN_TYPES2) {
+(function (REALTIME_LISTEN_TYPES2) {
   REALTIME_LISTEN_TYPES2["BROADCAST"] = "broadcast";
   REALTIME_LISTEN_TYPES2["PRESENCE"] = "presence";
   REALTIME_LISTEN_TYPES2["POSTGRES_CHANGES"] = "postgres_changes";
   REALTIME_LISTEN_TYPES2["SYSTEM"] = "system";
 })(REALTIME_LISTEN_TYPES || (REALTIME_LISTEN_TYPES = {}));
 var REALTIME_SUBSCRIBE_STATES;
-(function(REALTIME_SUBSCRIBE_STATES2) {
+(function (REALTIME_SUBSCRIBE_STATES2) {
   REALTIME_SUBSCRIBE_STATES2["SUBSCRIBED"] = "SUBSCRIBED";
   REALTIME_SUBSCRIBE_STATES2["TIMED_OUT"] = "TIMED_OUT";
   REALTIME_SUBSCRIBE_STATES2["CLOSED"] = "CLOSED";
@@ -746,11 +808,14 @@ class RealtimeChannel {
     this.socket = socket;
     this.bindings = {};
     this.subTopic = topic.replace(/^realtime:/i, "");
-    this.params.config = Object.assign({
-      broadcast: { ack: false, self: false },
-      presence: { key: "", enabled: false },
-      private: false
-    }, params.config);
+    this.params.config = Object.assign(
+      {
+        broadcast: { ack: false, self: false },
+        presence: { key: "", enabled: false },
+        private: false,
+      },
+      params.config,
+    );
     this.channelAdapter = new ChannelAdapter(this.socket.socketAdapter, topic, this.params);
     this.presence = new RealtimePresence(this);
     this._onClose(() => {
@@ -759,8 +824,16 @@ class RealtimeChannel {
     this._updateFilterTransform();
     this.broadcastEndpointURL = httpEndpointURL(this.socket.socketAdapter.endPointURL());
     this.private = this.params.config.private || false;
-    if (!this.private && ((_b = (_a = this.params.config) === null || _a === void 0 ? void 0 : _a.broadcast) === null || _b === void 0 ? void 0 : _b.replay)) {
-      throw new Error(`tried to use replay on public channel '${this.topic}'. It must be a private channel.`);
+    if (
+      !this.private &&
+      ((_b = (_a = this.params.config) === null || _a === void 0 ? void 0 : _a.broadcast) ===
+        null || _b === void 0
+        ? void 0
+        : _b.replay)
+    ) {
+      throw new Error(
+        `tried to use replay on public channel '${this.topic}'. It must be a private channel.`,
+      );
     }
   }
   /**
@@ -773,59 +846,111 @@ class RealtimeChannel {
       this.socket.connect();
     }
     if (this.channelAdapter.isClosed()) {
-      const { config: { broadcast, presence, private: isPrivate } } = this.params;
-      const postgres_changes = (_b = (_a = this.bindings.postgres_changes) === null || _a === void 0 ? void 0 : _a.map((r) => r.filter)) !== null && _b !== void 0 ? _b : [];
-      const presence_enabled = !!this.bindings[REALTIME_LISTEN_TYPES.PRESENCE] && this.bindings[REALTIME_LISTEN_TYPES.PRESENCE].length > 0 || ((_c = this.params.config.presence) === null || _c === void 0 ? void 0 : _c.enabled) === true;
+      const {
+        config: { broadcast, presence, private: isPrivate },
+      } = this.params;
+      const postgres_changes =
+        (_b =
+          (_a = this.bindings.postgres_changes) === null || _a === void 0
+            ? void 0
+            : _a.map((r) => r.filter)) !== null && _b !== void 0
+          ? _b
+          : [];
+      const presence_enabled =
+        (!!this.bindings[REALTIME_LISTEN_TYPES.PRESENCE] &&
+          this.bindings[REALTIME_LISTEN_TYPES.PRESENCE].length > 0) ||
+        ((_c = this.params.config.presence) === null || _c === void 0 ? void 0 : _c.enabled) ===
+          true;
       const accessTokenPayload = {};
       const config = {
         broadcast,
         presence: Object.assign(Object.assign({}, presence), { enabled: presence_enabled }),
         postgres_changes,
-        private: isPrivate
+        private: isPrivate,
       };
       if (this.socket.accessTokenValue) {
         accessTokenPayload.access_token = this.socket.accessTokenValue;
       }
       this._onError((reason) => {
-        callback === null || callback === void 0 ? void 0 : callback(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR, normalizeChannelError(reason));
+        callback === null || callback === void 0
+          ? void 0
+          : callback(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR, normalizeChannelError(reason));
       });
-      this._onClose(() => callback === null || callback === void 0 ? void 0 : callback(REALTIME_SUBSCRIBE_STATES.CLOSED));
+      this._onClose(() =>
+        callback === null || callback === void 0
+          ? void 0
+          : callback(REALTIME_SUBSCRIBE_STATES.CLOSED),
+      );
       this.updateJoinPayload(Object.assign({ config }, accessTokenPayload));
       this._updateFilterMessage();
-      this.channelAdapter.subscribe(timeout).receive("ok", async ({ postgres_changes: postgres_changes2 }) => {
-        if (!this.socket._isManualToken()) {
-          this.socket.setAuth();
-        }
-        if (postgres_changes2 === void 0) {
-          callback === null || callback === void 0 ? void 0 : callback(REALTIME_SUBSCRIBE_STATES.SUBSCRIBED);
-          return;
-        }
-        this._updatePostgresBindings(postgres_changes2, callback);
-      }).receive("error", (error) => {
-        this.state = CHANNEL_STATES.errored;
-        const message = Object.values(error).join(", ") || "error";
-        callback === null || callback === void 0 ? void 0 : callback(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR, new Error(message, { cause: error }));
-      }).receive("timeout", () => {
-        callback === null || callback === void 0 ? void 0 : callback(REALTIME_SUBSCRIBE_STATES.TIMED_OUT);
-      });
+      this.channelAdapter
+        .subscribe(timeout)
+        .receive("ok", async ({ postgres_changes: postgres_changes2 }) => {
+          if (!this.socket._isManualToken()) {
+            this.socket.setAuth();
+          }
+          if (postgres_changes2 === void 0) {
+            callback === null || callback === void 0
+              ? void 0
+              : callback(REALTIME_SUBSCRIBE_STATES.SUBSCRIBED);
+            return;
+          }
+          this._updatePostgresBindings(postgres_changes2, callback);
+        })
+        .receive("error", (error) => {
+          this.state = CHANNEL_STATES.errored;
+          const message = Object.values(error).join(", ") || "error";
+          callback === null || callback === void 0
+            ? void 0
+            : callback(
+                REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR,
+                new Error(message, { cause: error }),
+              );
+        })
+        .receive("timeout", () => {
+          callback === null || callback === void 0
+            ? void 0
+            : callback(REALTIME_SUBSCRIBE_STATES.TIMED_OUT);
+        });
     }
     return this;
   }
   _updatePostgresBindings(postgres_changes, callback) {
     var _a;
     const clientPostgresBindings = this.bindings.postgres_changes;
-    const bindingsLen = (_a = clientPostgresBindings === null || clientPostgresBindings === void 0 ? void 0 : clientPostgresBindings.length) !== null && _a !== void 0 ? _a : 0;
+    const bindingsLen =
+      (_a =
+        clientPostgresBindings === null || clientPostgresBindings === void 0
+          ? void 0
+          : clientPostgresBindings.length) !== null && _a !== void 0
+        ? _a
+        : 0;
     const newPostgresBindings = [];
     for (let i = 0; i < bindingsLen; i++) {
       const clientPostgresBinding = clientPostgresBindings[i];
-      const { filter: { event, schema, table, filter } } = clientPostgresBinding;
+      const {
+        filter: { event, schema, table, filter },
+      } = clientPostgresBinding;
       const serverPostgresFilter = postgres_changes && postgres_changes[i];
-      if (serverPostgresFilter && serverPostgresFilter.event === event && RealtimeChannel.isFilterValueEqual(serverPostgresFilter.schema, schema) && RealtimeChannel.isFilterValueEqual(serverPostgresFilter.table, table) && RealtimeChannel.isFilterValueEqual(serverPostgresFilter.filter, filter)) {
-        newPostgresBindings.push(Object.assign(Object.assign({}, clientPostgresBinding), { id: serverPostgresFilter.id }));
+      if (
+        serverPostgresFilter &&
+        serverPostgresFilter.event === event &&
+        RealtimeChannel.isFilterValueEqual(serverPostgresFilter.schema, schema) &&
+        RealtimeChannel.isFilterValueEqual(serverPostgresFilter.table, table) &&
+        RealtimeChannel.isFilterValueEqual(serverPostgresFilter.filter, filter)
+      ) {
+        newPostgresBindings.push(
+          Object.assign(Object.assign({}, clientPostgresBinding), { id: serverPostgresFilter.id }),
+        );
       } else {
         this.unsubscribe();
         this.state = CHANNEL_STATES.errored;
-        callback === null || callback === void 0 ? void 0 : callback(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR, new Error("mismatch between server and client bindings for postgres changes"));
+        callback === null || callback === void 0
+          ? void 0
+          : callback(
+              REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR,
+              new Error("mismatch between server and client bindings for postgres changes"),
+            );
         return;
       }
     }
@@ -852,11 +977,14 @@ class RealtimeChannel {
    * @category Realtime
    */
   async track(payload, opts = {}) {
-    return await this.send({
-      type: "presence",
-      event: "track",
-      payload
-    }, opts.timeout || this.timeout);
+    return await this.send(
+      {
+        type: "presence",
+        event: "track",
+        payload,
+      },
+      opts.timeout || this.timeout,
+    );
   }
   /**
    * Removes the current presence state for this client.
@@ -864,10 +992,13 @@ class RealtimeChannel {
    * @category Realtime
    */
   async untrack(opts = {}) {
-    return await this.send({
-      type: "presence",
-      event: "untrack"
-    }, opts);
+    return await this.send(
+      {
+        type: "presence",
+        event: "untrack",
+      },
+      opts,
+    );
   }
   /**
    * Listen to realtime events on this channel.
@@ -1030,9 +1161,13 @@ class RealtimeChannel {
    */
   on(type, filter, callback) {
     const stateCheck = this.channelAdapter.isJoined() || this.channelAdapter.isJoining();
-    const typeCheck = type === REALTIME_LISTEN_TYPES.PRESENCE || type === REALTIME_LISTEN_TYPES.POSTGRES_CHANGES;
+    const typeCheck =
+      type === REALTIME_LISTEN_TYPES.PRESENCE || type === REALTIME_LISTEN_TYPES.POSTGRES_CHANGES;
     if (stateCheck && typeCheck) {
-      this.socket.log("channel", `cannot add \`${type}\` callbacks for ${this.topic} after \`subscribe()\`.`);
+      this.socket.log(
+        "channel",
+        `cannot add \`${type}\` callbacks for ${this.topic} after \`subscribe()\`.`,
+      );
       throw new Error(`cannot add \`${type}\` callbacks for ${this.topic} after \`subscribe()\`.`);
     }
     return this._on(type, filter, callback);
@@ -1057,7 +1192,7 @@ class RealtimeChannel {
     }
     const headers = {
       apikey: this.socket.apiKey ? this.socket.apiKey : "",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     };
     if (this.socket.accessTokenValue) {
       headers["Authorization"] = `Bearer ${this.socket.accessTokenValue}`;
@@ -1071,12 +1206,16 @@ class RealtimeChannel {
             topic: this.subTopic,
             event,
             payload,
-            private: this.private
-          }
-        ]
-      })
+            private: this.private,
+          },
+        ],
+      }),
     };
-    const response = await this._fetchWithTimeout(this.broadcastEndpointURL, options, (_a = opts.timeout) !== null && _a !== void 0 ? _a : this.timeout);
+    const response = await this._fetchWithTimeout(
+      this.broadcastEndpointURL,
+      options,
+      (_a = opts.timeout) !== null && _a !== void 0 ? _a : this.timeout,
+    );
     if (response.status === 202) {
       return { success: true };
     }
@@ -1084,8 +1223,7 @@ class RealtimeChannel {
     try {
       const errorBody = await response.json();
       errorMessage = errorBody.error || errorBody.message || errorMessage;
-    } catch (_b) {
-    }
+    } catch (_b) {}
     return Promise.reject(new Error(errorMessage));
   }
   /**
@@ -1139,11 +1277,13 @@ class RealtimeChannel {
   async send(args, opts = {}) {
     var _a, _b;
     if (!this.channelAdapter.canPush() && args.type === "broadcast") {
-      console.warn("Realtime send() is automatically falling back to REST API. This behavior will be deprecated in the future. Please use httpSend() explicitly for REST delivery.");
+      console.warn(
+        "Realtime send() is automatically falling back to REST API. This behavior will be deprecated in the future. Please use httpSend() explicitly for REST delivery.",
+      );
       const { event, payload: endpoint_payload } = args;
       const headers = {
         apikey: this.socket.apiKey ? this.socket.apiKey : "",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       };
       if (this.socket.accessTokenValue) {
         headers["Authorization"] = `Bearer ${this.socket.accessTokenValue}`;
@@ -1157,13 +1297,17 @@ class RealtimeChannel {
               topic: this.subTopic,
               event,
               payload: endpoint_payload,
-              private: this.private
-            }
-          ]
-        })
+              private: this.private,
+            },
+          ],
+        }),
       };
       try {
-        const response = await this._fetchWithTimeout(this.broadcastEndpointURL, options, (_a = opts.timeout) !== null && _a !== void 0 ? _a : this.timeout);
+        const response = await this._fetchWithTimeout(
+          this.broadcastEndpointURL,
+          options,
+          (_a = opts.timeout) !== null && _a !== void 0 ? _a : this.timeout,
+        );
         await ((_b = response.body) === null || _b === void 0 ? void 0 : _b.cancel());
         return response.ok ? "ok" : "error";
       } catch (error) {
@@ -1177,7 +1321,16 @@ class RealtimeChannel {
       return new Promise((resolve) => {
         var _a2, _b2, _c;
         const push = this.channelAdapter.push(args.type, args, opts.timeout || this.timeout);
-        if (args.type === "broadcast" && !((_c = (_b2 = (_a2 = this.params) === null || _a2 === void 0 ? void 0 : _a2.config) === null || _b2 === void 0 ? void 0 : _b2.broadcast) === null || _c === void 0 ? void 0 : _c.ack)) {
+        if (
+          args.type === "broadcast" &&
+          !((_c =
+            (_b2 = (_a2 = this.params) === null || _a2 === void 0 ? void 0 : _a2.config) === null ||
+            _b2 === void 0
+              ? void 0
+              : _b2.broadcast) === null || _c === void 0
+            ? void 0
+            : _c.ack)
+        ) {
           resolve("ok");
         }
         push.receive("ok", () => resolve("ok"));
@@ -1208,7 +1361,11 @@ class RealtimeChannel {
    */
   async unsubscribe(timeout = this.timeout) {
     return new Promise((resolve) => {
-      this.channelAdapter.unsubscribe(timeout).receive("ok", () => resolve("ok")).receive("timeout", () => resolve("timed out")).receive("error", () => resolve("error"));
+      this.channelAdapter
+        .unsubscribe(timeout)
+        .receive("ok", () => resolve("ok"))
+        .receive("timeout", () => resolve("timed out"))
+        .receive("error", () => resolve("error"));
     });
   }
   /**
@@ -1223,7 +1380,10 @@ class RealtimeChannel {
   async _fetchWithTimeout(url, options, timeout) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
-    const response = await this.socket.fetch(url, Object.assign(Object.assign({}, options), { signal: controller.signal }));
+    const response = await this.socket.fetch(
+      url,
+      Object.assign(Object.assign({}, options), { signal: controller.signal }),
+    );
     clearTimeout(id);
     return response;
   }
@@ -1235,7 +1395,7 @@ class RealtimeChannel {
       type: typeLower,
       filter,
       callback,
-      ref
+      ref,
     };
     if (this.bindings[typeLower]) {
       this.bindings[typeLower].push(binding);
@@ -1269,7 +1429,10 @@ class RealtimeChannel {
       if (this._notThisChannelEvent(typeLower, ref)) {
         return false;
       }
-      const bind = (_a = this.bindings[typeLower]) === null || _a === void 0 ? void 0 : _a.find((bind2) => bind2.ref === binding.ref);
+      const bind =
+        (_a = this.bindings[typeLower]) === null || _a === void 0
+          ? void 0
+          : _a.find((bind2) => bind2.ref === binding.ref);
       if (!bind) {
         return true;
       }
@@ -1277,10 +1440,34 @@ class RealtimeChannel {
         if ("id" in bind) {
           const bindId = bind.id;
           const bindEvent = (_b = bind.filter) === null || _b === void 0 ? void 0 : _b.event;
-          return bindId && ((_c = payload.ids) === null || _c === void 0 ? void 0 : _c.includes(bindId)) && (bindEvent === "*" || (bindEvent === null || bindEvent === void 0 ? void 0 : bindEvent.toLocaleLowerCase()) === ((_d = payload.data) === null || _d === void 0 ? void 0 : _d.type.toLocaleLowerCase()));
+          return (
+            bindId &&
+            ((_c = payload.ids) === null || _c === void 0 ? void 0 : _c.includes(bindId)) &&
+            (bindEvent === "*" ||
+              (bindEvent === null || bindEvent === void 0
+                ? void 0
+                : bindEvent.toLocaleLowerCase()) ===
+                ((_d = payload.data) === null || _d === void 0
+                  ? void 0
+                  : _d.type.toLocaleLowerCase()))
+          );
         } else {
-          const bindEvent = (_f = (_e = bind === null || bind === void 0 ? void 0 : bind.filter) === null || _e === void 0 ? void 0 : _e.event) === null || _f === void 0 ? void 0 : _f.toLocaleLowerCase();
-          return bindEvent === "*" || bindEvent === ((_g = payload === null || payload === void 0 ? void 0 : payload.event) === null || _g === void 0 ? void 0 : _g.toLocaleLowerCase());
+          const bindEvent =
+            (_f =
+              (_e = bind === null || bind === void 0 ? void 0 : bind.filter) === null ||
+              _e === void 0
+                ? void 0
+                : _e.event) === null || _f === void 0
+              ? void 0
+              : _f.toLocaleLowerCase();
+          return (
+            bindEvent === "*" ||
+            bindEvent ===
+              ((_g = payload === null || payload === void 0 ? void 0 : payload.event) === null ||
+              _g === void 0
+                ? void 0
+                : _g.toLocaleLowerCase())
+          );
         }
       } else {
         return bind.type.toLocaleLowerCase() === typeLower;
@@ -1306,9 +1493,12 @@ class RealtimeChannel {
           eventType: type,
           new: {},
           old: {},
-          errors
+          errors,
         };
-        return Object.assign(Object.assign({}, enrichedPayload), this._getPayloadRecords(postgresChanges));
+        return Object.assign(
+          Object.assign({}, enrichedPayload),
+          this._getPayloadRecords(postgresChanges),
+        );
       }
       return payload;
     });
@@ -1337,7 +1527,7 @@ class RealtimeChannel {
   _getPayloadRecords(payload) {
     const records = {
       new: {},
-      old: {}
+      old: {},
     };
     if (payload.type === "INSERT" || payload.type === "UPDATE") {
       records.new = convertChangeData(payload.columns, payload.record);
@@ -1403,10 +1593,14 @@ class SocketAdapter {
   disconnect(callback, code, reason, timeout = 1e4) {
     return new Promise((resolve) => {
       setTimeout(() => resolve("timeout"), timeout);
-      this.socket.disconnect(() => {
-        callback();
-        resolve("ok");
-      }, code, reason);
+      this.socket.disconnect(
+        () => {
+          callback();
+          resolve("ok");
+        },
+        code,
+        reason,
+      );
     });
   }
   push(data) {
@@ -1456,7 +1650,7 @@ class SocketAdapter {
   }
 }
 const CONNECTION_TIMEOUTS = {
-  HEARTBEAT_INTERVAL: 25e3
+  HEARTBEAT_INTERVAL: 25e3,
 };
 const RECONNECT_INTERVALS = [1e3, 2e3, 5e3, 1e4];
 const DEFAULT_RECONNECT_FALLBACK = 1e4;
@@ -1481,7 +1675,7 @@ function createMemorySessionStorage() {
     },
     setItem(key, value) {
       store.set(key, String(value));
-    }
+    },
   };
 }
 function resolveSessionStorage() {
@@ -1489,8 +1683,7 @@ function resolveSessionStorage() {
     if (typeof globalThis !== "undefined" && globalThis.sessionStorage) {
       return globalThis.sessionStorage;
     }
-  } catch (_a) {
-  }
+  } catch (_a) {}
   return createMemorySessionStorage();
 }
 const WORKER_SCRIPT = `
@@ -1614,14 +1807,21 @@ class RealtimeClient {
       }
       return (...args) => fetch(...args);
     };
-    if (!((_a = options === null || options === void 0 ? void 0 : options.params) === null || _a === void 0 ? void 0 : _a.apikey)) {
+    if (
+      !((_a = options === null || options === void 0 ? void 0 : options.params) === null ||
+      _a === void 0
+        ? void 0
+        : _a.apikey)
+    ) {
       throw new Error("API key is required to connect to Realtime");
     }
     this.apiKey = options.params.apikey;
     const socketAdapterOptions = this._initializeOptions(options);
     this.socketAdapter = new SocketAdapter(endPoint, socketAdapterOptions);
     this.httpEndpoint = httpEndpointURL(endPoint);
-    this.fetch = this._resolveFetch(options === null || options === void 0 ? void 0 : options.fetch);
+    this.fetch = this._resolveFetch(
+      options === null || options === void 0 ? void 0 : options.fetch,
+    );
   }
   /**
    * Connects the socket, unless already connected.
@@ -1682,10 +1882,14 @@ Option 2: Install and provide the "ws" package:
     if (this.isDisconnecting()) {
       return "ok";
     }
-    return await this.socketAdapter.disconnect(() => {
-      clearInterval(this._workerHeartbeatTimer);
-      this._terminateWorker();
-    }, code, reason);
+    return await this.socketAdapter.disconnect(
+      () => {
+        clearInterval(this._workerHeartbeatTimer);
+        this._terminateWorker();
+      },
+      code,
+      reason,
+    );
   }
   /**
    * Returns all created channels
@@ -1888,7 +2092,10 @@ Option 2: Install and provide the "ws" package:
         this.disconnect();
       }
     }, this._disconnectOnEmptyChannelsAfterMs);
-    this.log("transport", `deferred disconnect scheduled in ${this._disconnectOnEmptyChannelsAfterMs}ms`);
+    this.log(
+      "transport",
+      `deferred disconnect scheduled in ${this._disconnectOnEmptyChannelsAfterMs}ms`,
+    );
   }
   /** @internal */
   _cancelPendingDisconnect() {
@@ -1928,12 +2135,12 @@ Option 2: Install and provide the "ws" package:
       this.channels.forEach((channel) => {
         const payload = {
           access_token: tokenToSend,
-          version: DEFAULT_VERSION
+          version: DEFAULT_VERSION,
         };
         tokenToSend && channel.updateJoinPayload(payload);
         if (channel.joinedOnce && channel.channelAdapter.isJoined()) {
           channel.channelAdapter.push(CHANNEL_EVENTS.access_token, {
-            access_token: tokenToSend
+            access_token: tokenToSend,
           });
         }
       });
@@ -1962,7 +2169,9 @@ Option 2: Install and provide the "ws" package:
   /** @internal */
   _setupConnectionHandlers() {
     this.socketAdapter.onOpen(() => {
-      const authPromise = this._authPromise || (this.accessToken && !this.accessTokenValue ? this.setAuth() : Promise.resolve());
+      const authPromise =
+        this._authPromise ||
+        (this.accessToken && !this.accessTokenValue ? this.setAuth() : Promise.resolve());
       authPromise.catch((e) => {
         this.log("error", "error waiting for auth on connect", e);
       });
@@ -1990,10 +2199,8 @@ Option 2: Install and provide the "ws" package:
   /** @internal */
   _wrapHeartbeatCallback(heartbeatCallback) {
     return (status, latency) => {
-      if (status == "sent")
-        this._setAuthSafely();
-      if (heartbeatCallback)
-        heartbeatCallback(status, latency);
+      if (status == "sent") this._setAuthSafely();
+      if (heartbeatCallback) heartbeatCallback(status, latency);
     };
   }
   /** @internal */
@@ -2017,7 +2224,7 @@ Option 2: Install and provide the "ws" package:
     };
     this.workerRef.postMessage({
       event: "start",
-      interval: this.heartbeatIntervalMs
+      interval: this.heartbeatIntervalMs,
     });
   }
   /**
@@ -2048,23 +2255,66 @@ Option 2: Install and provide the "ws" package:
    */
   _initializeOptions(options) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
-    this.worker = (_a = options === null || options === void 0 ? void 0 : options.worker) !== null && _a !== void 0 ? _a : false;
-    this.accessToken = (_b = options === null || options === void 0 ? void 0 : options.accessToken) !== null && _b !== void 0 ? _b : null;
+    this.worker =
+      (_a = options === null || options === void 0 ? void 0 : options.worker) !== null &&
+      _a !== void 0
+        ? _a
+        : false;
+    this.accessToken =
+      (_b = options === null || options === void 0 ? void 0 : options.accessToken) !== null &&
+      _b !== void 0
+        ? _b
+        : null;
     const result = {};
-    result.timeout = (_c = options === null || options === void 0 ? void 0 : options.timeout) !== null && _c !== void 0 ? _c : DEFAULT_TIMEOUT;
-    result.heartbeatIntervalMs = (_d = options === null || options === void 0 ? void 0 : options.heartbeatIntervalMs) !== null && _d !== void 0 ? _d : CONNECTION_TIMEOUTS.HEARTBEAT_INTERVAL;
-    this._disconnectOnEmptyChannelsAfterMs = (_e = options === null || options === void 0 ? void 0 : options.disconnectOnEmptyChannelsAfterMs) !== null && _e !== void 0 ? _e : 2 * ((_f = options === null || options === void 0 ? void 0 : options.heartbeatIntervalMs) !== null && _f !== void 0 ? _f : CONNECTION_TIMEOUTS.HEARTBEAT_INTERVAL);
-    result.transport = (_g = options === null || options === void 0 ? void 0 : options.transport) !== null && _g !== void 0 ? _g : WebSocketFactory.getWebSocketConstructor();
+    result.timeout =
+      (_c = options === null || options === void 0 ? void 0 : options.timeout) !== null &&
+      _c !== void 0
+        ? _c
+        : DEFAULT_TIMEOUT;
+    result.heartbeatIntervalMs =
+      (_d = options === null || options === void 0 ? void 0 : options.heartbeatIntervalMs) !==
+        null && _d !== void 0
+        ? _d
+        : CONNECTION_TIMEOUTS.HEARTBEAT_INTERVAL;
+    this._disconnectOnEmptyChannelsAfterMs =
+      (_e =
+        options === null || options === void 0
+          ? void 0
+          : options.disconnectOnEmptyChannelsAfterMs) !== null && _e !== void 0
+        ? _e
+        : 2 *
+          ((_f = options === null || options === void 0 ? void 0 : options.heartbeatIntervalMs) !==
+            null && _f !== void 0
+            ? _f
+            : CONNECTION_TIMEOUTS.HEARTBEAT_INTERVAL);
+    result.transport =
+      (_g = options === null || options === void 0 ? void 0 : options.transport) !== null &&
+      _g !== void 0
+        ? _g
+        : WebSocketFactory.getWebSocketConstructor();
     result.params = options === null || options === void 0 ? void 0 : options.params;
     result.logger = options === null || options === void 0 ? void 0 : options.logger;
-    result.heartbeatCallback = this._wrapHeartbeatCallback(options === null || options === void 0 ? void 0 : options.heartbeatCallback);
-    result.sessionStorage = (_h = options === null || options === void 0 ? void 0 : options.sessionStorage) !== null && _h !== void 0 ? _h : resolveSessionStorage();
-    result.reconnectAfterMs = (_j = options === null || options === void 0 ? void 0 : options.reconnectAfterMs) !== null && _j !== void 0 ? _j : ((tries) => {
-      return RECONNECT_INTERVALS[tries - 1] || DEFAULT_RECONNECT_FALLBACK;
-    });
+    result.heartbeatCallback = this._wrapHeartbeatCallback(
+      options === null || options === void 0 ? void 0 : options.heartbeatCallback,
+    );
+    result.sessionStorage =
+      (_h = options === null || options === void 0 ? void 0 : options.sessionStorage) !== null &&
+      _h !== void 0
+        ? _h
+        : resolveSessionStorage();
+    result.reconnectAfterMs =
+      (_j = options === null || options === void 0 ? void 0 : options.reconnectAfterMs) !== null &&
+      _j !== void 0
+        ? _j
+        : (tries) => {
+            return RECONNECT_INTERVALS[tries - 1] || DEFAULT_RECONNECT_FALLBACK;
+          };
     let defaultEncode;
     let defaultDecode;
-    const vsn = (_k = options === null || options === void 0 ? void 0 : options.vsn) !== null && _k !== void 0 ? _k : DEFAULT_VSN;
+    const vsn =
+      (_k = options === null || options === void 0 ? void 0 : options.vsn) !== null && _k !== void 0
+        ? _k
+        : DEFAULT_VSN;
     switch (vsn) {
       case VSN_1_0_0:
         defaultEncode = (payload, callback) => {
@@ -2082,10 +2332,21 @@ Option 2: Install and provide the "ws" package:
         throw new Error(`Unsupported serializer version: ${result.vsn}`);
     }
     result.vsn = vsn;
-    result.encode = (_l = options === null || options === void 0 ? void 0 : options.encode) !== null && _l !== void 0 ? _l : defaultEncode;
-    result.decode = (_m = options === null || options === void 0 ? void 0 : options.decode) !== null && _m !== void 0 ? _m : defaultDecode;
+    result.encode =
+      (_l = options === null || options === void 0 ? void 0 : options.encode) !== null &&
+      _l !== void 0
+        ? _l
+        : defaultEncode;
+    result.decode =
+      (_m = options === null || options === void 0 ? void 0 : options.decode) !== null &&
+      _m !== void 0
+        ? _m
+        : defaultDecode;
     result.beforeReconnect = this._reconnectAuth.bind(this);
-    if ((options === null || options === void 0 ? void 0 : options.logLevel) || (options === null || options === void 0 ? void 0 : options.log_level)) {
+    if (
+      (options === null || options === void 0 ? void 0 : options.logLevel) ||
+      (options === null || options === void 0 ? void 0 : options.log_level)
+    ) {
       this.logLevel = options.logLevel || options.log_level;
       result.params = Object.assign(Object.assign({}, result.params), { log_level: this.logLevel });
     }
@@ -2106,6 +2367,4 @@ Option 2: Install and provide the "ws" package:
     }
   }
 }
-export {
-  RealtimeClient as R
-};
+export { RealtimeClient as R };

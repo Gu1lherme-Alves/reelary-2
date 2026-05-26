@@ -1,29 +1,42 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Plus, 
-  Clock, 
-  Trash2, 
-  Video, 
-  Upload, 
-  X, 
-  Loader2, 
-  Sparkles, 
-  Instagram, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Clock,
+  Trash2,
+  Video,
+  Upload,
+  X,
+  Loader2,
+  Sparkles,
+  Instagram,
   Calendar as CalendarIcon,
   Play,
   Pause,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -61,14 +74,14 @@ function CalendarPage() {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  
+
   // Form State
   const [accountId, setAccountId] = useState("");
   const [caption, setCaption] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
-  
+
   // Player state
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -96,10 +109,11 @@ function CalendarPage() {
       // Load posts
       const { data: postsData } = await supabase
         .from("scheduled_posts")
-        .select("id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)")
+        .select(
+          "id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)",
+        )
         .order("scheduled_at", { ascending: true });
       setPosts((postsData as any) || []);
-
     } catch (err: any) {
       toast.error(err.message || "Erro ao carregar dados do calendário");
     } finally {
@@ -109,7 +123,7 @@ function CalendarPage() {
 
   useEffect(() => {
     loadData();
-    
+
     const syncActiveAccount = () => {
       const activeId = localStorage.getItem("active_ig_account_id");
       if (activeId) setAccountId(activeId);
@@ -143,7 +157,7 @@ function CalendarPage() {
     if (isPlaying) {
       videoRef.current.pause();
     } else {
-      videoRef.current.play().catch(err => console.error("Error playing video:", err));
+      videoRef.current.play().catch((err) => console.error("Error playing video:", err));
     }
     setIsPlaying(!isPlaying);
   };
@@ -165,7 +179,7 @@ function CalendarPage() {
       // Upload to reels bucket
       const ext = videoFile.name.split(".").pop() ?? "mp4";
       const path = `${uid}/${Date.now()}.${ext}`;
-      
+
       const uploadResult = await supabase.storage.from("reels").upload(path, videoFile, {
         contentType: videoFile.type || "video/mp4",
       });
@@ -188,13 +202,13 @@ function CalendarPage() {
       if (error) throw error;
 
       toast.success("Reel agendado com sucesso!");
-      
+
       // Reset form
       setCaption("");
       setVideoFile(null);
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
       setVideoPreviewUrl(null);
-      
+
       // Close modal & reload data
       setShowModal(false);
       loadData();
@@ -221,18 +235,18 @@ function CalendarPage() {
   // Calendar Math Helpers
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
-  
+
   const firstDayOfWeek = new Date(year, month, 1).getDay(); // Sunday=0, Monday=1 etc.
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const prevMonthDays = new Date(year, month, 0).getDate();
-  
+
   // Pad previous month days (adjusting Sunday start)
   const prevMonthPadding = Array.from({ length: firstDayOfWeek }, (_, i) => {
     const day = prevMonthDays - firstDayOfWeek + i + 1;
     return {
       day,
       isCurrentMonth: false,
-      date: new Date(year, month - 1, day)
+      date: new Date(year, month - 1, day),
     };
   });
 
@@ -242,7 +256,7 @@ function CalendarPage() {
     return {
       day,
       isCurrentMonth: true,
-      date: new Date(year, month, day)
+      date: new Date(year, month, day),
     };
   });
 
@@ -254,7 +268,7 @@ function CalendarPage() {
     return {
       day,
       isCurrentMonth: false,
-      date: new Date(year, month + 1, day)
+      date: new Date(year, month + 1, day),
     };
   });
 
@@ -272,21 +286,33 @@ function CalendarPage() {
 
   // Month names
   const monthNames = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
   ];
 
   const dayOfWeekNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
   // Utility to check date equality
   const isSameDay = (d1: Date, d2: Date) => {
-    return d1.getFullYear() === d2.getFullYear() &&
-           d1.getMonth() === d2.getMonth() &&
-           d1.getDate() === d2.getDate();
+    return (
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate()
+    );
   };
 
   // Filter posts for selected day
-  const postsOnSelectedDay = posts.filter(p => isSameDay(new Date(p.scheduled_at), selectedDate));
+  const postsOnSelectedDay = posts.filter((p) => isSameDay(new Date(p.scheduled_at), selectedDate));
 
   // Minimum date-time for scheduling picker
   const minDateTime = new Date(Date.now() + 5 * 60_000).toISOString().slice(0, 16);
@@ -294,16 +320,16 @@ function CalendarPage() {
   // Trigger modal for a day
   const openScheduleForDay = (date: Date) => {
     setSelectedDate(date);
-    
+
     // Set scheduledAt input to selected day with current time + 1 hour
     const futureDate = new Date(date);
     const nowTime = new Date();
     futureDate.setHours(nowTime.getHours() + 1, 0, 0, 0);
-    
+
     // Adjust timezone offset to match local input string format
     const timezoneOffset = futureDate.getTimezoneOffset() * 60000;
     const localISODate = new Date(futureDate.getTime() - timezoneOffset).toISOString().slice(0, 16);
-    
+
     setScheduledAt(localISODate);
     setShowModal(true);
   };
@@ -314,12 +340,13 @@ function CalendarPage() {
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Calendário Editorial</h1>
           <p className="text-muted-foreground mt-1.5">
-            Visualize o fluxo do seu conteúdo e agende novas postagens clicando nos dias correspondentes.
+            Visualize o fluxo do seu conteúdo e agende novas postagens clicando nos dias
+            correspondentes.
           </p>
         </div>
-        
+
         {accounts.length > 0 && (
-          <Button 
+          <Button
             onClick={() => openScheduleForDay(selectedDate)}
             className="bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold shadow-glow shrink-0"
           >
@@ -339,17 +366,17 @@ function CalendarPage() {
                 {monthNames[month]} {year}
               </h3>
               <div className="flex gap-1">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => navigateMonth("prev")}
                   className="size-8 rounded-lg hover:bg-secondary cursor-pointer"
                 >
                   <ChevronLeft className="size-4" />
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => navigateMonth("next")}
                   className="size-8 rounded-lg hover:bg-secondary cursor-pointer"
                 >
@@ -360,7 +387,7 @@ function CalendarPage() {
 
             {/* Dias da semana */}
             <div className="grid grid-cols-7 gap-1 text-center mb-2">
-              {dayOfWeekNames.map(name => (
+              {dayOfWeekNames.map((name) => (
                 <div key={name} className="text-xs font-bold text-muted-foreground py-1.5">
                   {name}
                 </div>
@@ -370,17 +397,19 @@ function CalendarPage() {
             {/* Dias do calendário */}
             <div className="grid grid-cols-7 gap-2">
               {allCalendarDays.map((cell, idx) => {
-                const dayPosts = posts.filter(p => isSameDay(new Date(p.scheduled_at), cell.date));
+                const dayPosts = posts.filter((p) =>
+                  isSameDay(new Date(p.scheduled_at), cell.date),
+                );
                 const isSelected = isSameDay(cell.date, selectedDate);
                 const isTodayDate = isSameDay(cell.date, new Date());
-                
+
                 return (
                   <button
                     key={idx}
                     onClick={() => setSelectedDate(cell.date)}
                     className={`aspect-square rounded-xl p-2 flex flex-col justify-between items-start transition cursor-pointer border ${
-                      !cell.isCurrentMonth 
-                        ? "text-muted-foreground/45 border-transparent bg-transparent" 
+                      !cell.isCurrentMonth
+                        ? "text-muted-foreground/45 border-transparent bg-transparent"
                         : isSelected
                           ? "bg-primary/10 border-primary text-primary font-bold shadow-sm"
                           : isTodayDate
@@ -389,7 +418,7 @@ function CalendarPage() {
                     }`}
                   >
                     <span className="text-sm font-semibold">{cell.day}</span>
-                    
+
                     {/* Indicador de Posts agendados */}
                     {dayPosts.length > 0 && (
                       <div className="w-full flex flex-wrap gap-1 justify-end mt-1">
@@ -397,12 +426,12 @@ function CalendarPage() {
                           const statusColors = {
                             pending: "bg-warning",
                             published: "bg-success",
-                            failed: "bg-destructive"
+                            failed: "bg-destructive",
                           };
                           return (
-                            <span 
-                              key={pIdx} 
-                              className={`size-2 rounded-full ${statusColors[p.status] || "bg-primary"}`} 
+                            <span
+                              key={pIdx}
+                              className={`size-2 rounded-full ${statusColors[p.status] || "bg-primary"}`}
                               title={`${p.status === "published" ? "Publicado" : p.status === "failed" ? "Falhou" : "Agendado"}: @${p.instagram_accounts?.username || "Reel"}`}
                             />
                           );
@@ -414,11 +443,17 @@ function CalendarPage() {
               })}
             </div>
           </div>
-          
+
           <div className="mt-6 pt-4 border-t border-border/40 text-xs text-muted-foreground flex gap-4 justify-center">
-            <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-warning" /> Agendado</span>
-            <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-success" /> Publicado</span>
-            <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-destructive" /> Falhou</span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-warning" /> Agendado
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-success" /> Publicado
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-destructive" /> Falhou
+            </span>
           </div>
         </div>
 
@@ -431,24 +466,26 @@ function CalendarPage() {
 
             {loading ? (
               <div className="space-y-4">
-                {[1, 2].map(i => <div key={i} className="h-20 bg-secondary animate-pulse rounded-xl" />)}
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-20 bg-secondary animate-pulse rounded-xl" />
+                ))}
               </div>
             ) : postsOnSelectedDay.length === 0 ? (
               <div className="text-center py-12 px-4 border border-dashed border-border/60 rounded-xl bg-card/10">
                 <Video className="size-8 text-muted-foreground/60 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">Nenhum Reel agendado para este dia.</p>
                 {accounts.length > 0 ? (
-                  <Button 
+                  <Button
                     onClick={() => openScheduleForDay(selectedDate)}
-                    size="sm" 
+                    size="sm"
                     className="mt-4 border-primary text-primary hover:bg-primary/5 bg-transparent border rounded-lg text-xs"
                   >
                     Agendar para este dia
                   </Button>
                 ) : (
-                  <Button 
+                  <Button
                     onClick={() => navigate({ to: "/accounts" })}
-                    size="sm" 
+                    size="sm"
                     className="mt-4 border-dashed border-muted-foreground text-muted-foreground bg-transparent border rounded-lg text-xs"
                   >
                     Vincular conta primeiro
@@ -457,37 +494,65 @@ function CalendarPage() {
               </div>
             ) : (
               <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1.5">
-                {postsOnSelectedDay.map(post => {
+                {postsOnSelectedDay.map((post) => {
                   const statusLabel = {
-                    pending: { text: "Agendado", cls: "bg-warning/15 text-warning border-warning/30" },
-                    published: { text: "Publicado", cls: "bg-success/15 text-success border-success/30" },
-                    failed: { text: "Falhou", cls: "bg-destructive/15 text-destructive border-destructive/30" }
+                    pending: {
+                      text: "Agendado",
+                      cls: "bg-warning/15 text-warning border-warning/30",
+                    },
+                    published: {
+                      text: "Publicado",
+                      cls: "bg-success/15 text-success border-success/30",
+                    },
+                    failed: {
+                      text: "Falhou",
+                      cls: "bg-destructive/15 text-destructive border-destructive/30",
+                    },
                   };
-                  const st = statusLabel[post.status] || { text: "Pendente", cls: "bg-secondary text-foreground" };
-                  
+                  const st = statusLabel[post.status] || {
+                    text: "Pendente",
+                    cls: "bg-secondary text-foreground",
+                  };
+
                   return (
-                    <div key={post.id} className="p-3.5 rounded-xl bg-card border border-border/50 hover:bg-card/75 transition shadow-sm flex gap-3 relative group">
-                      <video src={post.video_url} className="size-16 rounded-lg object-cover bg-background shrink-0" muted />
+                    <div
+                      key={post.id}
+                      className="p-3.5 rounded-xl bg-card border border-border/50 hover:bg-card/75 transition shadow-sm flex gap-3 relative group"
+                    >
+                      <video
+                        src={post.video_url}
+                        className="size-16 rounded-lg object-cover bg-background shrink-0"
+                        muted
+                      />
                       <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
                         <div>
                           <div className="flex items-center gap-1.5 text-[10px]">
-                            <strong className="text-primary truncate">@{post.instagram_accounts?.username || "instagram"}</strong>
+                            <strong className="text-primary truncate">
+                              @{post.instagram_accounts?.username || "instagram"}
+                            </strong>
                             <span className="text-muted-foreground">•</span>
                             <span className="text-muted-foreground font-semibold">
-                              {new Date(post.scheduled_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                              {new Date(post.scheduled_at).toLocaleTimeString("pt-BR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
                             </span>
                           </div>
                           <p className="text-xs text-foreground/80 mt-1 line-clamp-1">
-                            {post.caption || <span className="text-muted-foreground italic">Sem legenda</span>}
+                            {post.caption || (
+                              <span className="text-muted-foreground italic">Sem legenda</span>
+                            )}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 mt-2">
-                          <span className={`inline-flex items-center text-[9px] font-bold border px-1.5 py-0.5 rounded-full ${st.cls}`}>
+                          <span
+                            className={`inline-flex items-center text-[9px] font-bold border px-1.5 py-0.5 rounded-full ${st.cls}`}
+                          >
                             {st.text}
                           </span>
                         </div>
                       </div>
-                      
+
                       <Button
                         variant="ghost"
                         size="icon"
@@ -508,7 +573,11 @@ function CalendarPage() {
             <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 flex gap-3 text-xs mt-6">
               <AlertCircle className="size-4 text-warning shrink-0 mt-0.5" />
               <p className="text-muted-foreground">
-                Você deve <Link to="/accounts" className="text-warning underline font-semibold">conectar uma conta do Instagram</Link> na aba de Contas antes de poder agendar seus Reels.
+                Você deve{" "}
+                <Link to="/accounts" className="text-warning underline font-semibold">
+                  conectar uma conta do Instagram
+                </Link>{" "}
+                na aba de Contas antes de poder agendar seus Reels.
               </p>
             </div>
           )}
@@ -531,7 +600,8 @@ function CalendarPage() {
                 Agendar Novo Reel
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-1">
-                Forneça o arquivo de vídeo (.mp4/mov), escreva a legenda e selecione o horário ideal.
+                Forneça o arquivo de vídeo (.mp4/mov), escreva a legenda e selecione o horário
+                ideal.
               </DialogDescription>
             </div>
 
@@ -551,16 +621,22 @@ function CalendarPage() {
                     {videoFile ? (
                       <div className="flex flex-col items-center gap-2 text-foreground">
                         <Video className="size-6 text-primary" />
-                        <span className="font-semibold text-xs truncate max-w-[250px]">{videoFile.name}</span>
+                        <span className="font-semibold text-xs truncate max-w-[250px]">
+                          {videoFile.name}
+                        </span>
                         <span className="text-[10px] text-muted-foreground">
                           {(videoFile.size / 1024 / 1024).toFixed(1)} MB
                         </span>
-                        <span className="text-[10px] text-primary underline mt-1 font-medium">Trocar arquivo</span>
+                        <span className="text-[10px] text-primary underline mt-1 font-medium">
+                          Trocar arquivo
+                        </span>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
                         <Upload className="size-6 text-muted-foreground/60" />
-                        <span className="text-xs font-semibold text-foreground">Clique para enviar um vídeo</span>
+                        <span className="text-xs font-semibold text-foreground">
+                          Clique para enviar um vídeo
+                        </span>
                         <span className="text-[10px]">MP4, MOV (até 100MB)</span>
                       </div>
                     )}
@@ -570,9 +646,14 @@ function CalendarPage() {
 
               {/* Seletor de Conta */}
               <div className="space-y-2">
-                <Label htmlFor="modalAccount" className="text-sm font-bold">Conta do Instagram</Label>
+                <Label htmlFor="modalAccount" className="text-sm font-bold">
+                  Conta do Instagram
+                </Label>
                 <Select value={accountId} onValueChange={setAccountId} required>
-                  <SelectTrigger id="modalAccount" className="bg-secondary/40 border-border/60 rounded-xl h-10 font-medium">
+                  <SelectTrigger
+                    id="modalAccount"
+                    className="bg-secondary/40 border-border/60 rounded-xl h-10 font-medium"
+                  >
                     <SelectValue placeholder="Selecione a conta de postagem" />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border/60">
@@ -587,7 +668,9 @@ function CalendarPage() {
 
               {/* Data e Hora de Publicação */}
               <div className="space-y-2">
-                <Label htmlFor="modalScheduled" className="text-sm font-bold">Data e Hora de Publicação</Label>
+                <Label htmlFor="modalScheduled" className="text-sm font-bold">
+                  Data e Hora de Publicação
+                </Label>
                 <Input
                   id="modalScheduled"
                   type="datetime-local"
@@ -601,7 +684,9 @@ function CalendarPage() {
 
               {/* Legenda (Caption) */}
               <div className="space-y-2">
-                <Label htmlFor="modalCaption" className="text-sm font-bold">Legenda do Post</Label>
+                <Label htmlFor="modalCaption" className="text-sm font-bold">
+                  Legenda do Post
+                </Label>
                 <Textarea
                   id="modalCaption"
                   value={caption}
@@ -634,7 +719,7 @@ function CalendarPage() {
             <h4 className="text-xs font-bold text-muted-foreground mb-4 uppercase tracking-wider">
               PRÉ-VISUALIZAÇÃO EM TEMPO REAL
             </h4>
-            
+
             {/* Telefone Mockup */}
             <div className="w-[280px] h-[550px] rounded-[40px] border-[10px] border-secondary bg-black shadow-2xl relative overflow-hidden flex flex-col select-none ring-4 ring-card-foreground/5">
               {/* Speaker e Câmera */}
@@ -646,9 +731,9 @@ function CalendarPage() {
               {/* Conteúdo do Tela */}
               {videoPreviewUrl ? (
                 <div className="relative w-full h-full bg-neutral-950 flex items-center justify-center group/video">
-                  <video 
+                  <video
                     ref={videoRef}
-                    src={videoPreviewUrl} 
+                    src={videoPreviewUrl}
                     className="w-full h-full object-cover"
                     loop
                     playsInline
@@ -665,26 +750,36 @@ function CalendarPage() {
                         R
                       </div>
                       <span className="font-semibold text-xs">
-                        @{accounts.find(a => a.id === accountId)?.username || "usuario"}
+                        @{accounts.find((a) => a.id === accountId)?.username || "usuario"}
                       </span>
                       <span className="text-[10px] bg-white/20 border border-white/30 px-1.5 py-0.5 rounded-md font-bold">
                         Seguir
                       </span>
                     </div>
                     <p className="text-[11px] leading-relaxed line-clamp-3 text-neutral-100/90 font-medium">
-                      {caption || "A legenda do seu Reels aparecerá aqui quando você começar a digitar no formulário ao lado..."}
+                      {caption ||
+                        "A legenda do seu Reels aparecerá aqui quando você começar a digitar no formulário ao lado..."}
                     </p>
                   </div>
 
                   {/* Botões do Reels (Lado Direito) */}
                   <div className="absolute bottom-16 right-2 text-white z-15 flex flex-col gap-4 items-center pointer-events-none">
-                    <div className="flex flex-col items-center gap-0.5"><span className="text-base">❤️</span><span className="text-[8px]">Curtir</span></div>
-                    <div className="flex flex-col items-center gap-0.5"><span className="text-base">💬</span><span className="text-[8px]">Comentar</span></div>
-                    <div className="flex flex-col items-center gap-0.5"><span className="text-base">✈️</span><span className="text-[8px]">Enviar</span></div>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-base">❤️</span>
+                      <span className="text-[8px]">Curtir</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-base">💬</span>
+                      <span className="text-[8px]">Comentar</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-base">✈️</span>
+                      <span className="text-[8px]">Enviar</span>
+                    </div>
                   </div>
 
                   {/* Floating Play/Pause Button Indicator */}
-                  <button 
+                  <button
                     onClick={togglePlay}
                     className="absolute inset-0 flex items-center justify-center z-15 cursor-pointer bg-black/10 hover:bg-black/25"
                   >
@@ -703,13 +798,14 @@ function CalendarPage() {
                   <div className="space-y-1">
                     <h5 className="font-bold text-sm text-foreground">Aguardando Vídeo</h5>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Faça o upload de um arquivo de vídeo para vê-lo tocar ao vivo neste mockup do Instagram.
+                      Faça o upload de um arquivo de vídeo para vê-lo tocar ao vivo neste mockup do
+                      Instagram.
                     </p>
                   </div>
                 </div>
               )}
             </div>
-            
+
             {videoPreviewUrl && (
               <span className="text-[10px] text-muted-foreground mt-3 flex items-center gap-1">
                 💡 Clique em qualquer lugar no vídeo para reproduzir/pausar localmente.

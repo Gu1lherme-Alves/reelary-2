@@ -4,6 +4,4 @@ function useDirection(localDir) {
   const globalDir = reactExports.useContext(DirectionContext);
   return localDir || globalDir || "ltr";
 }
-export {
-  useDirection as u
-};
+export { useDirection as u };

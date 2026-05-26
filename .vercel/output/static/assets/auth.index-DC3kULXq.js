@@ -1,1 +1,406 @@
-import{h as a,j as e,u as O,L as D,s as F,t as p}from"./index-CDMAuvnc.js";import{b as P,c as b,e as T,B}from"./button-BCDv24mv.js";import{L as d,I as c}from"./label-eD0-1wzi.js";import{u as U,S as f}from"./use-auth-CcoCM9Hr.js";import{C as M}from"./circle-alert-WZ3Kx3vi.js";const W=[["path",{d:"M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49",key:"ct8e1f"}],["path",{d:"M14.084 14.158a3 3 0 0 1-4.242-4.242",key:"151rxh"}],["path",{d:"M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143",key:"13bj9a"}],["path",{d:"m2 2 20 20",key:"1ooewy"}]],J=P("eye-off",W);const Q=[["path",{d:"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0",key:"1nclc0"}],["circle",{cx:"12",cy:"12",r:"3",key:"1v7zrd"}]],Y=P("eye",Q),$=T("relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:pl-7",{variants:{variant:{default:"bg-background text-foreground",destructive:"border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive"}},defaultVariants:{variant:"default"}}),v=a.forwardRef(({className:s,variant:i,...r},x)=>e.jsx("div",{ref:x,role:"alert",className:b($({variant:i}),s),...r}));v.displayName="Alert";const j=a.forwardRef(({className:s,...i},r)=>e.jsx("h5",{ref:r,className:b("mb-1 font-medium leading-none tracking-tight",s),...i}));j.displayName="AlertTitle";const N=a.forwardRef(({className:s,...i},r)=>e.jsx("div",{ref:r,className:b("text-sm [&_p]:leading-relaxed",s),...i}));N.displayName="AlertDescription";function ee(){const[s,i]=a.useState("login"),[r,x]=a.useState(""),[n,y]=a.useState(""),[w,k]=a.useState(""),[E,q]=a.useState(""),[C,I]=a.useState(""),[m,V]=a.useState(!1),[A,S]=a.useState(!1),[R,u]=a.useState(!1),[z,g]=a.useState(null),{user:L}=U(),h=O();a.useEffect(()=>{L&&h({to:"/dashboard"})},[L,h]);async function _(t){t.preventDefault(),S(!0),g(null),u(!1);try{if(s==="signup"){if(n!==w)throw new Error("As senhas não coincidem. Digite a mesma senha nos dois campos.");if(n.length<6)throw new Error("A senha precisa ter no mínimo 6 caracteres.");const{data:l,error:o}=await F.auth.signUp({email:r,password:n,options:{data:{full_name:E,phone:C},emailRedirectTo:window.location.origin+"/dashboard"}});if(o)throw o;u(!0),p.success("Conta criada! Verifique seu e-mail para ativar.",{duration:6e3}),y(""),k("")}else{const{data:l,error:o}=await F.auth.signInWithPassword({email:r,password:n});if(o)throw o.message.toLowerCase().includes("confirm")||o.status===400&&o.message.toLowerCase().includes("verified")?(u(!0),new Error("E-mail não verificado. Você precisa confirmar seu e-mail antes de fazer login.")):o;p.success("Login realizado com sucesso!"),h({to:"/dashboard"})}}catch(l){console.error("Auth error:",l),g(l.message??"Ocorreu um erro ao processar sua solicitação."),p.error(l.message??"Erro na autenticação.")}finally{S(!1)}}return e.jsxs("div",{className:"min-h-screen grid lg:grid-cols-2 bg-background",children:[e.jsxs("div",{className:"hidden lg:block relative overflow-hidden bg-gradient-brand",children:[e.jsx("div",{className:"absolute inset-0 bg-background/30 backdrop-blur-[2px]"}),e.jsxs("div",{className:"relative h-full flex flex-col justify-between p-12 text-primary-foreground",children:[e.jsxs(D,{to:"/",className:"flex items-center gap-2 max-w-max",children:[e.jsx("div",{className:"size-9 rounded-xl bg-background/95 grid place-items-center shadow-glow",children:e.jsx(f,{className:"size-4.5 text-primary"})}),e.jsx("span",{className:"font-display text-xl font-bold tracking-tight text-foreground",children:"Reelary"})]}),e.jsxs("div",{children:[e.jsxs("div",{className:"inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs mb-6 backdrop-blur-md",children:[e.jsx(f,{className:"size-3 text-accent"})," Agendamento Automatizado"]}),e.jsx("h2",{className:"font-display text-4xl lg:text-5xl font-bold leading-tight max-w-lg mb-4",children:"Agende seus Reels e multiplique seu alcance no automático."}),e.jsx("p",{className:"text-sm opacity-90 max-w-md",children:'"Agendo todo o conteúdo do mês em minutos. Reelary mudou completamente a forma como gerencio minhas marcas parceiras!"'}),e.jsx("p",{className:"mt-4 text-xs opacity-75",children:"— Diretor de Social Media, +500k seguidores"})]}),e.jsxs("div",{className:"text-xs opacity-60",children:["© ",new Date().getFullYear()," Reelary. Todos os direitos reservados."]})]})]}),e.jsx("div",{className:"flex items-center justify-center p-6 md:p-12 overflow-y-auto",children:e.jsxs("div",{className:"w-full max-w-md space-y-6",children:[e.jsxs("div",{className:"text-center lg:text-left",children:[e.jsxs(D,{to:"/",className:"lg:hidden flex items-center justify-center gap-2 mb-8",children:[e.jsx("div",{className:"size-9 rounded-xl bg-gradient-brand grid place-items-center shadow-glow",children:e.jsx(f,{className:"size-4.5 text-primary-foreground"})}),e.jsx("span",{className:"font-display text-xl font-bold",children:"Reelary"})]}),e.jsx("h1",{className:"text-3xl font-extrabold tracking-tight",children:s==="login"?"Entrar na sua conta":"Comece grátis agora"}),e.jsx("p",{className:"text-muted-foreground mt-2",children:s==="login"?"Insira suas credenciais para gerenciar seus agendamentos":"Crie seu perfil em segundos e agende seu primeiro Reel"})]}),R&&e.jsxs(v,{className:"border-warning/30 bg-warning/10 text-foreground animate-in fade-in slide-in-from-top-4 duration-300",children:[e.jsx(M,{className:"size-5 text-warning shrink-0"}),e.jsxs("div",{className:"ml-3",children:[e.jsx(j,{className:"font-bold text-warning text-sm md:text-base flex items-center gap-1.5",children:"⚠️ CONFIRMAÇÃO DE E-MAIL REQUERIDA!"}),e.jsxs(N,{className:"text-xs md:text-sm mt-1 leading-relaxed text-muted-foreground",children:["Enviamos um link de confirmação para o endereço ",e.jsx("strong",{className:"text-foreground",children:r}),". Você ",e.jsx("span",{className:"underline font-semibold text-foreground",children:"deve confirmar o e-mail"})," acessando o link na sua caixa de entrada (ou pasta de spam) para conseguir entrar no Reelary."]})]})]}),z&&!R&&e.jsxs(v,{variant:"destructive",className:"animate-in fade-in duration-300",children:[e.jsx(M,{className:"size-4"}),e.jsx(j,{children:"Erro na autenticação"}),e.jsx(N,{className:"text-xs",children:z})]}),e.jsxs("form",{onSubmit:_,className:"space-y-4",children:[s==="signup"&&e.jsx(e.Fragment,{children:e.jsxs("div",{className:"grid grid-cols-1 md:grid-cols-2 gap-4",children:[e.jsxs("div",{className:"space-y-1.5",children:[e.jsx(d,{htmlFor:"fullName",children:"Nome Completo"}),e.jsx(c,{id:"fullName",type:"text",required:!0,value:E,onChange:t=>q(t.target.value),placeholder:"Seu nome completo",className:"h-10"})]}),e.jsxs("div",{className:"space-y-1.5",children:[e.jsx(d,{htmlFor:"phone",children:"Número de WhatsApp"}),e.jsx(c,{id:"phone",type:"tel",required:!0,value:C,onChange:t=>I(t.target.value),placeholder:"(DD) 99999-9999",className:"h-10"})]})]})}),e.jsxs("div",{className:"space-y-1.5",children:[e.jsx(d,{htmlFor:"email",children:"Endereço de E-mail"}),e.jsx(c,{id:"email",type:"email",required:!0,value:r,onChange:t=>x(t.target.value),placeholder:"voce@exemplo.com",className:"h-10"})]}),e.jsxs("div",{className:"space-y-1.5",children:[e.jsx(d,{htmlFor:"password",children:"Senha"}),e.jsxs("div",{className:"relative",children:[e.jsx(c,{id:"password",type:m?"text":"password",required:!0,minLength:6,value:n,onChange:t=>y(t.target.value),placeholder:"••••••••",className:"h-10 pr-10"}),e.jsx("button",{type:"button",onClick:()=>V(!m),className:"absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition",children:m?e.jsx(J,{className:"size-4"}):e.jsx(Y,{className:"size-4"})})]})]}),s==="signup"&&e.jsxs("div",{className:"space-y-1.5",children:[e.jsx(d,{htmlFor:"confirmPassword",children:"Confirmar Senha"}),e.jsx("div",{className:"relative",children:e.jsx(c,{id:"confirmPassword",type:m?"text":"password",required:!0,value:w,onChange:t=>k(t.target.value),placeholder:"••••••••",className:"h-10 pr-10"})})]}),e.jsx(B,{type:"submit",disabled:A,className:"w-full bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold h-11 transition shadow-glow",children:A?e.jsxs("span",{className:"flex items-center gap-2 justify-center",children:[e.jsx("span",{className:"size-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"}),"Carregando..."]}):s==="login"?"Entrar":"Cadastrar-se & Confirmar E-mail"})]}),e.jsxs("p",{className:"text-sm text-muted-foreground text-center pt-2",children:[s==="login"?"Ainda não tem uma conta? ":"Já tem cadastro? ",e.jsx("button",{type:"button",onClick:()=>{i(s==="login"?"signup":"login"),g(null),u(!1)},className:"text-primary hover:underline font-semibold cursor-pointer",children:s==="login"?"Cadastre-se grátis":"Faça Login"})]})]})})]})}export{ee as component};
+import { h as a, j as e, u as O, L as D, s as F, t as p } from "./index-CDMAuvnc.js";
+import { b as P, c as b, e as T, B } from "./button-BCDv24mv.js";
+import { L as d, I as c } from "./label-eD0-1wzi.js";
+import { u as U, S as f } from "./use-auth-CcoCM9Hr.js";
+import { C as M } from "./circle-alert-WZ3Kx3vi.js";
+const W = [
+    [
+      "path",
+      {
+        d: "M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49",
+        key: "ct8e1f",
+      },
+    ],
+    ["path", { d: "M14.084 14.158a3 3 0 0 1-4.242-4.242", key: "151rxh" }],
+    [
+      "path",
+      {
+        d: "M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143",
+        key: "13bj9a",
+      },
+    ],
+    ["path", { d: "m2 2 20 20", key: "1ooewy" }],
+  ],
+  J = P("eye-off", W);
+const Q = [
+    [
+      "path",
+      {
+        d: "M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0",
+        key: "1nclc0",
+      },
+    ],
+    ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }],
+  ],
+  Y = P("eye", Q),
+  $ = T(
+    "relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:pl-7",
+    {
+      variants: {
+        variant: {
+          default: "bg-background text-foreground",
+          destructive:
+            "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+        },
+      },
+      defaultVariants: { variant: "default" },
+    },
+  ),
+  v = a.forwardRef(({ className: s, variant: i, ...r }, x) =>
+    e.jsx("div", { ref: x, role: "alert", className: b($({ variant: i }), s), ...r }),
+  );
+v.displayName = "Alert";
+const j = a.forwardRef(({ className: s, ...i }, r) =>
+  e.jsx("h5", { ref: r, className: b("mb-1 font-medium leading-none tracking-tight", s), ...i }),
+);
+j.displayName = "AlertTitle";
+const N = a.forwardRef(({ className: s, ...i }, r) =>
+  e.jsx("div", { ref: r, className: b("text-sm [&_p]:leading-relaxed", s), ...i }),
+);
+N.displayName = "AlertDescription";
+function ee() {
+  const [s, i] = a.useState("login"),
+    [r, x] = a.useState(""),
+    [n, y] = a.useState(""),
+    [w, k] = a.useState(""),
+    [E, q] = a.useState(""),
+    [C, I] = a.useState(""),
+    [m, V] = a.useState(!1),
+    [A, S] = a.useState(!1),
+    [R, u] = a.useState(!1),
+    [z, g] = a.useState(null),
+    { user: L } = U(),
+    h = O();
+  a.useEffect(() => {
+    L && h({ to: "/dashboard" });
+  }, [L, h]);
+  async function _(t) {
+    (t.preventDefault(), S(!0), g(null), u(!1));
+    try {
+      if (s === "signup") {
+        if (n !== w)
+          throw new Error("As senhas não coincidem. Digite a mesma senha nos dois campos.");
+        if (n.length < 6) throw new Error("A senha precisa ter no mínimo 6 caracteres.");
+        const { data: l, error: o } = await F.auth.signUp({
+          email: r,
+          password: n,
+          options: {
+            data: { full_name: E, phone: C },
+            emailRedirectTo: window.location.origin + "/dashboard",
+          },
+        });
+        if (o) throw o;
+        (u(!0),
+          p.success("Conta criada! Verifique seu e-mail para ativar.", { duration: 6e3 }),
+          y(""),
+          k(""));
+      } else {
+        const { data: l, error: o } = await F.auth.signInWithPassword({ email: r, password: n });
+        if (o)
+          throw o.message.toLowerCase().includes("confirm") ||
+            (o.status === 400 && o.message.toLowerCase().includes("verified"))
+            ? (u(!0),
+              new Error(
+                "E-mail não verificado. Você precisa confirmar seu e-mail antes de fazer login.",
+              ))
+            : o;
+        (p.success("Login realizado com sucesso!"), h({ to: "/dashboard" }));
+      }
+    } catch (l) {
+      (console.error("Auth error:", l),
+        g(l.message ?? "Ocorreu um erro ao processar sua solicitação."),
+        p.error(l.message ?? "Erro na autenticação."));
+    } finally {
+      S(!1);
+    }
+  }
+  return e.jsxs("div", {
+    className: "min-h-screen grid lg:grid-cols-2 bg-background",
+    children: [
+      e.jsxs("div", {
+        className: "hidden lg:block relative overflow-hidden bg-gradient-brand",
+        children: [
+          e.jsx("div", { className: "absolute inset-0 bg-background/30 backdrop-blur-[2px]" }),
+          e.jsxs("div", {
+            className: "relative h-full flex flex-col justify-between p-12 text-primary-foreground",
+            children: [
+              e.jsxs(D, {
+                to: "/",
+                className: "flex items-center gap-2 max-w-max",
+                children: [
+                  e.jsx("div", {
+                    className:
+                      "size-9 rounded-xl bg-background/95 grid place-items-center shadow-glow",
+                    children: e.jsx(f, { className: "size-4.5 text-primary" }),
+                  }),
+                  e.jsx("span", {
+                    className: "font-display text-xl font-bold tracking-tight text-foreground",
+                    children: "Reelary",
+                  }),
+                ],
+              }),
+              e.jsxs("div", {
+                children: [
+                  e.jsxs("div", {
+                    className:
+                      "inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs mb-6 backdrop-blur-md",
+                    children: [
+                      e.jsx(f, { className: "size-3 text-accent" }),
+                      " Agendamento Automatizado",
+                    ],
+                  }),
+                  e.jsx("h2", {
+                    className:
+                      "font-display text-4xl lg:text-5xl font-bold leading-tight max-w-lg mb-4",
+                    children: "Agende seus Reels e multiplique seu alcance no automático.",
+                  }),
+                  e.jsx("p", {
+                    className: "text-sm opacity-90 max-w-md",
+                    children:
+                      '"Agendo todo o conteúdo do mês em minutos. Reelary mudou completamente a forma como gerencio minhas marcas parceiras!"',
+                  }),
+                  e.jsx("p", {
+                    className: "mt-4 text-xs opacity-75",
+                    children: "— Diretor de Social Media, +500k seguidores",
+                  }),
+                ],
+              }),
+              e.jsxs("div", {
+                className: "text-xs opacity-60",
+                children: [
+                  "© ",
+                  new Date().getFullYear(),
+                  " Reelary. Todos os direitos reservados.",
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      e.jsx("div", {
+        className: "flex items-center justify-center p-6 md:p-12 overflow-y-auto",
+        children: e.jsxs("div", {
+          className: "w-full max-w-md space-y-6",
+          children: [
+            e.jsxs("div", {
+              className: "text-center lg:text-left",
+              children: [
+                e.jsxs(D, {
+                  to: "/",
+                  className: "lg:hidden flex items-center justify-center gap-2 mb-8",
+                  children: [
+                    e.jsx("div", {
+                      className:
+                        "size-9 rounded-xl bg-gradient-brand grid place-items-center shadow-glow",
+                      children: e.jsx(f, { className: "size-4.5 text-primary-foreground" }),
+                    }),
+                    e.jsx("span", {
+                      className: "font-display text-xl font-bold",
+                      children: "Reelary",
+                    }),
+                  ],
+                }),
+                e.jsx("h1", {
+                  className: "text-3xl font-extrabold tracking-tight",
+                  children: s === "login" ? "Entrar na sua conta" : "Comece grátis agora",
+                }),
+                e.jsx("p", {
+                  className: "text-muted-foreground mt-2",
+                  children:
+                    s === "login"
+                      ? "Insira suas credenciais para gerenciar seus agendamentos"
+                      : "Crie seu perfil em segundos e agende seu primeiro Reel",
+                }),
+              ],
+            }),
+            R &&
+              e.jsxs(v, {
+                className:
+                  "border-warning/30 bg-warning/10 text-foreground animate-in fade-in slide-in-from-top-4 duration-300",
+                children: [
+                  e.jsx(M, { className: "size-5 text-warning shrink-0" }),
+                  e.jsxs("div", {
+                    className: "ml-3",
+                    children: [
+                      e.jsx(j, {
+                        className:
+                          "font-bold text-warning text-sm md:text-base flex items-center gap-1.5",
+                        children: "⚠️ CONFIRMAÇÃO DE E-MAIL REQUERIDA!",
+                      }),
+                      e.jsxs(N, {
+                        className: "text-xs md:text-sm mt-1 leading-relaxed text-muted-foreground",
+                        children: [
+                          "Enviamos um link de confirmação para o endereço ",
+                          e.jsx("strong", { className: "text-foreground", children: r }),
+                          ". Você ",
+                          e.jsx("span", {
+                            className: "underline font-semibold text-foreground",
+                            children: "deve confirmar o e-mail",
+                          }),
+                          " acessando o link na sua caixa de entrada (ou pasta de spam) para conseguir entrar no Reelary.",
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            z &&
+              !R &&
+              e.jsxs(v, {
+                variant: "destructive",
+                className: "animate-in fade-in duration-300",
+                children: [
+                  e.jsx(M, { className: "size-4" }),
+                  e.jsx(j, { children: "Erro na autenticação" }),
+                  e.jsx(N, { className: "text-xs", children: z }),
+                ],
+              }),
+            e.jsxs("form", {
+              onSubmit: _,
+              className: "space-y-4",
+              children: [
+                s === "signup" &&
+                  e.jsx(e.Fragment, {
+                    children: e.jsxs("div", {
+                      className: "grid grid-cols-1 md:grid-cols-2 gap-4",
+                      children: [
+                        e.jsxs("div", {
+                          className: "space-y-1.5",
+                          children: [
+                            e.jsx(d, { htmlFor: "fullName", children: "Nome Completo" }),
+                            e.jsx(c, {
+                              id: "fullName",
+                              type: "text",
+                              required: !0,
+                              value: E,
+                              onChange: (t) => q(t.target.value),
+                              placeholder: "Seu nome completo",
+                              className: "h-10",
+                            }),
+                          ],
+                        }),
+                        e.jsxs("div", {
+                          className: "space-y-1.5",
+                          children: [
+                            e.jsx(d, { htmlFor: "phone", children: "Número de WhatsApp" }),
+                            e.jsx(c, {
+                              id: "phone",
+                              type: "tel",
+                              required: !0,
+                              value: C,
+                              onChange: (t) => I(t.target.value),
+                              placeholder: "(DD) 99999-9999",
+                              className: "h-10",
+                            }),
+                          ],
+                        }),
+                      ],
+                    }),
+                  }),
+                e.jsxs("div", {
+                  className: "space-y-1.5",
+                  children: [
+                    e.jsx(d, { htmlFor: "email", children: "Endereço de E-mail" }),
+                    e.jsx(c, {
+                      id: "email",
+                      type: "email",
+                      required: !0,
+                      value: r,
+                      onChange: (t) => x(t.target.value),
+                      placeholder: "voce@exemplo.com",
+                      className: "h-10",
+                    }),
+                  ],
+                }),
+                e.jsxs("div", {
+                  className: "space-y-1.5",
+                  children: [
+                    e.jsx(d, { htmlFor: "password", children: "Senha" }),
+                    e.jsxs("div", {
+                      className: "relative",
+                      children: [
+                        e.jsx(c, {
+                          id: "password",
+                          type: m ? "text" : "password",
+                          required: !0,
+                          minLength: 6,
+                          value: n,
+                          onChange: (t) => y(t.target.value),
+                          placeholder: "••••••••",
+                          className: "h-10 pr-10",
+                        }),
+                        e.jsx("button", {
+                          type: "button",
+                          onClick: () => V(!m),
+                          className:
+                            "absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition",
+                          children: m
+                            ? e.jsx(J, { className: "size-4" })
+                            : e.jsx(Y, { className: "size-4" }),
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+                s === "signup" &&
+                  e.jsxs("div", {
+                    className: "space-y-1.5",
+                    children: [
+                      e.jsx(d, { htmlFor: "confirmPassword", children: "Confirmar Senha" }),
+                      e.jsx("div", {
+                        className: "relative",
+                        children: e.jsx(c, {
+                          id: "confirmPassword",
+                          type: m ? "text" : "password",
+                          required: !0,
+                          value: w,
+                          onChange: (t) => k(t.target.value),
+                          placeholder: "••••••••",
+                          className: "h-10 pr-10",
+                        }),
+                      }),
+                    ],
+                  }),
+                e.jsx(B, {
+                  type: "submit",
+                  disabled: A,
+                  className:
+                    "w-full bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold h-11 transition shadow-glow",
+                  children: A
+                    ? e.jsxs("span", {
+                        className: "flex items-center gap-2 justify-center",
+                        children: [
+                          e.jsx("span", {
+                            className:
+                              "size-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin",
+                          }),
+                          "Carregando...",
+                        ],
+                      })
+                    : s === "login"
+                      ? "Entrar"
+                      : "Cadastrar-se & Confirmar E-mail",
+                }),
+              ],
+            }),
+            e.jsxs("p", {
+              className: "text-sm text-muted-foreground text-center pt-2",
+              children: [
+                s === "login" ? "Ainda não tem uma conta? " : "Já tem cadastro? ",
+                e.jsx("button", {
+                  type: "button",
+                  onClick: () => {
+                    (i(s === "login" ? "signup" : "login"), g(null), u(!1));
+                  },
+                  className: "text-primary hover:underline font-semibold cursor-pointer",
+                  children: s === "login" ? "Cadastre-se grátis" : "Faça Login",
+                }),
+              ],
+            }),
+          ],
+        }),
+      }),
+    ],
+  });
+}
+export { ee as component };

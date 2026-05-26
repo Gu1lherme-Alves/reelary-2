@@ -1,1 +1,147 @@
-import{u as l,h as n,j as e,L as i}from"./index-CDMAuvnc.js";import{b as d,B as o}from"./button-BCDv24mv.js";import{u as c,S as m}from"./use-auth-CcoCM9Hr.js";import{I as x}from"./instagram-BnzdXG05.js";import{C as u}from"./calendar-clock-CVPEyjx1.js";const p=[["path",{d:"M5 12h14",key:"1ays0h"}],["path",{d:"m12 5 7 7-7 7",key:"xquz4c"}]],g=d("arrow-right",p);const h=[["path",{d:"M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z",key:"1xq2db"}]],b=d("zap",h);function y(){const{user:a,loading:t}=c(),r=l();return n.useEffect(()=>{!t&&a&&r({to:"/dashboard"})},[a,t,r]),e.jsxs("div",{className:"min-h-screen relative overflow-hidden",children:[e.jsxs("div",{className:"absolute inset-0 -z-10",children:[e.jsx("div",{className:"absolute -top-40 -left-40 size-[600px] rounded-full bg-primary/20 blur-3xl"}),e.jsx("div",{className:"absolute -bottom-40 -right-40 size-[600px] rounded-full bg-accent/20 blur-3xl"})]}),e.jsxs("header",{className:"mx-auto max-w-6xl px-6 h-16 flex items-center justify-between",children:[e.jsxs("div",{className:"flex items-center gap-2",children:[e.jsx("div",{className:"size-8 rounded-lg bg-gradient-brand grid place-items-center shadow-glow",children:e.jsx(m,{className:"size-4 text-primary-foreground"})}),e.jsx("span",{className:"font-display text-lg font-semibold",children:"Reelary"})]}),e.jsx(i,{to:"/auth",children:e.jsx(o,{variant:"ghost",size:"sm",children:"Entrar"})})]}),e.jsxs("section",{className:"mx-auto max-w-4xl px-6 pt-24 pb-20 text-center",children:[e.jsxs("div",{className:"inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/50 px-3 py-1 text-xs text-muted-foreground mb-8",children:[e.jsx("span",{className:"size-1.5 rounded-full bg-success"})," Beta privado aberto"]}),e.jsxs("h1",{className:"text-5xl md:text-7xl font-bold leading-[1.05] tracking-tight",children:["Agende seus ",e.jsx("span",{className:"text-gradient-brand",children:"Reels"}),e.jsx("br",{}),"sem abrir o Instagram."]}),e.jsx("p",{className:"mt-6 text-lg text-muted-foreground max-w-xl mx-auto",children:"Conecte sua conta, faça upload do vídeo, escolha a hora — e a gente publica. Calendário de conteúdo profissional para criadores que vivem de Reels."}),e.jsx("div",{className:"mt-10 flex items-center justify-center gap-3",children:e.jsx(i,{to:"/auth",children:e.jsxs(o,{size:"lg",className:"bg-gradient-brand text-primary-foreground border-0 shadow-glow hover:opacity-90 h-12 px-6",children:["Começar grátis ",e.jsx(g,{className:"size-4"})]})})}),e.jsx("div",{className:"mt-24 grid gap-4 md:grid-cols-3 text-left",children:[{icon:x,title:"Conecte em 1 clique",desc:"Login direto via Meta. Sem complicações."},{icon:u,title:"Calendário inteligente",desc:"Visualize, edite e reorganize tudo."},{icon:b,title:"Publicação automática",desc:"Configure e esqueça. Publicamos por você."}].map(s=>e.jsxs("div",{className:"rounded-2xl border border-border/60 bg-card/50 p-6 backdrop-blur shadow-card",children:[e.jsx("div",{className:"size-10 rounded-lg bg-secondary grid place-items-center mb-4",children:e.jsx(s.icon,{className:"size-5 text-primary"})}),e.jsx("h3",{className:"font-semibold mb-1",children:s.title}),e.jsx("p",{className:"text-sm text-muted-foreground",children:s.desc})]},s.title))})]})]})}export{y as component};
+import { u as l, h as n, j as e, L as i } from "./index-CDMAuvnc.js";
+import { b as d, B as o } from "./button-BCDv24mv.js";
+import { u as c, S as m } from "./use-auth-CcoCM9Hr.js";
+import { I as x } from "./instagram-BnzdXG05.js";
+import { C as u } from "./calendar-clock-CVPEyjx1.js";
+const p = [
+    ["path", { d: "M5 12h14", key: "1ays0h" }],
+    ["path", { d: "m12 5 7 7-7 7", key: "xquz4c" }],
+  ],
+  g = d("arrow-right", p);
+const h = [
+    [
+      "path",
+      {
+        d: "M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z",
+        key: "1xq2db",
+      },
+    ],
+  ],
+  b = d("zap", h);
+function y() {
+  const { user: a, loading: t } = c(),
+    r = l();
+  return (
+    n.useEffect(() => {
+      !t && a && r({ to: "/dashboard" });
+    }, [a, t, r]),
+    e.jsxs("div", {
+      className: "min-h-screen relative overflow-hidden",
+      children: [
+        e.jsxs("div", {
+          className: "absolute inset-0 -z-10",
+          children: [
+            e.jsx("div", {
+              className:
+                "absolute -top-40 -left-40 size-[600px] rounded-full bg-primary/20 blur-3xl",
+            }),
+            e.jsx("div", {
+              className:
+                "absolute -bottom-40 -right-40 size-[600px] rounded-full bg-accent/20 blur-3xl",
+            }),
+          ],
+        }),
+        e.jsxs("header", {
+          className: "mx-auto max-w-6xl px-6 h-16 flex items-center justify-between",
+          children: [
+            e.jsxs("div", {
+              className: "flex items-center gap-2",
+              children: [
+                e.jsx("div", {
+                  className:
+                    "size-8 rounded-lg bg-gradient-brand grid place-items-center shadow-glow",
+                  children: e.jsx(m, { className: "size-4 text-primary-foreground" }),
+                }),
+                e.jsx("span", {
+                  className: "font-display text-lg font-semibold",
+                  children: "Reelary",
+                }),
+              ],
+            }),
+            e.jsx(i, {
+              to: "/auth",
+              children: e.jsx(o, { variant: "ghost", size: "sm", children: "Entrar" }),
+            }),
+          ],
+        }),
+        e.jsxs("section", {
+          className: "mx-auto max-w-4xl px-6 pt-24 pb-20 text-center",
+          children: [
+            e.jsxs("div", {
+              className:
+                "inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/50 px-3 py-1 text-xs text-muted-foreground mb-8",
+              children: [
+                e.jsx("span", { className: "size-1.5 rounded-full bg-success" }),
+                " Beta privado aberto",
+              ],
+            }),
+            e.jsxs("h1", {
+              className: "text-5xl md:text-7xl font-bold leading-[1.05] tracking-tight",
+              children: [
+                "Agende seus ",
+                e.jsx("span", { className: "text-gradient-brand", children: "Reels" }),
+                e.jsx("br", {}),
+                "sem abrir o Instagram.",
+              ],
+            }),
+            e.jsx("p", {
+              className: "mt-6 text-lg text-muted-foreground max-w-xl mx-auto",
+              children:
+                "Conecte sua conta, faça upload do vídeo, escolha a hora — e a gente publica. Calendário de conteúdo profissional para criadores que vivem de Reels.",
+            }),
+            e.jsx("div", {
+              className: "mt-10 flex items-center justify-center gap-3",
+              children: e.jsx(i, {
+                to: "/auth",
+                children: e.jsxs(o, {
+                  size: "lg",
+                  className:
+                    "bg-gradient-brand text-primary-foreground border-0 shadow-glow hover:opacity-90 h-12 px-6",
+                  children: ["Começar grátis ", e.jsx(g, { className: "size-4" })],
+                }),
+              }),
+            }),
+            e.jsx("div", {
+              className: "mt-24 grid gap-4 md:grid-cols-3 text-left",
+              children: [
+                {
+                  icon: x,
+                  title: "Conecte em 1 clique",
+                  desc: "Login direto via Meta. Sem complicações.",
+                },
+                {
+                  icon: u,
+                  title: "Calendário inteligente",
+                  desc: "Visualize, edite e reorganize tudo.",
+                },
+                {
+                  icon: b,
+                  title: "Publicação automática",
+                  desc: "Configure e esqueça. Publicamos por você.",
+                },
+              ].map((s) =>
+                e.jsxs(
+                  "div",
+                  {
+                    className:
+                      "rounded-2xl border border-border/60 bg-card/50 p-6 backdrop-blur shadow-card",
+                    children: [
+                      e.jsx("div", {
+                        className: "size-10 rounded-lg bg-secondary grid place-items-center mb-4",
+                        children: e.jsx(s.icon, { className: "size-5 text-primary" }),
+                      }),
+                      e.jsx("h3", { className: "font-semibold mb-1", children: s.title }),
+                      e.jsx("p", { className: "text-sm text-muted-foreground", children: s.desc }),
+                    ],
+                  },
+                  s.title,
+                ),
+              ),
+            }),
+          ],
+        }),
+      ],
+    })
+  );
+}
+export { y as component };

@@ -20,7 +20,7 @@ function CallbackPage() {
   const connect = useServerFn(connectInstagramAccount);
   const ran = useRef(false);
 
-   useEffect(() => {
+  useEffect(() => {
     if (ran.current) return;
     ran.current = true;
     const params = new URLSearchParams(window.location.search);

@@ -5,7 +5,9 @@ function useAuth() {
   const [user, setUser] = reactExports.useState(null);
   const [loading, setLoading] = reactExports.useState(true);
   reactExports.useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
     });
@@ -18,6 +20,4 @@ function useAuth() {
   }, []);
   return { session, user, loading };
 }
-export {
-  useAuth as u
-};
+export { useAuth as u };

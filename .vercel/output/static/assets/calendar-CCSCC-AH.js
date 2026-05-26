@@ -1,5 +1,1267 @@
-import{h as n,j as e,u as Ze,L as Qe,s as w,t as D}from"./index-CDMAuvnc.js";import{q as Ke,t as B,i as P,k as E,h as H,P as Xe,n as et,p as tt,R as st,s as at,F as rt,D as ot,m as nt,a as lt,C as it,e as ct,f as dt}from"./AppShell-C8I5-jDj.js";import{b as me,a as ut,u as Y,c as F,B as C}from"./button-BCDv24mv.js";import{L as z,I as mt}from"./label-eD0-1wzi.js";import{V as G,U as xt,T as gt}from"./textarea-BPlfG2vE.js";import{S as pt,c as ft,d as ht,a as bt,b as vt}from"./select-DI3knHpR.js";import{P as jt}from"./plus-CeI0anFx.js";import{T as Nt}from"./trash-2-F1jD8W3K.js";import{C as yt}from"./circle-alert-WZ3Kx3vi.js";import{S as wt}from"./use-auth-CcoCM9Hr.js";import{L as Dt}from"./loader-circle-seK7i1c-.js";import"./instagram-BnzdXG05.js";const Ct=[["path",{d:"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z",key:"10ikf1"}]],Rt=me("play",Ct);const St=[["path",{d:"M18 6 6 18",key:"1bl5f8"}],["path",{d:"m6 6 12 12",key:"d8bk6v"}]],xe=me("x",St);function _t(t){const s=Et(t),r=n.forwardRef((l,o)=>{const{children:i,...m}=l,d=n.Children.toArray(i),x=d.find(At);if(x){const g=x.props.children,v=d.map(b=>b===x?n.Children.count(g)>1?n.Children.only(null):n.isValidElement(g)?g.props.children:null:b);return e.jsx(s,{...m,ref:o,children:n.isValidElement(g)?n.cloneElement(g,void 0,v):null})}return e.jsx(s,{...m,ref:o,children:i})});return r.displayName=`${t}.Slot`,r}function Et(t){const s=n.forwardRef((r,l)=>{const{children:o,...i}=r;if(n.isValidElement(o)){const m=Ot(o),d=It(i,o.props);return o.type!==n.Fragment&&(d.ref=l?ut(l,m):m),n.cloneElement(o,d)}return n.Children.count(o)>1?n.Children.only(null):null});return s.displayName=`${t}.SlotClone`,s}var Pt=Symbol("radix.slottable");function At(t){return n.isValidElement(t)&&typeof t.type=="function"&&"__radixId"in t.type&&t.type.__radixId===Pt}function It(t,s){const r={...s};for(const l in s){const o=t[l],i=s[l];/^on[A-Z]/.test(l)?o&&i?r[l]=(...d)=>{const x=i(...d);return o(...d),x}:o&&(r[l]=o):l==="style"?r[l]={...o,...i}:l==="className"&&(r[l]=[o,i].filter(Boolean).join(" "))}return{...t,...r}}function Ot(t){let s=Object.getOwnPropertyDescriptor(t.props,"ref")?.get,r=s&&"isReactWarning"in s&&s.isReactWarning;return r?t.ref:(s=Object.getOwnPropertyDescriptor(t,"ref")?.get,r=s&&"isReactWarning"in s&&s.isReactWarning,r?t.props.ref:t.props.ref||t.ref)}var L="Dialog",[ge]=et(L),[Mt,p]=ge(L),pe=t=>{const{__scopeDialog:s,children:r,open:l,defaultOpen:o,onOpenChange:i,modal:m=!0}=t,d=n.useRef(null),x=n.useRef(null),[g,v]=Ke({prop:l,defaultProp:o??!1,onChange:i,caller:L});return e.jsx(Mt,{scope:s,triggerRef:d,contentRef:x,contentId:B(),titleId:B(),descriptionId:B(),open:g,onOpenChange:v,onOpenToggle:n.useCallback(()=>v(b=>!b),[v]),modal:m,children:r})};pe.displayName=L;var fe="DialogTrigger",kt=n.forwardRef((t,s)=>{const{__scopeDialog:r,...l}=t,o=p(fe,r),i=Y(s,o.triggerRef);return e.jsx(P.button,{type:"button","aria-haspopup":"dialog","aria-expanded":o.open,"aria-controls":o.contentId,"data-state":Q(o.open),...l,ref:i,onClick:E(t.onClick,o.onOpenToggle)})});kt.displayName=fe;var J="DialogPortal",[zt,he]=ge(J,{forceMount:void 0}),be=t=>{const{__scopeDialog:s,forceMount:r,children:l,container:o}=t,i=p(J,s);return e.jsx(zt,{scope:s,forceMount:r,children:n.Children.map(l,m=>e.jsx(H,{present:r||i.open,children:e.jsx(Xe,{asChild:!0,container:o,children:m})}))})};be.displayName=J;var T="DialogOverlay",ve=n.forwardRef((t,s)=>{const r=he(T,t.__scopeDialog),{forceMount:l=r.forceMount,...o}=t,i=p(T,t.__scopeDialog);return i.modal?e.jsx(H,{present:l||i.open,children:e.jsx(Ft,{...o,ref:s})}):null});ve.displayName=T;var Tt=_t("DialogOverlay.RemoveScroll"),Ft=n.forwardRef((t,s)=>{const{__scopeDialog:r,...l}=t,o=p(T,r);return e.jsx(st,{as:Tt,allowPinchZoom:!0,shards:[o.contentRef],children:e.jsx(P.div,{"data-state":Q(o.open),...l,ref:s,style:{pointerEvents:"auto",...l.style}})})}),R="DialogContent",je=n.forwardRef((t,s)=>{const r=he(R,t.__scopeDialog),{forceMount:l=r.forceMount,...o}=t,i=p(R,t.__scopeDialog);return e.jsx(H,{present:l||i.open,children:i.modal?e.jsx(Lt,{...o,ref:s}):e.jsx($t,{...o,ref:s})})});je.displayName=R;var Lt=n.forwardRef((t,s)=>{const r=p(R,t.__scopeDialog),l=n.useRef(null),o=Y(s,r.contentRef,l);return n.useEffect(()=>{const i=l.current;if(i)return tt(i)},[]),e.jsx(Ne,{...t,ref:o,trapFocus:r.open,disableOutsidePointerEvents:!0,onCloseAutoFocus:E(t.onCloseAutoFocus,i=>{i.preventDefault(),r.triggerRef.current?.focus()}),onPointerDownOutside:E(t.onPointerDownOutside,i=>{const m=i.detail.originalEvent,d=m.button===0&&m.ctrlKey===!0;(m.button===2||d)&&i.preventDefault()}),onFocusOutside:E(t.onFocusOutside,i=>i.preventDefault())})}),$t=n.forwardRef((t,s)=>{const r=p(R,t.__scopeDialog),l=n.useRef(!1),o=n.useRef(!1);return e.jsx(Ne,{...t,ref:s,trapFocus:!1,disableOutsidePointerEvents:!1,onCloseAutoFocus:i=>{t.onCloseAutoFocus?.(i),i.defaultPrevented||(l.current||r.triggerRef.current?.focus(),i.preventDefault()),l.current=!1,o.current=!1},onInteractOutside:i=>{t.onInteractOutside?.(i),i.defaultPrevented||(l.current=!0,i.detail.originalEvent.type==="pointerdown"&&(o.current=!0));const m=i.target;r.triggerRef.current?.contains(m)&&i.preventDefault(),i.detail.originalEvent.type==="focusin"&&o.current&&i.preventDefault()}})}),Ne=n.forwardRef((t,s)=>{const{__scopeDialog:r,trapFocus:l,onOpenAutoFocus:o,onCloseAutoFocus:i,...m}=t,d=p(R,r),x=n.useRef(null),g=Y(s,x);return at(),e.jsxs(e.Fragment,{children:[e.jsx(rt,{asChild:!0,loop:!0,trapped:l,onMountAutoFocus:o,onUnmountAutoFocus:i,children:e.jsx(ot,{role:"dialog",id:d.contentId,"aria-describedby":d.descriptionId,"aria-labelledby":d.titleId,"data-state":Q(d.open),...m,ref:g,onDismiss:()=>d.onOpenChange(!1)})}),e.jsxs(e.Fragment,{children:[e.jsx(Vt,{titleId:d.titleId}),e.jsx(Wt,{contentRef:x,descriptionId:d.descriptionId})]})]})}),Z="DialogTitle",ye=n.forwardRef((t,s)=>{const{__scopeDialog:r,...l}=t,o=p(Z,r);return e.jsx(P.h2,{id:o.titleId,...l,ref:s})});ye.displayName=Z;var we="DialogDescription",De=n.forwardRef((t,s)=>{const{__scopeDialog:r,...l}=t,o=p(we,r);return e.jsx(P.p,{id:o.descriptionId,...l,ref:s})});De.displayName=we;var Ce="DialogClose",Re=n.forwardRef((t,s)=>{const{__scopeDialog:r,...l}=t,o=p(Ce,r);return e.jsx(P.button,{type:"button",...l,ref:s,onClick:E(t.onClick,()=>o.onOpenChange(!1))})});Re.displayName=Ce;function Q(t){return t?"open":"closed"}var Se="DialogTitleWarning",[cs,_e]=nt(Se,{contentName:R,titleName:Z,docsSlug:"dialog"}),Vt=({titleId:t})=>{const s=_e(Se),r=`\`${s.contentName}\` requires a \`${s.titleName}\` for the component to be accessible for screen reader users.
+import { h as n, j as e, u as Ze, L as Qe, s as w, t as D } from "./index-CDMAuvnc.js";
+import {
+  q as Ke,
+  t as B,
+  i as P,
+  k as E,
+  h as H,
+  P as Xe,
+  n as et,
+  p as tt,
+  R as st,
+  s as at,
+  F as rt,
+  D as ot,
+  m as nt,
+  a as lt,
+  C as it,
+  e as ct,
+  f as dt,
+} from "./AppShell-C8I5-jDj.js";
+import { b as me, a as ut, u as Y, c as F, B as C } from "./button-BCDv24mv.js";
+import { L as z, I as mt } from "./label-eD0-1wzi.js";
+import { V as G, U as xt, T as gt } from "./textarea-BPlfG2vE.js";
+import { S as pt, c as ft, d as ht, a as bt, b as vt } from "./select-DI3knHpR.js";
+import { P as jt } from "./plus-CeI0anFx.js";
+import { T as Nt } from "./trash-2-F1jD8W3K.js";
+import { C as yt } from "./circle-alert-WZ3Kx3vi.js";
+import { S as wt } from "./use-auth-CcoCM9Hr.js";
+import { L as Dt } from "./loader-circle-seK7i1c-.js";
+import "./instagram-BnzdXG05.js";
+const Ct = [
+    [
+      "path",
+      {
+        d: "M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z",
+        key: "10ikf1",
+      },
+    ],
+  ],
+  Rt = me("play", Ct);
+const St = [
+    ["path", { d: "M18 6 6 18", key: "1bl5f8" }],
+    ["path", { d: "m6 6 12 12", key: "d8bk6v" }],
+  ],
+  xe = me("x", St);
+function _t(t) {
+  const s = Et(t),
+    r = n.forwardRef((l, o) => {
+      const { children: i, ...m } = l,
+        d = n.Children.toArray(i),
+        x = d.find(At);
+      if (x) {
+        const g = x.props.children,
+          v = d.map((b) =>
+            b === x
+              ? n.Children.count(g) > 1
+                ? n.Children.only(null)
+                : n.isValidElement(g)
+                  ? g.props.children
+                  : null
+              : b,
+          );
+        return e.jsx(s, {
+          ...m,
+          ref: o,
+          children: n.isValidElement(g) ? n.cloneElement(g, void 0, v) : null,
+        });
+      }
+      return e.jsx(s, { ...m, ref: o, children: i });
+    });
+  return ((r.displayName = `${t}.Slot`), r);
+}
+function Et(t) {
+  const s = n.forwardRef((r, l) => {
+    const { children: o, ...i } = r;
+    if (n.isValidElement(o)) {
+      const m = Ot(o),
+        d = It(i, o.props);
+      return (o.type !== n.Fragment && (d.ref = l ? ut(l, m) : m), n.cloneElement(o, d));
+    }
+    return n.Children.count(o) > 1 ? n.Children.only(null) : null;
+  });
+  return ((s.displayName = `${t}.SlotClone`), s);
+}
+var Pt = Symbol("radix.slottable");
+function At(t) {
+  return (
+    n.isValidElement(t) &&
+    typeof t.type == "function" &&
+    "__radixId" in t.type &&
+    t.type.__radixId === Pt
+  );
+}
+function It(t, s) {
+  const r = { ...s };
+  for (const l in s) {
+    const o = t[l],
+      i = s[l];
+    /^on[A-Z]/.test(l)
+      ? o && i
+        ? (r[l] = (...d) => {
+            const x = i(...d);
+            return (o(...d), x);
+          })
+        : o && (r[l] = o)
+      : l === "style"
+        ? (r[l] = { ...o, ...i })
+        : l === "className" && (r[l] = [o, i].filter(Boolean).join(" "));
+  }
+  return { ...t, ...r };
+}
+function Ot(t) {
+  let s = Object.getOwnPropertyDescriptor(t.props, "ref")?.get,
+    r = s && "isReactWarning" in s && s.isReactWarning;
+  return r
+    ? t.ref
+    : ((s = Object.getOwnPropertyDescriptor(t, "ref")?.get),
+      (r = s && "isReactWarning" in s && s.isReactWarning),
+      r ? t.props.ref : t.props.ref || t.ref);
+}
+var L = "Dialog",
+  [ge] = et(L),
+  [Mt, p] = ge(L),
+  pe = (t) => {
+    const {
+        __scopeDialog: s,
+        children: r,
+        open: l,
+        defaultOpen: o,
+        onOpenChange: i,
+        modal: m = !0,
+      } = t,
+      d = n.useRef(null),
+      x = n.useRef(null),
+      [g, v] = Ke({ prop: l, defaultProp: o ?? !1, onChange: i, caller: L });
+    return e.jsx(Mt, {
+      scope: s,
+      triggerRef: d,
+      contentRef: x,
+      contentId: B(),
+      titleId: B(),
+      descriptionId: B(),
+      open: g,
+      onOpenChange: v,
+      onOpenToggle: n.useCallback(() => v((b) => !b), [v]),
+      modal: m,
+      children: r,
+    });
+  };
+pe.displayName = L;
+var fe = "DialogTrigger",
+  kt = n.forwardRef((t, s) => {
+    const { __scopeDialog: r, ...l } = t,
+      o = p(fe, r),
+      i = Y(s, o.triggerRef);
+    return e.jsx(P.button, {
+      type: "button",
+      "aria-haspopup": "dialog",
+      "aria-expanded": o.open,
+      "aria-controls": o.contentId,
+      "data-state": Q(o.open),
+      ...l,
+      ref: i,
+      onClick: E(t.onClick, o.onOpenToggle),
+    });
+  });
+kt.displayName = fe;
+var J = "DialogPortal",
+  [zt, he] = ge(J, { forceMount: void 0 }),
+  be = (t) => {
+    const { __scopeDialog: s, forceMount: r, children: l, container: o } = t,
+      i = p(J, s);
+    return e.jsx(zt, {
+      scope: s,
+      forceMount: r,
+      children: n.Children.map(l, (m) =>
+        e.jsx(H, {
+          present: r || i.open,
+          children: e.jsx(Xe, { asChild: !0, container: o, children: m }),
+        }),
+      ),
+    });
+  };
+be.displayName = J;
+var T = "DialogOverlay",
+  ve = n.forwardRef((t, s) => {
+    const r = he(T, t.__scopeDialog),
+      { forceMount: l = r.forceMount, ...o } = t,
+      i = p(T, t.__scopeDialog);
+    return i.modal
+      ? e.jsx(H, { present: l || i.open, children: e.jsx(Ft, { ...o, ref: s }) })
+      : null;
+  });
+ve.displayName = T;
+var Tt = _t("DialogOverlay.RemoveScroll"),
+  Ft = n.forwardRef((t, s) => {
+    const { __scopeDialog: r, ...l } = t,
+      o = p(T, r);
+    return e.jsx(st, {
+      as: Tt,
+      allowPinchZoom: !0,
+      shards: [o.contentRef],
+      children: e.jsx(P.div, {
+        "data-state": Q(o.open),
+        ...l,
+        ref: s,
+        style: { pointerEvents: "auto", ...l.style },
+      }),
+    });
+  }),
+  R = "DialogContent",
+  je = n.forwardRef((t, s) => {
+    const r = he(R, t.__scopeDialog),
+      { forceMount: l = r.forceMount, ...o } = t,
+      i = p(R, t.__scopeDialog);
+    return e.jsx(H, {
+      present: l || i.open,
+      children: i.modal ? e.jsx(Lt, { ...o, ref: s }) : e.jsx($t, { ...o, ref: s }),
+    });
+  });
+je.displayName = R;
+var Lt = n.forwardRef((t, s) => {
+    const r = p(R, t.__scopeDialog),
+      l = n.useRef(null),
+      o = Y(s, r.contentRef, l);
+    return (
+      n.useEffect(() => {
+        const i = l.current;
+        if (i) return tt(i);
+      }, []),
+      e.jsx(Ne, {
+        ...t,
+        ref: o,
+        trapFocus: r.open,
+        disableOutsidePointerEvents: !0,
+        onCloseAutoFocus: E(t.onCloseAutoFocus, (i) => {
+          (i.preventDefault(), r.triggerRef.current?.focus());
+        }),
+        onPointerDownOutside: E(t.onPointerDownOutside, (i) => {
+          const m = i.detail.originalEvent,
+            d = m.button === 0 && m.ctrlKey === !0;
+          (m.button === 2 || d) && i.preventDefault();
+        }),
+        onFocusOutside: E(t.onFocusOutside, (i) => i.preventDefault()),
+      })
+    );
+  }),
+  $t = n.forwardRef((t, s) => {
+    const r = p(R, t.__scopeDialog),
+      l = n.useRef(!1),
+      o = n.useRef(!1);
+    return e.jsx(Ne, {
+      ...t,
+      ref: s,
+      trapFocus: !1,
+      disableOutsidePointerEvents: !1,
+      onCloseAutoFocus: (i) => {
+        (t.onCloseAutoFocus?.(i),
+          i.defaultPrevented || (l.current || r.triggerRef.current?.focus(), i.preventDefault()),
+          (l.current = !1),
+          (o.current = !1));
+      },
+      onInteractOutside: (i) => {
+        (t.onInteractOutside?.(i),
+          i.defaultPrevented ||
+            ((l.current = !0), i.detail.originalEvent.type === "pointerdown" && (o.current = !0)));
+        const m = i.target;
+        (r.triggerRef.current?.contains(m) && i.preventDefault(),
+          i.detail.originalEvent.type === "focusin" && o.current && i.preventDefault());
+      },
+    });
+  }),
+  Ne = n.forwardRef((t, s) => {
+    const { __scopeDialog: r, trapFocus: l, onOpenAutoFocus: o, onCloseAutoFocus: i, ...m } = t,
+      d = p(R, r),
+      x = n.useRef(null),
+      g = Y(s, x);
+    return (
+      at(),
+      e.jsxs(e.Fragment, {
+        children: [
+          e.jsx(rt, {
+            asChild: !0,
+            loop: !0,
+            trapped: l,
+            onMountAutoFocus: o,
+            onUnmountAutoFocus: i,
+            children: e.jsx(ot, {
+              role: "dialog",
+              id: d.contentId,
+              "aria-describedby": d.descriptionId,
+              "aria-labelledby": d.titleId,
+              "data-state": Q(d.open),
+              ...m,
+              ref: g,
+              onDismiss: () => d.onOpenChange(!1),
+            }),
+          }),
+          e.jsxs(e.Fragment, {
+            children: [
+              e.jsx(Vt, { titleId: d.titleId }),
+              e.jsx(Wt, { contentRef: x, descriptionId: d.descriptionId }),
+            ],
+          }),
+        ],
+      })
+    );
+  }),
+  Z = "DialogTitle",
+  ye = n.forwardRef((t, s) => {
+    const { __scopeDialog: r, ...l } = t,
+      o = p(Z, r);
+    return e.jsx(P.h2, { id: o.titleId, ...l, ref: s });
+  });
+ye.displayName = Z;
+var we = "DialogDescription",
+  De = n.forwardRef((t, s) => {
+    const { __scopeDialog: r, ...l } = t,
+      o = p(we, r);
+    return e.jsx(P.p, { id: o.descriptionId, ...l, ref: s });
+  });
+De.displayName = we;
+var Ce = "DialogClose",
+  Re = n.forwardRef((t, s) => {
+    const { __scopeDialog: r, ...l } = t,
+      o = p(Ce, r);
+    return e.jsx(P.button, {
+      type: "button",
+      ...l,
+      ref: s,
+      onClick: E(t.onClick, () => o.onOpenChange(!1)),
+    });
+  });
+Re.displayName = Ce;
+function Q(t) {
+  return t ? "open" : "closed";
+}
+var Se = "DialogTitleWarning",
+  [cs, _e] = nt(Se, { contentName: R, titleName: Z, docsSlug: "dialog" }),
+  Vt = ({ titleId: t }) => {
+    const s = _e(Se),
+      r = `\`${s.contentName}\` requires a \`${s.titleName}\` for the component to be accessible for screen reader users.
 
 If you want to hide the \`${s.titleName}\`, you can wrap it with our VisuallyHidden component.
 
-For more information, see https://radix-ui.com/primitives/docs/components/${s.docsSlug}`;return n.useEffect(()=>{t&&(document.getElementById(t)||console.error(r))},[r,t]),null},Ut="DialogDescriptionWarning",Wt=({contentRef:t,descriptionId:s})=>{const l=`Warning: Missing \`Description\` or \`aria-describedby={undefined}\` for {${_e(Ut).contentName}}.`;return n.useEffect(()=>{const o=t.current?.getAttribute("aria-describedby");s&&o&&(document.getElementById(s)||console.warn(l))},[l,t,s]),null},qt=pe,Bt=be,Ee=ve,Pe=je,Ae=ye,Ie=De,Oe=Re;const Gt=qt,Ht=Bt,Yt=Oe,Me=n.forwardRef(({className:t,...s},r)=>e.jsx(Ee,{ref:r,className:F("fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",t),...s}));Me.displayName=Ee.displayName;const ke=n.forwardRef(({className:t,children:s,...r},l)=>e.jsxs(Ht,{children:[e.jsx(Me,{}),e.jsxs(Pe,{ref:l,className:F("fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",t),...r,children:[s,e.jsxs(Oe,{className:"absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",children:[e.jsx(xe,{className:"h-4 w-4"}),e.jsx("span",{className:"sr-only",children:"Close"})]})]})]}));ke.displayName=Pe.displayName;const ze=n.forwardRef(({className:t,...s},r)=>e.jsx(Ae,{ref:r,className:F("text-lg font-semibold leading-none tracking-tight",t),...s}));ze.displayName=Ae.displayName;const Te=n.forwardRef(({className:t,...s},r)=>e.jsx(Ie,{ref:r,className:F("text-sm text-muted-foreground",t),...s}));Te.displayName=Ie.displayName;function Jt(){const[t,s]=n.useState(new Date),[r,l]=n.useState(new Date),[o,i]=n.useState([]),[m,d]=n.useState([]),[x,g]=n.useState(!0),[v,b]=n.useState(!1),[K,X]=n.useState(!1),[A,I]=n.useState(""),[$,ee]=n.useState(""),[V,te]=n.useState(""),[j,se]=n.useState(null),[f,ae]=n.useState(null),[U,re]=n.useState(!1),O=n.useRef(null),Fe=Ze();async function W(){try{const{data:a}=await w.from("instagram_accounts").select("id, username").order("created_at",{ascending:!1});i(a||[]);const c=localStorage.getItem("active_ig_account_id");c?I(c):a&&a.length>0&&I(a[0].id);const{data:u}=await w.from("scheduled_posts").select("id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)").order("scheduled_at",{ascending:!0});d(u||[])}catch(a){D.error(a.message||"Erro ao carregar dados do calendário")}finally{g(!1)}}n.useEffect(()=>{W();const a=()=>{const c=localStorage.getItem("active_ig_account_id");c&&I(c)};return window.addEventListener("active-account-changed",a),()=>window.removeEventListener("active-account-changed",a)},[]),n.useEffect(()=>()=>{f&&URL.revokeObjectURL(f)},[f]);const Le=a=>{const c=a.target.files?.[0]||null;c&&(f&&URL.revokeObjectURL(f),se(c),ae(URL.createObjectURL(c)),re(!1),D.success("Vídeo carregado com sucesso para visualização."))},oe=()=>{O.current&&(U?O.current.pause():O.current.play().catch(a=>console.error("Error playing video:",a)),re(!U))},$e=async a=>{if(a.preventDefault(),!j||!A||!V){D.error("Por favor, preencha todos os campos e selecione um vídeo.");return}X(!0);try{const{data:c}=await w.auth.getUser(),u=c.user?.id;if(!u)throw new Error("Sessão expirada. Faça login novamente.");const _=j.name.split(".").pop()??"mp4",S=`${u}/${Date.now()}.${_}`,h=await w.storage.from("reels").upload(S,j,{contentType:j.type||"video/mp4"});if(h.error)throw h.error;const{data:q}=w.storage.from("reels").getPublicUrl(S),{error:k}=await w.from("scheduled_posts").insert({user_id:u,instagram_account_id:A,video_url:q.publicUrl,caption:$,scheduled_at:new Date(V).toISOString(),status:"pending"});if(k)throw k;D.success("Reel agendado com sucesso!"),ee(""),se(null),f&&URL.revokeObjectURL(f),ae(null),b(!1),W()}catch(c){console.error(c),D.error(c.message||"Ocorreu um erro ao agendar o Reel.")}finally{X(!1)}},Ve=async a=>{if(confirm("Excluir este agendamento de Reel definitivamente?"))try{const{error:c}=await w.from("scheduled_posts").delete().eq("id",a);if(c)throw c;D.success("Agendamento excluído."),W()}catch(c){D.error(c.message||"Erro ao excluir agendamento.")}},N=t.getFullYear(),y=t.getMonth(),ne=new Date(N,y,1).getDay(),Ue=new Date(N,y+1,0).getDate(),We=new Date(N,y,0).getDate(),le=Array.from({length:ne},(a,c)=>{const u=We-ne+c+1;return{day:u,isCurrentMonth:!1,date:new Date(N,y-1,u)}}),ie=Array.from({length:Ue},(a,c)=>{const u=c+1;return{day:u,isCurrentMonth:!0,date:new Date(N,y,u)}}),qe=(7-(le.length+ie.length)%7)%7,Be=Array.from({length:qe},(a,c)=>{const u=c+1;return{day:u,isCurrentMonth:!1,date:new Date(N,y+1,u)}}),Ge=[...le,...ie,...Be],ce=a=>{const c=new Date(t);a==="prev"?c.setMonth(t.getMonth()-1):c.setMonth(t.getMonth()+1),s(c)},He=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"],Ye=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"],M=(a,c)=>a.getFullYear()===c.getFullYear()&&a.getMonth()===c.getMonth()&&a.getDate()===c.getDate(),de=m.filter(a=>M(new Date(a.scheduled_at),r)),Je=new Date(Date.now()+5*6e4).toISOString().slice(0,16),ue=a=>{l(a);const c=new Date(a),u=new Date;c.setHours(u.getHours()+1,0,0,0);const _=c.getTimezoneOffset()*6e4,S=new Date(c.getTime()-_).toISOString().slice(0,16);te(S),b(!0)};return e.jsxs("div",{className:"space-y-6",children:[e.jsxs("div",{className:"flex flex-col md:flex-row md:items-center justify-between gap-4",children:[e.jsxs("div",{children:[e.jsx("h1",{className:"text-3xl font-extrabold tracking-tight",children:"Calendário Editorial"}),e.jsx("p",{className:"text-muted-foreground mt-1.5",children:"Visualize o fluxo do seu conteúdo e agende novas postagens clicando nos dias correspondentes."})]}),o.length>0&&e.jsxs(C,{onClick:()=>ue(r),className:"bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold shadow-glow shrink-0",children:[e.jsx(jt,{className:"size-4 mr-2"})," Agendar Reel"]})]}),e.jsxs("div",{className:"grid gap-6 lg:grid-cols-3",children:[e.jsxs("div",{className:"lg:col-span-2 rounded-2xl border border-border/50 bg-card/45 p-5 shadow-card flex flex-col justify-between",children:[e.jsxs("div",{children:[e.jsxs("div",{className:"flex items-center justify-between mb-6",children:[e.jsxs("h3",{className:"font-extrabold text-lg flex items-center gap-2",children:[e.jsx(it,{className:"size-5 text-primary"}),He[y]," ",N]}),e.jsxs("div",{className:"flex gap-1",children:[e.jsx(C,{variant:"outline",size:"icon",onClick:()=>ce("prev"),className:"size-8 rounded-lg hover:bg-secondary cursor-pointer",children:e.jsx(ct,{className:"size-4"})}),e.jsx(C,{variant:"outline",size:"icon",onClick:()=>ce("next"),className:"size-8 rounded-lg hover:bg-secondary cursor-pointer",children:e.jsx(dt,{className:"size-4"})})]})]}),e.jsx("div",{className:"grid grid-cols-7 gap-1 text-center mb-2",children:Ye.map(a=>e.jsx("div",{className:"text-xs font-bold text-muted-foreground py-1.5",children:a},a))}),e.jsx("div",{className:"grid grid-cols-7 gap-2",children:Ge.map((a,c)=>{const u=m.filter(h=>M(new Date(h.scheduled_at),a.date)),_=M(a.date,r),S=M(a.date,new Date);return e.jsxs("button",{onClick:()=>l(a.date),className:`aspect-square rounded-xl p-2 flex flex-col justify-between items-start transition cursor-pointer border ${a.isCurrentMonth?_?"bg-primary/10 border-primary text-primary font-bold shadow-sm":S?"bg-secondary/40 border-primary/45 font-bold":"bg-card border-border/45 hover:border-muted-foreground/45":"text-muted-foreground/45 border-transparent bg-transparent"}`,children:[e.jsx("span",{className:"text-sm font-semibold",children:a.day}),u.length>0&&e.jsx("div",{className:"w-full flex flex-wrap gap-1 justify-end mt-1",children:u.map((h,q)=>{const k={pending:"bg-warning",published:"bg-success",failed:"bg-destructive"};return e.jsx("span",{className:`size-2 rounded-full ${k[h.status]||"bg-primary"}`,title:`${h.status==="published"?"Publicado":h.status==="failed"?"Falhou":"Agendado"}: @${h.instagram_accounts?.username||"Reel"}`},q)})})]},c)})})]}),e.jsxs("div",{className:"mt-6 pt-4 border-t border-border/40 text-xs text-muted-foreground flex gap-4 justify-center",children:[e.jsxs("span",{className:"flex items-center gap-1",children:[e.jsx("span",{className:"size-2 rounded-full bg-warning"})," Agendado"]}),e.jsxs("span",{className:"flex items-center gap-1",children:[e.jsx("span",{className:"size-2 rounded-full bg-success"})," Publicado"]}),e.jsxs("span",{className:"flex items-center gap-1",children:[e.jsx("span",{className:"size-2 rounded-full bg-destructive"})," Falhou"]})]})]}),e.jsxs("div",{className:"rounded-2xl border border-border/50 bg-card/45 p-5 shadow-card flex flex-col justify-between",children:[e.jsxs("div",{children:[e.jsxs("h3",{className:"font-extrabold text-lg border-b border-border/40 pb-4 mb-4",children:["Reels para o dia ",r.toLocaleDateString("pt-BR",{dateStyle:"medium"})]}),x?e.jsx("div",{className:"space-y-4",children:[1,2].map(a=>e.jsx("div",{className:"h-20 bg-secondary animate-pulse rounded-xl"},a))}):de.length===0?e.jsxs("div",{className:"text-center py-12 px-4 border border-dashed border-border/60 rounded-xl bg-card/10",children:[e.jsx(G,{className:"size-8 text-muted-foreground/60 mx-auto mb-3"}),e.jsx("p",{className:"text-sm text-muted-foreground",children:"Nenhum Reel agendado para este dia."}),o.length>0?e.jsx(C,{onClick:()=>ue(r),size:"sm",className:"mt-4 border-primary text-primary hover:bg-primary/5 bg-transparent border rounded-lg text-xs",children:"Agendar para este dia"}):e.jsx(C,{onClick:()=>Fe({to:"/accounts"}),size:"sm",className:"mt-4 border-dashed border-muted-foreground text-muted-foreground bg-transparent border rounded-lg text-xs",children:"Vincular conta primeiro"})]}):e.jsx("div",{className:"space-y-4 max-h-[350px] overflow-y-auto pr-1.5",children:de.map(a=>{const u={pending:{text:"Agendado",cls:"bg-warning/15 text-warning border-warning/30"},published:{text:"Publicado",cls:"bg-success/15 text-success border-success/30"},failed:{text:"Falhou",cls:"bg-destructive/15 text-destructive border-destructive/30"}}[a.status]||{text:"Pendente",cls:"bg-secondary text-foreground"};return e.jsxs("div",{className:"p-3.5 rounded-xl bg-card border border-border/50 hover:bg-card/75 transition shadow-sm flex gap-3 relative group",children:[e.jsx("video",{src:a.video_url,className:"size-16 rounded-lg object-cover bg-background shrink-0",muted:!0}),e.jsxs("div",{className:"min-w-0 flex-1 flex flex-col justify-between py-0.5",children:[e.jsxs("div",{children:[e.jsxs("div",{className:"flex items-center gap-1.5 text-[10px]",children:[e.jsxs("strong",{className:"text-primary truncate",children:["@",a.instagram_accounts?.username||"instagram"]}),e.jsx("span",{className:"text-muted-foreground",children:"•"}),e.jsx("span",{className:"text-muted-foreground font-semibold",children:new Date(a.scheduled_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})})]}),e.jsx("p",{className:"text-xs text-foreground/80 mt-1 line-clamp-1",children:a.caption||e.jsx("span",{className:"text-muted-foreground italic",children:"Sem legenda"})})]}),e.jsx("div",{className:"flex items-center gap-2 mt-2",children:e.jsx("span",{className:`inline-flex items-center text-[9px] font-bold border px-1.5 py-0.5 rounded-full ${u.cls}`,children:u.text})})]}),e.jsx(C,{variant:"ghost",size:"icon",onClick:()=>Ve(a.id),className:"size-7 text-muted-foreground hover:text-destructive absolute right-2 bottom-2 rounded-lg opacity-0 group-hover:opacity-100 transition cursor-pointer",title:"Excluir",children:e.jsx(Nt,{className:"size-3.5"})})]},a.id)})})]}),o.length===0&&e.jsxs("div",{className:"rounded-xl border border-warning/30 bg-warning/5 p-4 flex gap-3 text-xs mt-6",children:[e.jsx(yt,{className:"size-4 text-warning shrink-0 mt-0.5"}),e.jsxs("p",{className:"text-muted-foreground",children:["Você deve ",e.jsx(Qe,{to:"/accounts",className:"text-warning underline font-semibold",children:"conectar uma conta do Instagram"})," na aba de Contas antes de poder agendar seus Reels."]})]})]})]}),e.jsx(Gt,{open:v,onOpenChange:b,children:e.jsxs(ke,{className:"sm:max-w-4xl bg-card border border-border/60 max-h-[90vh] overflow-y-auto rounded-2xl grid md:grid-cols-2 gap-6 p-6",children:[e.jsxs(Yt,{className:"absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",children:[e.jsx(xe,{className:"size-4"}),e.jsx("span",{className:"sr-only",children:"Fechar"})]}),e.jsxs("div",{className:"space-y-5",children:[e.jsxs("div",{children:[e.jsxs(ze,{className:"text-xl font-extrabold flex items-center gap-2 text-foreground",children:[e.jsx(wt,{className:"size-5 text-primary animate-pulse"}),"Agendar Novo Reel"]}),e.jsx(Te,{className:"text-xs text-muted-foreground mt-1",children:"Forneça o arquivo de vídeo (.mp4/mov), escreva a legenda e selecione o horário ideal."})]}),e.jsxs("form",{onSubmit:$e,className:"space-y-4",children:[e.jsxs("div",{className:"space-y-2",children:[e.jsx(z,{className:"text-sm font-bold",children:"Arquivo de Vídeo"}),e.jsxs("label",{className:"block cursor-pointer",children:[e.jsx("input",{type:"file",accept:"video/*",className:"sr-only",required:!0,onChange:Le}),e.jsx("div",{className:"rounded-xl border-2 border-dashed border-border/80 hover:border-primary/60 bg-secondary/10 hover:bg-secondary/20 transition-all p-5 text-center flex flex-col items-center justify-center min-h-[120px]",children:j?e.jsxs("div",{className:"flex flex-col items-center gap-2 text-foreground",children:[e.jsx(G,{className:"size-6 text-primary"}),e.jsx("span",{className:"font-semibold text-xs truncate max-w-[250px]",children:j.name}),e.jsxs("span",{className:"text-[10px] text-muted-foreground",children:[(j.size/1024/1024).toFixed(1)," MB"]}),e.jsx("span",{className:"text-[10px] text-primary underline mt-1 font-medium",children:"Trocar arquivo"})]}):e.jsxs("div",{className:"flex flex-col items-center gap-1.5 text-muted-foreground",children:[e.jsx(xt,{className:"size-6 text-muted-foreground/60"}),e.jsx("span",{className:"text-xs font-semibold text-foreground",children:"Clique para enviar um vídeo"}),e.jsx("span",{className:"text-[10px]",children:"MP4, MOV (até 100MB)"})]})})]})]}),e.jsxs("div",{className:"space-y-2",children:[e.jsx(z,{htmlFor:"modalAccount",className:"text-sm font-bold",children:"Conta do Instagram"}),e.jsxs(pt,{value:A,onValueChange:I,required:!0,children:[e.jsx(ft,{id:"modalAccount",className:"bg-secondary/40 border-border/60 rounded-xl h-10 font-medium",children:e.jsx(ht,{placeholder:"Selecione a conta de postagem"})}),e.jsx(bt,{className:"bg-card border-border/60",children:o.map(a=>e.jsxs(vt,{value:a.id,className:"cursor-pointer font-medium",children:["📸 @",a.username]},a.id))})]})]}),e.jsxs("div",{className:"space-y-2",children:[e.jsx(z,{htmlFor:"modalScheduled",className:"text-sm font-bold",children:"Data e Hora de Publicação"}),e.jsx(mt,{id:"modalScheduled",type:"datetime-local",required:!0,min:Je,value:V,onChange:a=>te(a.target.value),className:"bg-secondary/40 border-border/60 rounded-xl h-10"})]}),e.jsxs("div",{className:"space-y-2",children:[e.jsx(z,{htmlFor:"modalCaption",className:"text-sm font-bold",children:"Legenda do Post"}),e.jsx(gt,{id:"modalCaption",value:$,onChange:a=>ee(a.target.value),rows:4,placeholder:"Escreva a legenda incrível para o seu Reels... Insira #hashtags e marque @amigos.",className:"bg-secondary/40 border-border/60 rounded-xl"})]}),e.jsx(C,{type:"submit",disabled:K,className:"w-full bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-bold h-11 transition shadow-glow rounded-xl",children:K?e.jsxs("span",{className:"flex items-center gap-2 justify-center",children:[e.jsx(Dt,{className:"size-4 animate-spin"})," Uploading & Agendando..."]}):"Concluir Agendamento"})]})]}),e.jsxs("div",{className:"flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-border/50 pt-6 md:pt-0 md:pl-6",children:[e.jsx("h4",{className:"text-xs font-bold text-muted-foreground mb-4 uppercase tracking-wider",children:"PRÉ-VISUALIZAÇÃO EM TEMPO REAL"}),e.jsxs("div",{className:"w-[280px] h-[550px] rounded-[40px] border-[10px] border-secondary bg-black shadow-2xl relative overflow-hidden flex flex-col select-none ring-4 ring-card-foreground/5",children:[e.jsxs("div",{className:"absolute top-2 left-1/2 -translate-x-1/2 w-28 h-4.5 bg-black rounded-full z-20 flex justify-center items-center gap-1.5",children:[e.jsx("span",{className:"size-1 rounded-full bg-neutral-800"}),e.jsx("span",{className:"w-10 h-1 bg-neutral-900 rounded-full"})]}),f?e.jsxs("div",{className:"relative w-full h-full bg-neutral-950 flex items-center justify-center group/video",children:[e.jsx("video",{ref:O,src:f,className:"w-full h-full object-cover",loop:!0,playsInline:!0,onClick:oe}),e.jsx("div",{className:"absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/25 pointer-events-none z-10"}),e.jsxs("div",{className:"absolute bottom-5 left-4 right-10 text-white z-15 space-y-2 pointer-events-none",children:[e.jsxs("div",{className:"flex items-center gap-2",children:[e.jsx("div",{className:"size-7 rounded-full bg-gradient-brand grid place-items-center font-bold text-[10px] text-white",children:"R"}),e.jsxs("span",{className:"font-semibold text-xs",children:["@",o.find(a=>a.id===A)?.username||"usuario"]}),e.jsx("span",{className:"text-[10px] bg-white/20 border border-white/30 px-1.5 py-0.5 rounded-md font-bold",children:"Seguir"})]}),e.jsx("p",{className:"text-[11px] leading-relaxed line-clamp-3 text-neutral-100/90 font-medium",children:$||"A legenda do seu Reels aparecerá aqui quando você começar a digitar no formulário ao lado..."})]}),e.jsxs("div",{className:"absolute bottom-16 right-2 text-white z-15 flex flex-col gap-4 items-center pointer-events-none",children:[e.jsxs("div",{className:"flex flex-col items-center gap-0.5",children:[e.jsx("span",{className:"text-base",children:"❤️"}),e.jsx("span",{className:"text-[8px]",children:"Curtir"})]}),e.jsxs("div",{className:"flex flex-col items-center gap-0.5",children:[e.jsx("span",{className:"text-base",children:"💬"}),e.jsx("span",{className:"text-[8px]",children:"Comentar"})]}),e.jsxs("div",{className:"flex flex-col items-center gap-0.5",children:[e.jsx("span",{className:"text-base",children:"✈️"}),e.jsx("span",{className:"text-[8px]",children:"Enviar"})]})]}),e.jsx("button",{onClick:oe,className:"absolute inset-0 flex items-center justify-center z-15 cursor-pointer bg-black/10 hover:bg-black/25",children:!U&&e.jsx("div",{className:"size-14 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-white scale-90 hover:scale-100 transition animate-in zoom-in-50 duration-200",children:e.jsx(Rt,{className:"size-6 fill-white text-white translate-x-0.5"})})})]}):e.jsxs("div",{className:"w-full h-full bg-neutral-900/95 flex flex-col items-center justify-center text-center p-6 space-y-4",children:[e.jsx("div",{className:"size-16 rounded-full bg-secondary/80 flex items-center justify-center text-muted-foreground animate-pulse",children:e.jsx(G,{className:"size-8"})}),e.jsxs("div",{className:"space-y-1",children:[e.jsx("h5",{className:"font-bold text-sm text-foreground",children:"Aguardando Vídeo"}),e.jsx("p",{className:"text-xs text-muted-foreground leading-relaxed",children:"Faça o upload de um arquivo de vídeo para vê-lo tocar ao vivo neste mockup do Instagram."})]})]})]}),f&&e.jsx("span",{className:"text-[10px] text-muted-foreground mt-3 flex items-center gap-1",children:"💡 Clique em qualquer lugar no vídeo para reproduzir/pausar localmente."})]})]})})]})}const ds=()=>e.jsx(lt,{children:e.jsx(Jt,{})});export{ds as component};
+For more information, see https://radix-ui.com/primitives/docs/components/${s.docsSlug}`;
+    return (
+      n.useEffect(() => {
+        t && (document.getElementById(t) || console.error(r));
+      }, [r, t]),
+      null
+    );
+  },
+  Ut = "DialogDescriptionWarning",
+  Wt = ({ contentRef: t, descriptionId: s }) => {
+    const l = `Warning: Missing \`Description\` or \`aria-describedby={undefined}\` for {${_e(Ut).contentName}}.`;
+    return (
+      n.useEffect(() => {
+        const o = t.current?.getAttribute("aria-describedby");
+        s && o && (document.getElementById(s) || console.warn(l));
+      }, [l, t, s]),
+      null
+    );
+  },
+  qt = pe,
+  Bt = be,
+  Ee = ve,
+  Pe = je,
+  Ae = ye,
+  Ie = De,
+  Oe = Re;
+const Gt = qt,
+  Ht = Bt,
+  Yt = Oe,
+  Me = n.forwardRef(({ className: t, ...s }, r) =>
+    e.jsx(Ee, {
+      ref: r,
+      className: F(
+        "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        t,
+      ),
+      ...s,
+    }),
+  );
+Me.displayName = Ee.displayName;
+const ke = n.forwardRef(({ className: t, children: s, ...r }, l) =>
+  e.jsxs(Ht, {
+    children: [
+      e.jsx(Me, {}),
+      e.jsxs(Pe, {
+        ref: l,
+        className: F(
+          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
+          t,
+        ),
+        ...r,
+        children: [
+          s,
+          e.jsxs(Oe, {
+            className:
+              "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
+            children: [
+              e.jsx(xe, { className: "h-4 w-4" }),
+              e.jsx("span", { className: "sr-only", children: "Close" }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  }),
+);
+ke.displayName = Pe.displayName;
+const ze = n.forwardRef(({ className: t, ...s }, r) =>
+  e.jsx(Ae, { ref: r, className: F("text-lg font-semibold leading-none tracking-tight", t), ...s }),
+);
+ze.displayName = Ae.displayName;
+const Te = n.forwardRef(({ className: t, ...s }, r) =>
+  e.jsx(Ie, { ref: r, className: F("text-sm text-muted-foreground", t), ...s }),
+);
+Te.displayName = Ie.displayName;
+function Jt() {
+  const [t, s] = n.useState(new Date()),
+    [r, l] = n.useState(new Date()),
+    [o, i] = n.useState([]),
+    [m, d] = n.useState([]),
+    [x, g] = n.useState(!0),
+    [v, b] = n.useState(!1),
+    [K, X] = n.useState(!1),
+    [A, I] = n.useState(""),
+    [$, ee] = n.useState(""),
+    [V, te] = n.useState(""),
+    [j, se] = n.useState(null),
+    [f, ae] = n.useState(null),
+    [U, re] = n.useState(!1),
+    O = n.useRef(null),
+    Fe = Ze();
+  async function W() {
+    try {
+      const { data: a } = await w
+        .from("instagram_accounts")
+        .select("id, username")
+        .order("created_at", { ascending: !1 });
+      i(a || []);
+      const c = localStorage.getItem("active_ig_account_id");
+      c ? I(c) : a && a.length > 0 && I(a[0].id);
+      const { data: u } = await w
+        .from("scheduled_posts")
+        .select(
+          "id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)",
+        )
+        .order("scheduled_at", { ascending: !0 });
+      d(u || []);
+    } catch (a) {
+      D.error(a.message || "Erro ao carregar dados do calendário");
+    } finally {
+      g(!1);
+    }
+  }
+  (n.useEffect(() => {
+    W();
+    const a = () => {
+      const c = localStorage.getItem("active_ig_account_id");
+      c && I(c);
+    };
+    return (
+      window.addEventListener("active-account-changed", a),
+      () => window.removeEventListener("active-account-changed", a)
+    );
+  }, []),
+    n.useEffect(
+      () => () => {
+        f && URL.revokeObjectURL(f);
+      },
+      [f],
+    ));
+  const Le = (a) => {
+      const c = a.target.files?.[0] || null;
+      c &&
+        (f && URL.revokeObjectURL(f),
+        se(c),
+        ae(URL.createObjectURL(c)),
+        re(!1),
+        D.success("Vídeo carregado com sucesso para visualização."));
+    },
+    oe = () => {
+      O.current &&
+        (U
+          ? O.current.pause()
+          : O.current.play().catch((a) => console.error("Error playing video:", a)),
+        re(!U));
+    },
+    $e = async (a) => {
+      if ((a.preventDefault(), !j || !A || !V)) {
+        D.error("Por favor, preencha todos os campos e selecione um vídeo.");
+        return;
+      }
+      X(!0);
+      try {
+        const { data: c } = await w.auth.getUser(),
+          u = c.user?.id;
+        if (!u) throw new Error("Sessão expirada. Faça login novamente.");
+        const _ = j.name.split(".").pop() ?? "mp4",
+          S = `${u}/${Date.now()}.${_}`,
+          h = await w.storage.from("reels").upload(S, j, { contentType: j.type || "video/mp4" });
+        if (h.error) throw h.error;
+        const { data: q } = w.storage.from("reels").getPublicUrl(S),
+          { error: k } = await w
+            .from("scheduled_posts")
+            .insert({
+              user_id: u,
+              instagram_account_id: A,
+              video_url: q.publicUrl,
+              caption: $,
+              scheduled_at: new Date(V).toISOString(),
+              status: "pending",
+            });
+        if (k) throw k;
+        (D.success("Reel agendado com sucesso!"),
+          ee(""),
+          se(null),
+          f && URL.revokeObjectURL(f),
+          ae(null),
+          b(!1),
+          W());
+      } catch (c) {
+        (console.error(c), D.error(c.message || "Ocorreu um erro ao agendar o Reel."));
+      } finally {
+        X(!1);
+      }
+    },
+    Ve = async (a) => {
+      if (confirm("Excluir este agendamento de Reel definitivamente?"))
+        try {
+          const { error: c } = await w.from("scheduled_posts").delete().eq("id", a);
+          if (c) throw c;
+          (D.success("Agendamento excluído."), W());
+        } catch (c) {
+          D.error(c.message || "Erro ao excluir agendamento.");
+        }
+    },
+    N = t.getFullYear(),
+    y = t.getMonth(),
+    ne = new Date(N, y, 1).getDay(),
+    Ue = new Date(N, y + 1, 0).getDate(),
+    We = new Date(N, y, 0).getDate(),
+    le = Array.from({ length: ne }, (a, c) => {
+      const u = We - ne + c + 1;
+      return { day: u, isCurrentMonth: !1, date: new Date(N, y - 1, u) };
+    }),
+    ie = Array.from({ length: Ue }, (a, c) => {
+      const u = c + 1;
+      return { day: u, isCurrentMonth: !0, date: new Date(N, y, u) };
+    }),
+    qe = (7 - ((le.length + ie.length) % 7)) % 7,
+    Be = Array.from({ length: qe }, (a, c) => {
+      const u = c + 1;
+      return { day: u, isCurrentMonth: !1, date: new Date(N, y + 1, u) };
+    }),
+    Ge = [...le, ...ie, ...Be],
+    ce = (a) => {
+      const c = new Date(t);
+      (a === "prev" ? c.setMonth(t.getMonth() - 1) : c.setMonth(t.getMonth() + 1), s(c));
+    },
+    He = [
+      "Janeiro",
+      "Fevereiro",
+      "Março",
+      "Abril",
+      "Maio",
+      "Junho",
+      "Julho",
+      "Agosto",
+      "Setembro",
+      "Outubro",
+      "Novembro",
+      "Dezembro",
+    ],
+    Ye = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
+    M = (a, c) =>
+      a.getFullYear() === c.getFullYear() &&
+      a.getMonth() === c.getMonth() &&
+      a.getDate() === c.getDate(),
+    de = m.filter((a) => M(new Date(a.scheduled_at), r)),
+    Je = new Date(Date.now() + 5 * 6e4).toISOString().slice(0, 16),
+    ue = (a) => {
+      l(a);
+      const c = new Date(a),
+        u = new Date();
+      c.setHours(u.getHours() + 1, 0, 0, 0);
+      const _ = c.getTimezoneOffset() * 6e4,
+        S = new Date(c.getTime() - _).toISOString().slice(0, 16);
+      (te(S), b(!0));
+    };
+  return e.jsxs("div", {
+    className: "space-y-6",
+    children: [
+      e.jsxs("div", {
+        className: "flex flex-col md:flex-row md:items-center justify-between gap-4",
+        children: [
+          e.jsxs("div", {
+            children: [
+              e.jsx("h1", {
+                className: "text-3xl font-extrabold tracking-tight",
+                children: "Calendário Editorial",
+              }),
+              e.jsx("p", {
+                className: "text-muted-foreground mt-1.5",
+                children:
+                  "Visualize o fluxo do seu conteúdo e agende novas postagens clicando nos dias correspondentes.",
+              }),
+            ],
+          }),
+          o.length > 0 &&
+            e.jsxs(C, {
+              onClick: () => ue(r),
+              className:
+                "bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold shadow-glow shrink-0",
+              children: [e.jsx(jt, { className: "size-4 mr-2" }), " Agendar Reel"],
+            }),
+        ],
+      }),
+      e.jsxs("div", {
+        className: "grid gap-6 lg:grid-cols-3",
+        children: [
+          e.jsxs("div", {
+            className:
+              "lg:col-span-2 rounded-2xl border border-border/50 bg-card/45 p-5 shadow-card flex flex-col justify-between",
+            children: [
+              e.jsxs("div", {
+                children: [
+                  e.jsxs("div", {
+                    className: "flex items-center justify-between mb-6",
+                    children: [
+                      e.jsxs("h3", {
+                        className: "font-extrabold text-lg flex items-center gap-2",
+                        children: [e.jsx(it, { className: "size-5 text-primary" }), He[y], " ", N],
+                      }),
+                      e.jsxs("div", {
+                        className: "flex gap-1",
+                        children: [
+                          e.jsx(C, {
+                            variant: "outline",
+                            size: "icon",
+                            onClick: () => ce("prev"),
+                            className: "size-8 rounded-lg hover:bg-secondary cursor-pointer",
+                            children: e.jsx(ct, { className: "size-4" }),
+                          }),
+                          e.jsx(C, {
+                            variant: "outline",
+                            size: "icon",
+                            onClick: () => ce("next"),
+                            className: "size-8 rounded-lg hover:bg-secondary cursor-pointer",
+                            children: e.jsx(dt, { className: "size-4" }),
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  e.jsx("div", {
+                    className: "grid grid-cols-7 gap-1 text-center mb-2",
+                    children: Ye.map((a) =>
+                      e.jsx(
+                        "div",
+                        {
+                          className: "text-xs font-bold text-muted-foreground py-1.5",
+                          children: a,
+                        },
+                        a,
+                      ),
+                    ),
+                  }),
+                  e.jsx("div", {
+                    className: "grid grid-cols-7 gap-2",
+                    children: Ge.map((a, c) => {
+                      const u = m.filter((h) => M(new Date(h.scheduled_at), a.date)),
+                        _ = M(a.date, r),
+                        S = M(a.date, new Date());
+                      return e.jsxs(
+                        "button",
+                        {
+                          onClick: () => l(a.date),
+                          className: `aspect-square rounded-xl p-2 flex flex-col justify-between items-start transition cursor-pointer border ${a.isCurrentMonth ? (_ ? "bg-primary/10 border-primary text-primary font-bold shadow-sm" : S ? "bg-secondary/40 border-primary/45 font-bold" : "bg-card border-border/45 hover:border-muted-foreground/45") : "text-muted-foreground/45 border-transparent bg-transparent"}`,
+                          children: [
+                            e.jsx("span", { className: "text-sm font-semibold", children: a.day }),
+                            u.length > 0 &&
+                              e.jsx("div", {
+                                className: "w-full flex flex-wrap gap-1 justify-end mt-1",
+                                children: u.map((h, q) => {
+                                  const k = {
+                                    pending: "bg-warning",
+                                    published: "bg-success",
+                                    failed: "bg-destructive",
+                                  };
+                                  return e.jsx(
+                                    "span",
+                                    {
+                                      className: `size-2 rounded-full ${k[h.status] || "bg-primary"}`,
+                                      title: `${h.status === "published" ? "Publicado" : h.status === "failed" ? "Falhou" : "Agendado"}: @${h.instagram_accounts?.username || "Reel"}`,
+                                    },
+                                    q,
+                                  );
+                                }),
+                              }),
+                          ],
+                        },
+                        c,
+                      );
+                    }),
+                  }),
+                ],
+              }),
+              e.jsxs("div", {
+                className:
+                  "mt-6 pt-4 border-t border-border/40 text-xs text-muted-foreground flex gap-4 justify-center",
+                children: [
+                  e.jsxs("span", {
+                    className: "flex items-center gap-1",
+                    children: [
+                      e.jsx("span", { className: "size-2 rounded-full bg-warning" }),
+                      " Agendado",
+                    ],
+                  }),
+                  e.jsxs("span", {
+                    className: "flex items-center gap-1",
+                    children: [
+                      e.jsx("span", { className: "size-2 rounded-full bg-success" }),
+                      " Publicado",
+                    ],
+                  }),
+                  e.jsxs("span", {
+                    className: "flex items-center gap-1",
+                    children: [
+                      e.jsx("span", { className: "size-2 rounded-full bg-destructive" }),
+                      " Falhou",
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+          e.jsxs("div", {
+            className:
+              "rounded-2xl border border-border/50 bg-card/45 p-5 shadow-card flex flex-col justify-between",
+            children: [
+              e.jsxs("div", {
+                children: [
+                  e.jsxs("h3", {
+                    className: "font-extrabold text-lg border-b border-border/40 pb-4 mb-4",
+                    children: [
+                      "Reels para o dia ",
+                      r.toLocaleDateString("pt-BR", { dateStyle: "medium" }),
+                    ],
+                  }),
+                  x
+                    ? e.jsx("div", {
+                        className: "space-y-4",
+                        children: [1, 2].map((a) =>
+                          e.jsx(
+                            "div",
+                            { className: "h-20 bg-secondary animate-pulse rounded-xl" },
+                            a,
+                          ),
+                        ),
+                      })
+                    : de.length === 0
+                      ? e.jsxs("div", {
+                          className:
+                            "text-center py-12 px-4 border border-dashed border-border/60 rounded-xl bg-card/10",
+                          children: [
+                            e.jsx(G, { className: "size-8 text-muted-foreground/60 mx-auto mb-3" }),
+                            e.jsx("p", {
+                              className: "text-sm text-muted-foreground",
+                              children: "Nenhum Reel agendado para este dia.",
+                            }),
+                            o.length > 0
+                              ? e.jsx(C, {
+                                  onClick: () => ue(r),
+                                  size: "sm",
+                                  className:
+                                    "mt-4 border-primary text-primary hover:bg-primary/5 bg-transparent border rounded-lg text-xs",
+                                  children: "Agendar para este dia",
+                                })
+                              : e.jsx(C, {
+                                  onClick: () => Fe({ to: "/accounts" }),
+                                  size: "sm",
+                                  className:
+                                    "mt-4 border-dashed border-muted-foreground text-muted-foreground bg-transparent border rounded-lg text-xs",
+                                  children: "Vincular conta primeiro",
+                                }),
+                          ],
+                        })
+                      : e.jsx("div", {
+                          className: "space-y-4 max-h-[350px] overflow-y-auto pr-1.5",
+                          children: de.map((a) => {
+                            const u = {
+                              pending: {
+                                text: "Agendado",
+                                cls: "bg-warning/15 text-warning border-warning/30",
+                              },
+                              published: {
+                                text: "Publicado",
+                                cls: "bg-success/15 text-success border-success/30",
+                              },
+                              failed: {
+                                text: "Falhou",
+                                cls: "bg-destructive/15 text-destructive border-destructive/30",
+                              },
+                            }[a.status] || {
+                              text: "Pendente",
+                              cls: "bg-secondary text-foreground",
+                            };
+                            return e.jsxs(
+                              "div",
+                              {
+                                className:
+                                  "p-3.5 rounded-xl bg-card border border-border/50 hover:bg-card/75 transition shadow-sm flex gap-3 relative group",
+                                children: [
+                                  e.jsx("video", {
+                                    src: a.video_url,
+                                    className:
+                                      "size-16 rounded-lg object-cover bg-background shrink-0",
+                                    muted: !0,
+                                  }),
+                                  e.jsxs("div", {
+                                    className:
+                                      "min-w-0 flex-1 flex flex-col justify-between py-0.5",
+                                    children: [
+                                      e.jsxs("div", {
+                                        children: [
+                                          e.jsxs("div", {
+                                            className: "flex items-center gap-1.5 text-[10px]",
+                                            children: [
+                                              e.jsxs("strong", {
+                                                className: "text-primary truncate",
+                                                children: [
+                                                  "@",
+                                                  a.instagram_accounts?.username || "instagram",
+                                                ],
+                                              }),
+                                              e.jsx("span", {
+                                                className: "text-muted-foreground",
+                                                children: "•",
+                                              }),
+                                              e.jsx("span", {
+                                                className: "text-muted-foreground font-semibold",
+                                                children: new Date(
+                                                  a.scheduled_at,
+                                                ).toLocaleTimeString("pt-BR", {
+                                                  hour: "2-digit",
+                                                  minute: "2-digit",
+                                                }),
+                                              }),
+                                            ],
+                                          }),
+                                          e.jsx("p", {
+                                            className:
+                                              "text-xs text-foreground/80 mt-1 line-clamp-1",
+                                            children:
+                                              a.caption ||
+                                              e.jsx("span", {
+                                                className: "text-muted-foreground italic",
+                                                children: "Sem legenda",
+                                              }),
+                                          }),
+                                        ],
+                                      }),
+                                      e.jsx("div", {
+                                        className: "flex items-center gap-2 mt-2",
+                                        children: e.jsx("span", {
+                                          className: `inline-flex items-center text-[9px] font-bold border px-1.5 py-0.5 rounded-full ${u.cls}`,
+                                          children: u.text,
+                                        }),
+                                      }),
+                                    ],
+                                  }),
+                                  e.jsx(C, {
+                                    variant: "ghost",
+                                    size: "icon",
+                                    onClick: () => Ve(a.id),
+                                    className:
+                                      "size-7 text-muted-foreground hover:text-destructive absolute right-2 bottom-2 rounded-lg opacity-0 group-hover:opacity-100 transition cursor-pointer",
+                                    title: "Excluir",
+                                    children: e.jsx(Nt, { className: "size-3.5" }),
+                                  }),
+                                ],
+                              },
+                              a.id,
+                            );
+                          }),
+                        }),
+                ],
+              }),
+              o.length === 0 &&
+                e.jsxs("div", {
+                  className:
+                    "rounded-xl border border-warning/30 bg-warning/5 p-4 flex gap-3 text-xs mt-6",
+                  children: [
+                    e.jsx(yt, { className: "size-4 text-warning shrink-0 mt-0.5" }),
+                    e.jsxs("p", {
+                      className: "text-muted-foreground",
+                      children: [
+                        "Você deve ",
+                        e.jsx(Qe, {
+                          to: "/accounts",
+                          className: "text-warning underline font-semibold",
+                          children: "conectar uma conta do Instagram",
+                        }),
+                        " na aba de Contas antes de poder agendar seus Reels.",
+                      ],
+                    }),
+                  ],
+                }),
+            ],
+          }),
+        ],
+      }),
+      e.jsx(Gt, {
+        open: v,
+        onOpenChange: b,
+        children: e.jsxs(ke, {
+          className:
+            "sm:max-w-4xl bg-card border border-border/60 max-h-[90vh] overflow-y-auto rounded-2xl grid md:grid-cols-2 gap-6 p-6",
+          children: [
+            e.jsxs(Yt, {
+              className:
+                "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
+              children: [
+                e.jsx(xe, { className: "size-4" }),
+                e.jsx("span", { className: "sr-only", children: "Fechar" }),
+              ],
+            }),
+            e.jsxs("div", {
+              className: "space-y-5",
+              children: [
+                e.jsxs("div", {
+                  children: [
+                    e.jsxs(ze, {
+                      className: "text-xl font-extrabold flex items-center gap-2 text-foreground",
+                      children: [
+                        e.jsx(wt, { className: "size-5 text-primary animate-pulse" }),
+                        "Agendar Novo Reel",
+                      ],
+                    }),
+                    e.jsx(Te, {
+                      className: "text-xs text-muted-foreground mt-1",
+                      children:
+                        "Forneça o arquivo de vídeo (.mp4/mov), escreva a legenda e selecione o horário ideal.",
+                    }),
+                  ],
+                }),
+                e.jsxs("form", {
+                  onSubmit: $e,
+                  className: "space-y-4",
+                  children: [
+                    e.jsxs("div", {
+                      className: "space-y-2",
+                      children: [
+                        e.jsx(z, { className: "text-sm font-bold", children: "Arquivo de Vídeo" }),
+                        e.jsxs("label", {
+                          className: "block cursor-pointer",
+                          children: [
+                            e.jsx("input", {
+                              type: "file",
+                              accept: "video/*",
+                              className: "sr-only",
+                              required: !0,
+                              onChange: Le,
+                            }),
+                            e.jsx("div", {
+                              className:
+                                "rounded-xl border-2 border-dashed border-border/80 hover:border-primary/60 bg-secondary/10 hover:bg-secondary/20 transition-all p-5 text-center flex flex-col items-center justify-center min-h-[120px]",
+                              children: j
+                                ? e.jsxs("div", {
+                                    className: "flex flex-col items-center gap-2 text-foreground",
+                                    children: [
+                                      e.jsx(G, { className: "size-6 text-primary" }),
+                                      e.jsx("span", {
+                                        className: "font-semibold text-xs truncate max-w-[250px]",
+                                        children: j.name,
+                                      }),
+                                      e.jsxs("span", {
+                                        className: "text-[10px] text-muted-foreground",
+                                        children: [(j.size / 1024 / 1024).toFixed(1), " MB"],
+                                      }),
+                                      e.jsx("span", {
+                                        className:
+                                          "text-[10px] text-primary underline mt-1 font-medium",
+                                        children: "Trocar arquivo",
+                                      }),
+                                    ],
+                                  })
+                                : e.jsxs("div", {
+                                    className:
+                                      "flex flex-col items-center gap-1.5 text-muted-foreground",
+                                    children: [
+                                      e.jsx(xt, { className: "size-6 text-muted-foreground/60" }),
+                                      e.jsx("span", {
+                                        className: "text-xs font-semibold text-foreground",
+                                        children: "Clique para enviar um vídeo",
+                                      }),
+                                      e.jsx("span", {
+                                        className: "text-[10px]",
+                                        children: "MP4, MOV (até 100MB)",
+                                      }),
+                                    ],
+                                  }),
+                            }),
+                          ],
+                        }),
+                      ],
+                    }),
+                    e.jsxs("div", {
+                      className: "space-y-2",
+                      children: [
+                        e.jsx(z, {
+                          htmlFor: "modalAccount",
+                          className: "text-sm font-bold",
+                          children: "Conta do Instagram",
+                        }),
+                        e.jsxs(pt, {
+                          value: A,
+                          onValueChange: I,
+                          required: !0,
+                          children: [
+                            e.jsx(ft, {
+                              id: "modalAccount",
+                              className:
+                                "bg-secondary/40 border-border/60 rounded-xl h-10 font-medium",
+                              children: e.jsx(ht, { placeholder: "Selecione a conta de postagem" }),
+                            }),
+                            e.jsx(bt, {
+                              className: "bg-card border-border/60",
+                              children: o.map((a) =>
+                                e.jsxs(
+                                  vt,
+                                  {
+                                    value: a.id,
+                                    className: "cursor-pointer font-medium",
+                                    children: ["📸 @", a.username],
+                                  },
+                                  a.id,
+                                ),
+                              ),
+                            }),
+                          ],
+                        }),
+                      ],
+                    }),
+                    e.jsxs("div", {
+                      className: "space-y-2",
+                      children: [
+                        e.jsx(z, {
+                          htmlFor: "modalScheduled",
+                          className: "text-sm font-bold",
+                          children: "Data e Hora de Publicação",
+                        }),
+                        e.jsx(mt, {
+                          id: "modalScheduled",
+                          type: "datetime-local",
+                          required: !0,
+                          min: Je,
+                          value: V,
+                          onChange: (a) => te(a.target.value),
+                          className: "bg-secondary/40 border-border/60 rounded-xl h-10",
+                        }),
+                      ],
+                    }),
+                    e.jsxs("div", {
+                      className: "space-y-2",
+                      children: [
+                        e.jsx(z, {
+                          htmlFor: "modalCaption",
+                          className: "text-sm font-bold",
+                          children: "Legenda do Post",
+                        }),
+                        e.jsx(gt, {
+                          id: "modalCaption",
+                          value: $,
+                          onChange: (a) => ee(a.target.value),
+                          rows: 4,
+                          placeholder:
+                            "Escreva a legenda incrível para o seu Reels... Insira #hashtags e marque @amigos.",
+                          className: "bg-secondary/40 border-border/60 rounded-xl",
+                        }),
+                      ],
+                    }),
+                    e.jsx(C, {
+                      type: "submit",
+                      disabled: K,
+                      className:
+                        "w-full bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-bold h-11 transition shadow-glow rounded-xl",
+                      children: K
+                        ? e.jsxs("span", {
+                            className: "flex items-center gap-2 justify-center",
+                            children: [
+                              e.jsx(Dt, { className: "size-4 animate-spin" }),
+                              " Uploading & Agendando...",
+                            ],
+                          })
+                        : "Concluir Agendamento",
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            e.jsxs("div", {
+              className:
+                "flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-border/50 pt-6 md:pt-0 md:pl-6",
+              children: [
+                e.jsx("h4", {
+                  className:
+                    "text-xs font-bold text-muted-foreground mb-4 uppercase tracking-wider",
+                  children: "PRÉ-VISUALIZAÇÃO EM TEMPO REAL",
+                }),
+                e.jsxs("div", {
+                  className:
+                    "w-[280px] h-[550px] rounded-[40px] border-[10px] border-secondary bg-black shadow-2xl relative overflow-hidden flex flex-col select-none ring-4 ring-card-foreground/5",
+                  children: [
+                    e.jsxs("div", {
+                      className:
+                        "absolute top-2 left-1/2 -translate-x-1/2 w-28 h-4.5 bg-black rounded-full z-20 flex justify-center items-center gap-1.5",
+                      children: [
+                        e.jsx("span", { className: "size-1 rounded-full bg-neutral-800" }),
+                        e.jsx("span", { className: "w-10 h-1 bg-neutral-900 rounded-full" }),
+                      ],
+                    }),
+                    f
+                      ? e.jsxs("div", {
+                          className:
+                            "relative w-full h-full bg-neutral-950 flex items-center justify-center group/video",
+                          children: [
+                            e.jsx("video", {
+                              ref: O,
+                              src: f,
+                              className: "w-full h-full object-cover",
+                              loop: !0,
+                              playsInline: !0,
+                              onClick: oe,
+                            }),
+                            e.jsx("div", {
+                              className:
+                                "absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/25 pointer-events-none z-10",
+                            }),
+                            e.jsxs("div", {
+                              className:
+                                "absolute bottom-5 left-4 right-10 text-white z-15 space-y-2 pointer-events-none",
+                              children: [
+                                e.jsxs("div", {
+                                  className: "flex items-center gap-2",
+                                  children: [
+                                    e.jsx("div", {
+                                      className:
+                                        "size-7 rounded-full bg-gradient-brand grid place-items-center font-bold text-[10px] text-white",
+                                      children: "R",
+                                    }),
+                                    e.jsxs("span", {
+                                      className: "font-semibold text-xs",
+                                      children: [
+                                        "@",
+                                        o.find((a) => a.id === A)?.username || "usuario",
+                                      ],
+                                    }),
+                                    e.jsx("span", {
+                                      className:
+                                        "text-[10px] bg-white/20 border border-white/30 px-1.5 py-0.5 rounded-md font-bold",
+                                      children: "Seguir",
+                                    }),
+                                  ],
+                                }),
+                                e.jsx("p", {
+                                  className:
+                                    "text-[11px] leading-relaxed line-clamp-3 text-neutral-100/90 font-medium",
+                                  children:
+                                    $ ||
+                                    "A legenda do seu Reels aparecerá aqui quando você começar a digitar no formulário ao lado...",
+                                }),
+                              ],
+                            }),
+                            e.jsxs("div", {
+                              className:
+                                "absolute bottom-16 right-2 text-white z-15 flex flex-col gap-4 items-center pointer-events-none",
+                              children: [
+                                e.jsxs("div", {
+                                  className: "flex flex-col items-center gap-0.5",
+                                  children: [
+                                    e.jsx("span", { className: "text-base", children: "❤️" }),
+                                    e.jsx("span", { className: "text-[8px]", children: "Curtir" }),
+                                  ],
+                                }),
+                                e.jsxs("div", {
+                                  className: "flex flex-col items-center gap-0.5",
+                                  children: [
+                                    e.jsx("span", { className: "text-base", children: "💬" }),
+                                    e.jsx("span", {
+                                      className: "text-[8px]",
+                                      children: "Comentar",
+                                    }),
+                                  ],
+                                }),
+                                e.jsxs("div", {
+                                  className: "flex flex-col items-center gap-0.5",
+                                  children: [
+                                    e.jsx("span", { className: "text-base", children: "✈️" }),
+                                    e.jsx("span", { className: "text-[8px]", children: "Enviar" }),
+                                  ],
+                                }),
+                              ],
+                            }),
+                            e.jsx("button", {
+                              onClick: oe,
+                              className:
+                                "absolute inset-0 flex items-center justify-center z-15 cursor-pointer bg-black/10 hover:bg-black/25",
+                              children:
+                                !U &&
+                                e.jsx("div", {
+                                  className:
+                                    "size-14 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-white scale-90 hover:scale-100 transition animate-in zoom-in-50 duration-200",
+                                  children: e.jsx(Rt, {
+                                    className: "size-6 fill-white text-white translate-x-0.5",
+                                  }),
+                                }),
+                            }),
+                          ],
+                        })
+                      : e.jsxs("div", {
+                          className:
+                            "w-full h-full bg-neutral-900/95 flex flex-col items-center justify-center text-center p-6 space-y-4",
+                          children: [
+                            e.jsx("div", {
+                              className:
+                                "size-16 rounded-full bg-secondary/80 flex items-center justify-center text-muted-foreground animate-pulse",
+                              children: e.jsx(G, { className: "size-8" }),
+                            }),
+                            e.jsxs("div", {
+                              className: "space-y-1",
+                              children: [
+                                e.jsx("h5", {
+                                  className: "font-bold text-sm text-foreground",
+                                  children: "Aguardando Vídeo",
+                                }),
+                                e.jsx("p", {
+                                  className: "text-xs text-muted-foreground leading-relaxed",
+                                  children:
+                                    "Faça o upload de um arquivo de vídeo para vê-lo tocar ao vivo neste mockup do Instagram.",
+                                }),
+                              ],
+                            }),
+                          ],
+                        }),
+                  ],
+                }),
+                f &&
+                  e.jsx("span", {
+                    className: "text-[10px] text-muted-foreground mt-3 flex items-center gap-1",
+                    children:
+                      "💡 Clique em qualquer lugar no vídeo para reproduzir/pausar localmente.",
+                  }),
+              ],
+            }),
+          ],
+        }),
+      }),
+    ],
+  });
+}
+const ds = () => e.jsx(lt, { children: e.jsx(Jt, {}) });
+export { ds as component };

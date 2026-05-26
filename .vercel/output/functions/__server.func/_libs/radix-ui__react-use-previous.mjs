@@ -9,6 +9,4 @@ function usePrevious(value) {
     return ref.current.previous;
   }, [value]);
 }
-export {
-  usePrevious as u
-};
+export { usePrevious as u };
