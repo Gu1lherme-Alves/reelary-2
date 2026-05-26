@@ -53,6 +53,7 @@ export type Database = {
           created_at: string
           error_message: string | null
           id: string
+          ig_container_id: string | null
           instagram_account_id: string
           published_at: string | null
           scheduled_at: string
@@ -66,6 +67,7 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
+          ig_container_id?: string | null
           instagram_account_id: string
           published_at?: string | null
           scheduled_at: string
@@ -79,6 +81,7 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
+          ig_container_id?: string | null
           instagram_account_id?: string
           published_at?: string | null
           scheduled_at?: string
