@@ -91,13 +91,29 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
 
     const pageWithIg = pagesJson.data.find((p) => p.instagram_business_account);
     if (!pageWithIg || !pageWithIg.instagram_business_account) {
+      // Buscar as permissões ativas para ajudar no diagnóstico
+      let permDetails = "Não foi possível verificar permissões";
+      try {
+        const permRes = await fetch(
+          `https://graph.facebook.com/v21.0/me/permissions?access_token=${encodeURIComponent(accessToken)}`,
+        );
+        if (permRes.ok) {
+          const permJson = await permRes.json() as { data: Array<{ permission: string; status: string }> };
+          permDetails = permJson.data
+            .map((p) => `${p.permission}: ${p.status}`)
+            .join(" | ");
+        }
+      } catch (pe) {
+        console.error("Failed to fetch permissions:", pe);
+      }
+
       const pageDetails = pagesJson.data
         .map((p) => `Página "${p.name}" (ID: ${p.id}) -> IG Vinculado: ${p.instagram_business_account ? `@${p.instagram_business_account.username}` : "NENHUM"}`)
         .join(" | ");
       
       const errorMsg = pagesJson.data.length === 0
-        ? "Nenhuma página do Facebook foi retornada pelo Meta para esta conta. Verifique se você selecionou a Página na tela de permissões do Facebook."
-        : `Nenhuma conta Instagram Business encontrada vinculada às suas páginas. Páginas encontradas: [ ${pageDetails} ]. Conecte uma conta IG profissional (Business ou Creator) à sua Página do Facebook nas configurações da Página.`;
+        ? `Nenhuma página do Facebook foi retornada pelo Meta para esta conta. Verifique se você selecionou a Página na tela de permissões do Facebook. Permissões ativas no Token: [ ${permDetails} ].`
+        : `Nenhuma conta Instagram Business encontrada vinculada às suas páginas. Páginas encontradas: [ ${pageDetails} ]. Permissões ativas no Token: [ ${permDetails} ]. Conecte uma conta IG profissional (Business ou Creator) à sua Página do Facebook nas configurações da Página.`;
         
       throw new Error(errorMsg);
     }
