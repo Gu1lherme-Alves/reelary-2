@@ -30,6 +30,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -78,6 +83,7 @@ function CalendarPage() {
   // Form State
   const [accountId, setAccountId] = useState("");
   const [caption, setCaption] = useState("");
+  const [publishMode, setPublishMode] = useState<"now" | "schedule">("now");
   const [scheduledAt, setScheduledAt] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
@@ -165,7 +171,7 @@ function CalendarPage() {
   // Form submission handler
   const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!videoFile || !accountId || !scheduledAt) {
+    if (!videoFile || !accountId || (publishMode === "schedule" && !scheduledAt)) {
       toast.error("Por favor, preencha todos os campos e selecione um vídeo.");
       return;
     }
@@ -189,19 +195,34 @@ function CalendarPage() {
       // Get public URL
       const { data: publicUrlData } = supabase.storage.from("reels").getPublicUrl(path);
 
+      const scheduledDate = publishMode === "now"
+        ? new Date().toISOString()
+        : new Date(scheduledAt).toISOString();
+
       // Insert scheduled post record
       const { error } = await supabase.from("scheduled_posts").insert({
         user_id: uid,
         instagram_account_id: accountId,
         video_url: publicUrlData.publicUrl,
         caption,
-        scheduled_at: new Date(scheduledAt).toISOString(),
+        scheduled_at: scheduledDate,
         status: "pending",
       });
 
       if (error) throw error;
 
-      toast.success("Reel agendado com sucesso!");
+      if (publishMode === "now") {
+        toast.info("Publicando Reel imediatamente...");
+        try {
+          await supabase.functions.invoke("publish-reels");
+          toast.success("Reel enviado com sucesso!");
+        } catch (fnErr) {
+          console.error("Erro ao disparar publicação imediata:", fnErr);
+          toast.success("Reel enviado para processamento!");
+        }
+      } else {
+        toast.success("Reel agendado com sucesso!");
+      }
 
       // Reset form
       setCaption("");
@@ -315,7 +336,8 @@ function CalendarPage() {
   const postsOnSelectedDay = posts.filter((p) => isSameDay(new Date(p.scheduled_at), selectedDate));
 
   // Minimum date-time for scheduling picker
-  const minDateTime = new Date(Date.now() + 5 * 60_000).toISOString().slice(0, 16);
+  const tzOffset = new Date().getTimezoneOffset() * 60_000;
+  const minDateTime = new Date(Date.now() + 5 * 60_000 - tzOffset).toISOString().slice(0, 16);
 
   // Trigger modal for a day
   const openScheduleForDay = (date: Date) => {
@@ -666,21 +688,38 @@ function CalendarPage() {
                 </Select>
               </div>
 
-              {/* Data e Hora de Publicação */}
+              {/* Método de Publicação */}
               <div className="space-y-2">
-                <Label htmlFor="modalScheduled" className="text-sm font-bold">
-                  Data e Hora de Publicação
-                </Label>
-                <Input
-                  id="modalScheduled"
-                  type="datetime-local"
-                  required
-                  min={minDateTime}
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                  className="bg-secondary/40 border-border/60 rounded-xl h-10"
-                />
+                <Label className="text-sm font-bold">Método de Publicação</Label>
+                <Tabs
+                  value={publishMode}
+                  onValueChange={(val) => setPublishMode(val as "now" | "schedule")}
+                  className="w-full"
+                >
+                  <TabsList className="grid w-full grid-cols-2 bg-secondary/60">
+                    <TabsTrigger value="now" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">⚡ Postar Agora</TabsTrigger>
+                    <TabsTrigger value="schedule" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">📅 Agendar</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
+
+              {/* Data e Hora de Publicação */}
+              {publishMode === "schedule" && (
+                <div className="space-y-2">
+                  <Label htmlFor="modalScheduled" className="text-sm font-bold">
+                    Data e Hora de Publicação
+                  </Label>
+                  <Input
+                    id="modalScheduled"
+                    type="datetime-local"
+                    required
+                    min={minDateTime}
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    className="bg-secondary/40 border-border/60 rounded-xl h-10"
+                  />
+                </div>
+              )}
 
               {/* Legenda (Caption) */}
               <div className="space-y-2">
@@ -705,8 +744,10 @@ function CalendarPage() {
               >
                 {submitting ? (
                   <span className="flex items-center gap-2 justify-center">
-                    <Loader2 className="size-4 animate-spin" /> Uploading & Agendando...
+                    <Loader2 className="size-4 animate-spin" /> {publishMode === "now" ? "Uploading & Publicando..." : "Uploading & Agendando..."}
                   </span>
+                ) : publishMode === "now" ? (
+                  "Publicar Agora"
                 ) : (
                   "Concluir Agendamento"
                 )}

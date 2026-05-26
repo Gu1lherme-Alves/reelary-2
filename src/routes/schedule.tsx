@@ -16,6 +16,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+
 export const Route = createFileRoute("/schedule")({
   head: () => ({ meta: [{ title: "Novo Reel — Reelary" }] }),
   component: () => (
@@ -31,6 +37,7 @@ function SchedulePage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState<string>("");
   const [caption, setCaption] = useState("");
+  const [publishMode, setPublishMode] = useState<"now" | "schedule">("now");
   const [scheduledAt, setScheduledAt] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -46,7 +53,7 @@ function SchedulePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file || !accountId || !scheduledAt) return;
+    if (!file || !accountId || (publishMode === "schedule" && !scheduledAt)) return;
     setSubmitting(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -61,17 +68,32 @@ function SchedulePage() {
       if (up.error) throw up.error;
       const { data: pub } = supabase.storage.from("reels").getPublicUrl(path);
 
+      const scheduledDate = publishMode === "now"
+        ? new Date().toISOString()
+        : new Date(scheduledAt).toISOString();
+
       const { error } = await supabase.from("scheduled_posts").insert({
         user_id: uid,
         instagram_account_id: accountId,
         video_url: pub.publicUrl,
         caption,
-        scheduled_at: new Date(scheduledAt).toISOString(),
+        scheduled_at: scheduledDate,
         status: "pending",
       });
       if (error) throw error;
 
-      toast.success("Reel agendado!");
+      if (publishMode === "now") {
+        toast.info("Publicando Reel imediatamente...");
+        try {
+          await supabase.functions.invoke("publish-reels");
+          toast.success("Reel enviado com sucesso!");
+        } catch (fnErr) {
+          console.error("Erro ao disparar publicação imediata:", fnErr);
+          toast.success("Reel enviado para processamento!");
+        }
+      } else {
+        toast.success("Reel agendado!");
+      }
       navigate({ to: "/posts" });
     } catch (err: any) {
       toast.error(err.message ?? "Erro ao agendar");
@@ -80,7 +102,8 @@ function SchedulePage() {
     }
   }
 
-  const minDateTime = new Date(Date.now() + 5 * 60_000).toISOString().slice(0, 16);
+  const tzOffset = new Date().getTimezoneOffset() * 60_000;
+  const minDateTime = new Date(Date.now() + 5 * 60_000 - tzOffset).toISOString().slice(0, 16);
 
   return (
     <div className="max-w-2xl">
@@ -162,16 +185,32 @@ function SchedulePage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="scheduled">Data e hora</Label>
-            <Input
-              id="scheduled"
-              type="datetime-local"
-              required
-              min={minDateTime}
-              value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
-            />
+            <Label>Método de Publicação</Label>
+            <Tabs
+              value={publishMode}
+              onValueChange={(val) => setPublishMode(val as "now" | "schedule")}
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-2 bg-secondary/60">
+                <TabsTrigger value="now" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">⚡ Postar Agora</TabsTrigger>
+                <TabsTrigger value="schedule" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">📅 Agendar</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
+
+          {publishMode === "schedule" && (
+            <div className="space-y-2">
+              <Label htmlFor="scheduled">Data e hora</Label>
+              <Input
+                id="scheduled"
+                type="datetime-local"
+                required
+                min={minDateTime}
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+              />
+            </div>
+          )}
 
           <Button
             type="submit"
@@ -182,6 +221,8 @@ function SchedulePage() {
               <>
                 <Loader2 className="size-4 animate-spin" /> Enviando…
               </>
+            ) : publishMode === "now" ? (
+              "Publicar agora"
             ) : (
               "Agendar publicação"
             )}
