@@ -12,6 +12,7 @@ export type Database = {
         Row: {
           access_token: string;
           created_at: string;
+          hidden: boolean;
           id: string;
           instagram_user_id: string;
           token_expires_at: string | null;
@@ -22,6 +23,7 @@ export type Database = {
         Insert: {
           access_token: string;
           created_at?: string;
+          hidden?: boolean;
           id?: string;
           instagram_user_id: string;
           token_expires_at?: string | null;
@@ -32,6 +34,7 @@ export type Database = {
         Update: {
           access_token?: string;
           created_at?: string;
+          hidden?: boolean;
           id?: string;
           instagram_user_id?: string;
           token_expires_at?: string | null;

@@ -464,43 +464,10 @@ function CalendarPage() {
                     }`}
                   >
                     <span className="text-sm font-semibold">{cell.day}</span>
-
-                    {/* Indicador de Posts agendados */}
-                    {dayPosts.length > 0 && (
-                      <div className="w-full flex flex-wrap gap-1 justify-end mt-1">
-                        {dayPosts.map((p, pIdx) => {
-                          const statusColors = {
-                            pending: "bg-warning",
-                            published: "bg-success",
-                            failed: "bg-destructive",
-                          };
-                          return (
-                            <span
-                              key={pIdx}
-                              className={`size-2 rounded-full ${statusColors[p.status] || "bg-primary"}`}
-                              title={`${p.status === "published" ? "Publicado" : p.status === "failed" ? "Falhou" : "Agendado"}: @${p.instagram_accounts?.username || "Reel"}`}
-                            />
-                          );
-                        })}
-                      </div>
-                    )}
                   </button>
                 );
               })}
             </div>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-border/40 text-xs text-muted-foreground flex gap-4 justify-center">
-            <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-warning" /> Agendado
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-success" /> Publicado
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-destructive" /> Falhou
-            </span>
-          </div>
         </div>
 
         {/* Lado Direito: Reels Agendados do Dia Selecionado */}

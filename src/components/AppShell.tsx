@@ -60,6 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("instagram_accounts")
         .select("id, username")
+        .eq("hidden", false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
