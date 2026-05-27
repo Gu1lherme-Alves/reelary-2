@@ -468,6 +468,7 @@ function CalendarPage() {
                 );
               })}
             </div>
+          </div>
         </div>
 
         {/* Lado Direito: Reels Agendados do Dia Selecionado */}
