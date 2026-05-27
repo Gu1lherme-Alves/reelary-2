@@ -87,10 +87,18 @@ function CalendarPage() {
   const [scheduledAt, setScheduledAt] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
 
   // Player state
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+    };
+  }, [coverPreviewUrl]);
 
   const navigate = useNavigate();
 
@@ -195,6 +203,18 @@ function CalendarPage() {
       // Get public URL
       const { data: publicUrlData } = supabase.storage.from("reels").getPublicUrl(path);
 
+      let coverUrl = null;
+      if (coverFile) {
+        const coverExt = coverFile.name.split(".").pop() ?? "jpg";
+        const coverPath = `${uid}/${Date.now()}_cover.${coverExt}`;
+        const coverUp = await supabase.storage.from("reels").upload(coverPath, coverFile, {
+          contentType: coverFile.type || "image/jpeg",
+        });
+        if (coverUp.error) throw coverUp.error;
+        const { data: coverPub } = supabase.storage.from("reels").getPublicUrl(coverPath);
+        coverUrl = coverPub.publicUrl;
+      }
+
       const scheduledDate = publishMode === "now"
         ? new Date().toISOString()
         : new Date(scheduledAt).toISOString();
@@ -204,6 +224,7 @@ function CalendarPage() {
         user_id: uid,
         instagram_account_id: accountId,
         video_url: publicUrlData.publicUrl,
+        cover_url: coverUrl,
         caption,
         scheduled_at: scheduledDate,
         status: "pending",
@@ -229,6 +250,9 @@ function CalendarPage() {
       setVideoFile(null);
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
       setVideoPreviewUrl(null);
+      setCoverFile(null);
+      if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+      setCoverPreviewUrl(null);
 
       // Close modal & reload data
       setShowModal(false);
@@ -666,6 +690,56 @@ function CalendarPage() {
                 </label>
               </div>
 
+              {/* Foto de Capa (Opcional) */}
+              <div className="space-y-2">
+                <Label className="text-sm font-bold">Foto de Capa (Opcional)</Label>
+                <label className="block cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/png, image/jpeg, image/jpg"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      setCoverFile(f);
+                      if (f) {
+                        const url = URL.createObjectURL(f);
+                        setCoverPreviewUrl(url);
+                      } else {
+                        setCoverPreviewUrl(null);
+                      }
+                    }}
+                  />
+                  <div className="rounded-xl border-2 border-dashed border-border/80 hover:border-primary/60 bg-secondary/10 hover:bg-secondary/20 transition-all p-4 text-center flex flex-col items-center justify-center min-h-[90px]">
+                    {coverFile ? (
+                      <div className="flex flex-col items-center gap-1.5 text-foreground">
+                        {coverPreviewUrl && (
+                          <img
+                            src={coverPreviewUrl}
+                            alt="Capa preview"
+                            className="w-12 h-16 object-cover rounded border border-border/80 shadow-sm mb-1"
+                          />
+                        )}
+                        <div className="flex items-center gap-1 text-xs">
+                          <span className="font-semibold truncate max-w-[180px]">{coverFile.name}</span>
+                          <span className="text-[9px] text-muted-foreground">
+                            {(coverFile.size / 1024 / 1024).toFixed(1)} MB
+                          </span>
+                        </div>
+                        <span className="text-[9px] text-primary underline font-medium">Trocar imagem</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                        <Upload className="size-5 text-muted-foreground/60" />
+                        <span className="text-xs font-semibold text-foreground">
+                          Escolher Foto de Capa
+                        </span>
+                        <span className="text-[9px]">JPG, PNG (Aspecto 9:16 recomendado)</span>
+                      </div>
+                    )}
+                  </div>
+                </label>
+              </div>
+
               {/* Seletor de Conta */}
               <div className="space-y-2">
                 <Label htmlFor="modalAccount" className="text-sm font-bold">
@@ -780,6 +854,14 @@ function CalendarPage() {
                     playsInline
                     onClick={togglePlay}
                   />
+
+                  {coverPreviewUrl && !isPlaying && (
+                    <img
+                      src={coverPreviewUrl}
+                      alt="Capa preview"
+                      className="absolute inset-0 w-full h-full object-cover z-5 pointer-events-none"
+                    />
+                  )}
 
                   {/* Overlay Escuro com Gradiente no Instagram Reels */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/25 pointer-events-none z-10" />

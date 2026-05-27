@@ -44,6 +44,7 @@ export type Database = {
       scheduled_posts: {
         Row: {
           caption: string;
+          cover_url: string | null;
           created_at: string;
           error_message: string | null;
           id: string;
@@ -58,6 +59,7 @@ export type Database = {
         };
         Insert: {
           caption?: string;
+          cover_url?: string | null;
           created_at?: string;
           error_message?: string | null;
           id?: string;
@@ -72,6 +74,7 @@ export type Database = {
         };
         Update: {
           caption?: string;
+          cover_url?: string | null;
           created_at?: string;
           error_message?: string | null;
           id?: string;

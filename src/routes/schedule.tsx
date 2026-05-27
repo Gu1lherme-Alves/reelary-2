@@ -40,6 +40,8 @@ function SchedulePage() {
   const [publishMode, setPublishMode] = useState<"now" | "schedule">("now");
   const [scheduledAt, setScheduledAt] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
@@ -50,6 +52,12 @@ function SchedulePage() {
       .order("created_at", { ascending: false })
       .then(({ data }) => setAccounts(data ?? []));
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+    };
+  }, [coverPreviewUrl]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,6 +76,18 @@ function SchedulePage() {
       if (up.error) throw up.error;
       const { data: pub } = supabase.storage.from("reels").getPublicUrl(path);
 
+      let coverUrl = null;
+      if (coverFile) {
+        const coverExt = coverFile.name.split(".").pop() ?? "jpg";
+        const coverPath = `${uid}/${Date.now()}_cover.${coverExt}`;
+        const coverUp = await supabase.storage.from("reels").upload(coverPath, coverFile, {
+          contentType: coverFile.type || "image/jpeg",
+        });
+        if (coverUp.error) throw coverUp.error;
+        const { data: coverPub } = supabase.storage.from("reels").getPublicUrl(coverPath);
+        coverUrl = coverPub.publicUrl;
+      }
+
       const scheduledDate = publishMode === "now"
         ? new Date().toISOString()
         : new Date(scheduledAt).toISOString();
@@ -76,6 +96,7 @@ function SchedulePage() {
         user_id: uid,
         instagram_account_id: accountId,
         video_url: pub.publicUrl,
+        cover_url: coverUrl,
         caption,
         scheduled_at: scheduledDate,
         status: "pending",
@@ -151,6 +172,53 @@ function SchedulePage() {
                     <Upload className="size-6" />
                     <span className="text-sm">Clique para enviar um vídeo</span>
                     <span className="text-xs">MP4, MOV — até 100MB</span>
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Foto de Capa (Opcional)</Label>
+            <label className="block cursor-pointer">
+              <input
+                type="file"
+                accept="image/png, image/jpeg, image/jpg"
+                className="sr-only"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setCoverFile(f);
+                  if (f) {
+                    const url = URL.createObjectURL(f);
+                    setCoverPreviewUrl(url);
+                  } else {
+                    setCoverPreviewUrl(null);
+                  }
+                }}
+              />
+              <div className="rounded-xl border-2 border-dashed border-border hover:border-primary/60 transition p-6 text-center bg-card/50 flex flex-col items-center justify-center min-h-[100px]">
+                {coverFile ? (
+                  <div className="flex flex-col items-center gap-2">
+                    {coverPreviewUrl && (
+                      <img
+                        src={coverPreviewUrl}
+                        alt="Capa preview"
+                        className="w-20 h-28 object-cover rounded-lg border border-border/80 shadow-md"
+                      />
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-xs text-foreground truncate max-w-[200px]">{coverFile.name}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {(coverFile.size / 1024 / 1024).toFixed(1)} MB
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-primary underline font-medium">Trocar imagem</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Upload className="size-5" />
+                    <span className="text-xs font-semibold text-foreground">Escolher Foto de Capa</span>
+                    <span className="text-[10px]">Formato JPG, PNG (Aspecto 9:16 recomendado)</span>
                   </div>
                 )}
               </div>
