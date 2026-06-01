@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Plus,
   Clock,
   Trash2,
@@ -22,13 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Tabs,
   TabsList,
@@ -93,7 +88,7 @@ function CalendarPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Form State
-  const [accountId, setAccountId] = useState("");
+  const [accountIds, setAccountIds] = useState<string[]>([]);
   const [caption, setCaption] = useState("");
   const [publishMode, setPublishMode] = useState<"now" | "schedule">("now");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -138,9 +133,9 @@ function CalendarPage() {
       // Load active account from local storage to pre-select
       const activeId = localStorage.getItem("active_ig_account_id");
       if (activeId && loadedAccounts.some((a) => a.id === activeId)) {
-        setAccountId(activeId);
+        setAccountIds([activeId]);
       } else if (loadedAccounts.length > 0) {
-        setAccountId(loadedAccounts[0].id);
+        setAccountIds([loadedAccounts[0].id]);
       }
 
       // Load posts
@@ -163,7 +158,7 @@ function CalendarPage() {
 
     const syncActiveAccount = () => {
       const activeId = localStorage.getItem("active_ig_account_id");
-      if (activeId) setAccountId(activeId);
+      if (activeId) setAccountIds([activeId]);
     };
     window.addEventListener("active-account-changed", syncActiveAccount);
     return () => window.removeEventListener("active-account-changed", syncActiveAccount);
@@ -202,8 +197,8 @@ function CalendarPage() {
   // Form submission handler
   const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!videoFile || !accountId || (publishMode === "schedule" && !scheduledAt)) {
-      toast.error("Por favor, preencha todos os campos e selecione um vídeo.");
+    if (!videoFile || accountIds.length === 0 || (publishMode === "schedule" && !scheduledAt)) {
+      toast.error("Por favor, preencha todos os campos e selecione pelo menos uma conta.");
       return;
     }
 
@@ -243,20 +238,22 @@ function CalendarPage() {
         : new Date(scheduledAt).toISOString();
 
       // Insert scheduled post record
-      const { error } = await supabase.from("scheduled_posts").insert({
+      const postsToInsert = accountIds.map((accId) => ({
         user_id: uid,
-        instagram_account_id: accountId,
+        instagram_account_id: accId,
         video_url: publicUrlData.publicUrl,
         cover_url: coverUrl,
         caption,
         scheduled_at: scheduledDate,
-        status: "pending",
-      });
+        status: "pending" as const,
+      }));
+
+      const { error } = await supabase.from("scheduled_posts").insert(postsToInsert);
 
       if (error) throw error;
 
       if (publishMode === "now") {
-        toast.info("Publicando Reel imediatamente...");
+        toast.info("Publicando Reel imediatamente nas contas selecionadas...");
         try {
           await supabase.functions.invoke("publish-reels");
           toast.success("Reel enviado com sucesso!");
@@ -265,7 +262,7 @@ function CalendarPage() {
           toast.success("Reel enviado para processamento!");
         }
       } else {
-        toast.success("Reel agendado com sucesso!");
+        toast.success(`Reel agendado com sucesso para ${accountIds.length} conta(s)!`);
       }
 
       // Reset form
@@ -827,31 +824,106 @@ function CalendarPage() {
               {/* Seletor de Conta */}
               <div className="space-y-2">
                 <Label htmlFor="modalAccount" className="text-sm font-bold">
-                  Conta do Instagram
+                  Contas do Instagram
                 </Label>
-                <Select value={accountId} onValueChange={setAccountId} required>
-                  <SelectTrigger
-                    id="modalAccount"
-                    className="bg-secondary/40 border-border/60 rounded-xl h-10 font-medium"
-                  >
-                    <SelectValue placeholder="Selecione a conta de postagem" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border/60">
-                    {accounts.map((a) => (
-                      <SelectItem key={a.id} value={a.id} className="cursor-pointer font-medium">
-                        <span className="flex items-center gap-2">
-                          {a.account_categories && (
-                            <span
-                              className="size-2.5 rounded-full shrink-0 ring-1 ring-white/10"
-                              style={{ backgroundColor: a.account_categories.color }}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="modalAccount"
+                      variant="outline"
+                      className="w-full justify-between border-border/60 hover:bg-secondary/45 rounded-xl text-sm font-medium h-10 px-3.5 cursor-pointer flex items-center bg-secondary/40 font-medium"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Instagram className="size-4 text-muted-foreground shrink-0" />
+                        {accountIds.length === 0 ? (
+                          <span className="text-muted-foreground text-sm font-normal">
+                            Selecione as contas de postagem
+                          </span>
+                        ) : accountIds.length === 1 ? (
+                          <span className="flex items-center gap-1.5 truncate text-foreground font-semibold">
+                            {(() => {
+                              const acc = accounts.find((a) => a.id === accountIds[0]);
+                              return (
+                                <>
+                                  {acc?.account_categories?.color && (
+                                    <span
+                                      className="size-2 rounded-full shrink-0 ring-1 ring-white/10"
+                                      style={{ backgroundColor: acc.account_categories.color }}
+                                    />
+                                  )}
+                                  @{acc?.username || "usuario"}
+                                </>
+                              );
+                            })()}
+                          </span>
+                        ) : (
+                          <span className="text-foreground font-semibold">
+                            {accountIds.length} contas selecionadas
+                          </span>
+                        )}
+                      </div>
+                      <ChevronDown className="size-4 text-muted-foreground opacity-60 shrink-0 ml-2" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-80 bg-popover border border-border/60 p-3 shadow-card rounded-xl z-50">
+                    <div className="text-xs text-muted-foreground font-semibold flex items-center justify-between pb-2 mb-2 border-b border-border/40 font-semibold">
+                      <span>Selecionar Contas</span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAccountIds(accounts.map((a) => a.id));
+                          }}
+                          className="text-[10px] text-primary hover:underline font-bold cursor-pointer bg-transparent border-0"
+                        >
+                          Todas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAccountIds([]);
+                          }}
+                          className="text-[10px] text-destructive hover:underline font-bold cursor-pointer bg-transparent border-0"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+                      {accounts.map((a) => {
+                        const isChecked = accountIds.includes(a.id);
+                        return (
+                          <label
+                            key={a.id}
+                            className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-secondary/60 cursor-pointer text-xs font-semibold select-none transition-colors"
+                          >
+                            <Checkbox
+                              checked={isChecked}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setAccountIds((prev) => [...prev, a.id]);
+                                } else {
+                                  setAccountIds((prev) => prev.filter((id) => id !== a.id));
+                                }
+                              }}
                             />
-                          )}
-                          @{a.username}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                            <span className="flex items-center gap-2 truncate">
+                              {a.account_categories && (
+                                <span
+                                  className="size-2.5 rounded-full shrink-0 ring-1 ring-white/10"
+                                  style={{ backgroundColor: a.account_categories.color }}
+                                />
+                              )}
+                              <span className="text-foreground">@{a.username}</span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Método de Publicação */}
@@ -965,7 +1037,7 @@ function CalendarPage() {
                         R
                       </div>
                       <span className="font-semibold text-xs">
-                        @{accounts.find((a) => a.id === accountId)?.username || "usuario"}
+                        @{accounts.find((a) => a.id === accountIds[0])?.username || "usuario"}
                       </span>
                       <span className="text-[10px] bg-white/20 border border-white/30 px-1.5 py-0.5 rounded-md font-bold">
                         Seguir

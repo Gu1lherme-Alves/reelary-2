@@ -762,7 +762,7 @@ function AccountsPage() {
                       }`}
                       style={{
                         backgroundColor: c.value,
-                        ringColor: isSelected ? c.value : undefined,
+                        boxShadow: isSelected ? `0 0 0 2px ${c.value}` : undefined,
                       }}
                       title={c.label}
                     >

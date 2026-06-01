@@ -1,18 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Upload, Loader2, Video } from "lucide-react";
+import { Upload, Loader2, Video, ChevronDown, Instagram } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -31,11 +26,16 @@ export const Route = createFileRoute("/schedule")({
   ),
 });
 
-type Account = { id: string; username: string };
+type Account = {
+  id: string;
+  username: string;
+  category_id?: string | null;
+  account_categories?: { id: string; name: string; color: string } | null;
+};
 
 function SchedulePage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [accountId, setAccountId] = useState<string>("");
+  const [accountIds, setAccountIds] = useState<string[]>([]);
   const [caption, setCaption] = useState("");
   const [publishMode, setPublishMode] = useState<"now" | "schedule">("now");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -48,10 +48,19 @@ function SchedulePage() {
   useEffect(() => {
     supabase
       .from("instagram_accounts")
-      .select("id, username")
+      .select("id, username, category_id, account_categories(id, name, color)")
       .eq("hidden", false)
       .order("created_at", { ascending: false })
-      .then(({ data }) => setAccounts(data ?? []));
+      .then(({ data }) => {
+        const loadedAccounts = data ?? [];
+        setAccounts(loadedAccounts);
+        const activeId = localStorage.getItem("active_ig_account_id");
+        if (activeId && loadedAccounts.some((a) => a.id === activeId)) {
+          setAccountIds([activeId]);
+        } else if (loadedAccounts.length > 0) {
+          setAccountIds([loadedAccounts[0].id]);
+        }
+      });
   }, []);
 
   useEffect(() => {
@@ -62,7 +71,10 @@ function SchedulePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file || !accountId || (publishMode === "schedule" && !scheduledAt)) return;
+    if (!file || accountIds.length === 0 || (publishMode === "schedule" && !scheduledAt)) {
+      toast.error("Por favor, preencha todos os campos e selecione pelo menos uma conta.");
+      return;
+    }
     setSubmitting(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -93,19 +105,21 @@ function SchedulePage() {
         ? new Date().toISOString()
         : new Date(scheduledAt).toISOString();
 
-      const { error } = await supabase.from("scheduled_posts").insert({
+      const postsToInsert = accountIds.map((accId) => ({
         user_id: uid,
-        instagram_account_id: accountId,
+        instagram_account_id: accId,
         video_url: pub.publicUrl,
         cover_url: coverUrl,
         caption,
         scheduled_at: scheduledDate,
-        status: "pending",
-      });
+        status: "pending" as const,
+      }));
+
+      const { error } = await supabase.from("scheduled_posts").insert(postsToInsert);
       if (error) throw error;
 
       if (publishMode === "now") {
-        toast.info("Publicando Reel imediatamente...");
+        toast.info("Publicando Reel imediatamente nas contas selecionadas...");
         try {
           await supabase.functions.invoke("publish-reels");
           toast.success("Reel enviado com sucesso!");
@@ -114,7 +128,7 @@ function SchedulePage() {
           toast.success("Reel enviado para processamento!");
         }
       } else {
-        toast.success("Reel agendado!");
+        toast.success(`Reel agendado para ${accountIds.length} conta(s)!`);
       }
       navigate({ to: "/posts" });
     } catch (err: any) {
@@ -227,19 +241,104 @@ function SchedulePage() {
           </div>
 
           <div className="space-y-2">
-            <Label>Conta</Label>
-            <Select value={accountId} onValueChange={setAccountId} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Escolha uma conta" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    @{a.username}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Contas do Instagram</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between border-border/60 hover:bg-secondary/45 rounded-xl text-sm font-medium h-11 px-3.5 cursor-pointer flex items-center bg-card"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Instagram className="size-4 text-muted-foreground shrink-0" />
+                    {accountIds.length === 0 ? (
+                      <span className="text-muted-foreground text-sm font-normal">
+                        Selecione as contas de postagem
+                      </span>
+                    ) : accountIds.length === 1 ? (
+                      <span className="flex items-center gap-1.5 truncate text-foreground font-semibold">
+                        {(() => {
+                          const acc = accounts.find((a) => a.id === accountIds[0]);
+                          return (
+                            <>
+                              {acc?.account_categories?.color && (
+                                <span
+                                  className="size-2 rounded-full shrink-0 ring-1 ring-white/10"
+                                  style={{ backgroundColor: acc.account_categories.color }}
+                                />
+                              )}
+                              @{acc?.username || "usuario"}
+                            </>
+                          );
+                        })()}
+                      </span>
+                    ) : (
+                      <span className="text-foreground font-semibold">
+                        {accountIds.length} contas selecionadas
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown className="size-4 text-muted-foreground opacity-60 shrink-0 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-80 bg-popover border border-border/60 p-3 shadow-card rounded-xl z-50">
+                <div className="text-xs text-muted-foreground font-semibold flex items-center justify-between pb-2 mb-2 border-b border-border/40">
+                  <span>Selecionar Contas</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAccountIds(accounts.map((a) => a.id));
+                      }}
+                      className="text-[10px] text-primary hover:underline font-bold cursor-pointer bg-transparent border-0"
+                    >
+                      Todas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAccountIds([]);
+                      }}
+                      className="text-[10px] text-destructive hover:underline font-bold cursor-pointer bg-transparent border-0"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+                  {accounts.map((a) => {
+                    const isChecked = accountIds.includes(a.id);
+                    return (
+                      <label
+                        key={a.id}
+                        className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-secondary/60 cursor-pointer text-xs font-semibold select-none transition-colors"
+                      >
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setAccountIds((prev) => [...prev, a.id]);
+                            } else {
+                              setAccountIds((prev) => prev.filter((id) => id !== a.id));
+                            }
+                          }}
+                        />
+                        <span className="flex items-center gap-2 truncate">
+                          {a.account_categories && (
+                            <span
+                              className="size-2.5 rounded-full shrink-0 ring-1 ring-white/10"
+                              style={{ backgroundColor: a.account_categories.color }}
+                            />
+                          )}
+                          <span className="text-foreground">@{a.username}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
