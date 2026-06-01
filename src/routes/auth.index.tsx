@@ -171,7 +171,7 @@ function AuthPage() {
               <AlertCircle className="size-5 text-warning shrink-0" />
               <div className="ml-3">
                 <AlertTitle className="font-bold text-warning text-sm md:text-base flex items-center gap-1.5">
-                  ⚠️ CONFIRMAÇÃO DE E-MAIL REQUERIDA!
+                  CONFIRMAÇÃO DE E-MAIL REQUERIDA
                 </AlertTitle>
                 <AlertDescription className="text-xs md:text-sm mt-1 leading-relaxed text-muted-foreground">
                   Enviamos um link de confirmação para o endereço{" "}

@@ -49,6 +49,7 @@ function SchedulePage() {
     supabase
       .from("instagram_accounts")
       .select("id, username")
+      .eq("hidden", false)
       .order("created_at", { ascending: false })
       .then(({ data }) => setAccounts(data ?? []));
   }, []);
@@ -260,8 +261,8 @@ function SchedulePage() {
               className="w-full"
             >
               <TabsList className="grid w-full grid-cols-2 bg-secondary/60">
-                <TabsTrigger value="now" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">⚡ Postar Agora</TabsTrigger>
-                <TabsTrigger value="schedule" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">📅 Agendar</TabsTrigger>
+                <TabsTrigger value="now" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Postar Agora</TabsTrigger>
+                <TabsTrigger value="schedule" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Agendar</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>

@@ -44,6 +44,15 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/calendar")({
   head: () => ({ meta: [{ title: "Calendário Editorial — Reelary" }] }),
@@ -73,6 +82,7 @@ function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -105,19 +115,30 @@ function CalendarPage() {
   // Load Accounts & Posts
   async function loadData() {
     try {
-      // Load accounts
+      // Load accounts - only visible (non-hidden) ones!
       const { data: accs } = await supabase
         .from("instagram_accounts")
         .select("id, username")
+        .eq("hidden", false)
         .order("created_at", { ascending: false });
-      setAccounts(accs || []);
+      
+      const loadedAccounts = accs || [];
+      setAccounts(loadedAccounts);
+
+      // Pre-fill selectedAccountIds with loaded visible accounts on first load
+      setSelectedAccountIds((prev) => {
+        if (prev.length === 0) {
+          return loadedAccounts.map((a) => a.id);
+        }
+        return prev.filter((id) => loadedAccounts.some((a) => a.id === id));
+      });
 
       // Load active account from local storage to pre-select
       const activeId = localStorage.getItem("active_ig_account_id");
-      if (activeId) {
+      if (activeId && loadedAccounts.some((a) => a.id === activeId)) {
         setAccountId(activeId);
-      } else if (accs && accs.length > 0) {
-        setAccountId(accs[0].id);
+      } else if (loadedAccounts.length > 0) {
+        setAccountId(loadedAccounts[0].id);
       }
 
       // Load posts
@@ -356,8 +377,11 @@ function CalendarPage() {
     );
   };
 
-  // Filter posts for selected day
-  const postsOnSelectedDay = posts.filter((p) => isSameDay(new Date(p.scheduled_at), selectedDate));
+  // Filter posts for selected day and selected accounts
+  const postsOnSelectedDay = posts.filter(
+    (p) => isSameDay(new Date(p.scheduled_at), selectedDate) &&
+           selectedAccountIds.includes(p.instagram_account_id)
+  );
 
   // Minimum date-time for scheduling picker
   const tzOffset = new Date().getTimezoneOffset() * 60_000;
@@ -391,16 +415,74 @@ function CalendarPage() {
           </p>
         </div>
 
-        {accounts.length > 0 && (
-          <Button
-            onClick={() => openScheduleForDay(selectedDate)}
-            className="bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold shadow-glow shrink-0"
-          >
-            <Plus className="size-4 mr-2" /> Agendar Reel
-          </Button>
-        )}
-      </div>
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          {accounts.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="border-border/60 hover:bg-secondary rounded-xl text-xs font-semibold h-10 gap-2 cursor-pointer">
+                  <Instagram className="size-4 text-muted-foreground" />
+                  <span>Filtrar Contas ({selectedAccountIds.length}/{accounts.length})</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-card border border-border/60">
+                <DropdownMenuLabel className="text-xs text-muted-foreground font-semibold flex items-center justify-between">
+                  <span>Selecionar Contas</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedAccountIds(accounts.map((a) => a.id));
+                      }}
+                      className="text-[10px] text-primary hover:underline font-bold cursor-pointer"
+                    >
+                      Todas
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedAccountIds([]);
+                      }}
+                      className="text-[10px] text-destructive hover:underline font-bold cursor-pointer"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {accounts.map((a) => {
+                  const isChecked = selectedAccountIds.includes(a.id);
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={a.id}
+                      checked={isChecked}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedAccountIds((prev) => [...prev, a.id]);
+                        } else {
+                          setSelectedAccountIds((prev) => prev.filter((id) => id !== a.id));
+                        }
+                      }}
+                      onSelect={(e) => e.preventDefault()} // Mantém o dropdown aberto
+                      className="cursor-pointer font-medium text-xs py-2"
+                    >
+                      @{a.username}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
+          {accounts.length > 0 && (
+            <Button
+              onClick={() => openScheduleForDay(selectedDate)}
+              className="bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold shadow-glow h-10"
+            >
+              <Plus className="size-4 mr-2" /> Agendar Reel
+            </Button>
+          )}
+        </div>
+      </div>
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Lado Esquerdo: Calendário */}
         <div className="lg:col-span-2 rounded-2xl border border-border/50 bg-card/45 p-5 shadow-card flex flex-col justify-between">
@@ -444,7 +526,8 @@ function CalendarPage() {
             <div className="grid grid-cols-7 gap-2">
               {allCalendarDays.map((cell, idx) => {
                 const dayPosts = posts.filter((p) =>
-                  isSameDay(new Date(p.scheduled_at), cell.date),
+                  isSameDay(new Date(p.scheduled_at), cell.date) &&
+                  selectedAccountIds.includes(p.instagram_account_id)
                 );
                 const isSelected = isSameDay(cell.date, selectedDate);
                 const isTodayDate = isSameDay(cell.date, new Date());
@@ -453,7 +536,7 @@ function CalendarPage() {
                   <button
                     key={idx}
                     onClick={() => setSelectedDate(cell.date)}
-                    className={`aspect-square rounded-xl p-2 flex flex-col justify-between items-start transition cursor-pointer border ${
+                    className={`aspect-square rounded-xl p-2 flex flex-col justify-between items-start transition cursor-pointer border relative ${
                       !cell.isCurrentMonth
                         ? "text-muted-foreground/45 border-transparent bg-transparent"
                         : isSelected
@@ -464,6 +547,29 @@ function CalendarPage() {
                     }`}
                   >
                     <span className="text-sm font-semibold">{cell.day}</span>
+                    
+                    {/* Visual post status dots at the bottom of the cell */}
+                    {dayPosts.length > 0 && (
+                      <div className="flex gap-1 mt-auto w-full justify-start overflow-hidden pt-1">
+                        {dayPosts.slice(0, 3).map((p) => {
+                          let dotColor = "bg-warning animate-pulse"; // pending
+                          if (p.status === "published") dotColor = "bg-success";
+                          if (p.status === "failed") dotColor = "bg-destructive animate-pulse";
+                          return (
+                            <span
+                              key={p.id}
+                              className={`size-1.5 rounded-full shrink-0 ${dotColor}`}
+                              title={`@${p.instagram_accounts?.username || "instagram"}: ${p.status}`}
+                            />
+                          );
+                        })}
+                        {dayPosts.length > 3 && (
+                          <span className="text-[8px] leading-[6px] font-bold text-muted-foreground shrink-0">
+                            +{dayPosts.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </button>
                 );
               })}
@@ -723,7 +829,7 @@ function CalendarPage() {
                   <SelectContent className="bg-card border-border/60">
                     {accounts.map((a) => (
                       <SelectItem key={a.id} value={a.id} className="cursor-pointer font-medium">
-                        📸 @{a.username}
+                        @{a.username}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -739,8 +845,8 @@ function CalendarPage() {
                   className="w-full"
                 >
                   <TabsList className="grid w-full grid-cols-2 bg-secondary/60">
-                    <TabsTrigger value="now" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">⚡ Postar Agora</TabsTrigger>
-                    <TabsTrigger value="schedule" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">📅 Agendar</TabsTrigger>
+                    <TabsTrigger value="now" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Postar Agora</TabsTrigger>
+                    <TabsTrigger value="schedule" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Agendar</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>

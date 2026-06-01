@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import {
   Instagram,
   Plus,
-  Calendar,
+  Calendar as CalendarIcon,
   CheckCircle2,
   Layers,
   ChevronRight,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -23,6 +24,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Calendar } from "@/components/ui/calendar";
+import { DateRange } from "react-day-picker";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Painel de Controle — Reelary" }] }),
@@ -53,6 +56,8 @@ function DashboardPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterAccountId, setFilterAccountId] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const navigate = useNavigate();
 
   async function loadData() {
@@ -93,37 +98,99 @@ function DashboardPage() {
     return () => window.removeEventListener("active-account-changed", handleSync);
   }, []);
 
+  // Compute date range for filtering
+  const getFilterDateRange = () => {
+    const now = new Date();
+    const start = new Date();
+    const end = new Date();
+
+    if (dateFilter === "today") {
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    } else if (dateFilter === "yesterday") {
+      start.setDate(now.getDate() - 1);
+      start.setHours(0, 0, 0, 0);
+      end.setDate(now.getDate() - 1);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    } else if (dateFilter === "7d") {
+      start.setDate(now.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    } else if (dateFilter === "30d") {
+      start.setDate(now.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    } else if (dateFilter === "custom" && dateRange?.from) {
+      const s = new Date(dateRange.from);
+      s.setHours(0, 0, 0, 0);
+      const e = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+      e.setHours(23, 59, 59, 999);
+      return { start: s, end: e };
+    }
+    return { start: null, end: null };
+  };
+
+  const { start: filterStart, end: filterEnd } = getFilterDateRange();
+
   // Filter calculations
-  const filteredPosts = posts.filter((p) =>
-    filterAccountId === "all" ? true : p.instagram_account_id === filterAccountId,
-  );
+  const filteredPosts = posts.filter((p) => {
+    const matchAccount = filterAccountId === "all" ? true : p.instagram_account_id === filterAccountId;
+    if (!matchAccount) return false;
+
+    if (filterStart && filterEnd) {
+      const postDate = new Date(p.scheduled_at);
+      return postDate >= filterStart && postDate <= filterEnd;
+    }
+    return true;
+  });
 
   const totalAccounts = accounts.length;
 
-  // Calculate today range in local time
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
-
-  const scheduledToday = filteredPosts.filter((p) => {
-    const d = new Date(p.scheduled_at);
-    return p.status === "pending" && d >= startOfToday && d <= endOfToday;
-  }).length;
-
+  const scheduledPending = filteredPosts.filter((p) => p.status === "pending").length;
   const totalPublished = filteredPosts.filter((p) => p.status === "published").length;
   const totalFailed = filteredPosts.filter((p) => p.status === "failed").length;
 
-  // Get upcoming posts (scheduled after now, pending)
+  // Get upcoming posts (scheduled after now, pending) within date range
   const now = new Date();
   const upcomingPosts = filteredPosts
     .filter((p) => p.status === "pending" && new Date(p.scheduled_at) > now)
     .slice(0, 3); // Get top 3
 
+  // Dynamic titles based on selected filter
+  const getScheduledCardTitle = () => {
+    if (dateFilter === "today") return "Reels Agendados (Hoje)";
+    if (dateFilter === "yesterday") return "Reels Agendados (Ontem)";
+    if (dateFilter === "7d") return "Reels Agendados (7d)";
+    if (dateFilter === "30d") return "Reels Agendados (30d)";
+    if (dateFilter === "custom") return "Reels Agendados (Período)";
+    return "Reels Agendados";
+  };
+
+  const getPublishedCardTitle = () => {
+    if (dateFilter === "today") return "Reels Publicados (Hoje)";
+    if (dateFilter === "yesterday") return "Reels Publicados (Ontem)";
+    if (dateFilter === "7d") return "Reels Publicados (7d)";
+    if (dateFilter === "30d") return "Reels Publicados (30d)";
+    if (dateFilter === "custom") return "Reels Publicados (Período)";
+    return "Reels Publicados";
+  };
+
+  const getScheduledLabel = () => {
+    if (dateFilter === "today") return "reels hoje";
+    if (dateFilter === "yesterday") return "reels ontem";
+    if (dateFilter === "7d") return "reels em 7 dias";
+    if (dateFilter === "30d") return "reels em 30 dias";
+    return "reels agendados";
+  };
+
   return (
     <div className="space-y-8">
       {/* Header com Filtro */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Painel Geral</h1>
           <p className="text-muted-foreground mt-1">
@@ -131,27 +198,78 @@ function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground font-medium shrink-0">
-            Filtrar por conta:
-          </span>
-          <Select value={filterAccountId} onValueChange={setFilterAccountId}>
-            <SelectTrigger className="w-56 bg-card border-border/60 rounded-xl h-10 font-medium">
-              <SelectValue placeholder="Todas as contas" />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border/60">
-              <SelectItem value="all" className="cursor-pointer">
-                ✨ Todas as contas
-              </SelectItem>
-              {accounts.map((acc) => (
-                <SelectItem key={acc.id} value={acc.id} className="cursor-pointer">
-                  📸 @{acc.username}
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Filtro por Conta */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground font-medium shrink-0">
+              Conta:
+            </span>
+            <Select value={filterAccountId} onValueChange={setFilterAccountId}>
+              <SelectTrigger className="w-48 bg-card border-border/60 rounded-xl h-10 font-medium">
+                <SelectValue placeholder="Todas as contas" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border/60">
+                <SelectItem value="all" className="cursor-pointer">
+                  Todas as contas
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                {accounts.map((acc) => (
+                  <SelectItem key={acc.id} value={acc.id} className="cursor-pointer">
+                    @{acc.username}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Filtro por Período */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground font-medium shrink-0">
+              Período:
+            </span>
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-48 bg-card border-border/60 rounded-xl h-10 font-medium">
+                <SelectValue placeholder="Qualquer período" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-border/60">
+                <SelectItem value="all" className="cursor-pointer">Qualquer período</SelectItem>
+                <SelectItem value="today" className="cursor-pointer">Hoje</SelectItem>
+                <SelectItem value="yesterday" className="cursor-pointer">Ontem</SelectItem>
+                <SelectItem value="7d" className="cursor-pointer">Últimos 7 dias</SelectItem>
+                <SelectItem value="30d" className="cursor-pointer">Últimos 30 dias</SelectItem>
+                <SelectItem value="custom" className="cursor-pointer">Personalizado...</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
+
+      {/* Calendário para Período Personalizado */}
+      {dateFilter === "custom" && (
+        <div className="flex flex-col md:flex-row items-start gap-6 p-5 rounded-2xl border border-border/40 bg-card/25 backdrop-blur-sm shadow-card animate-in slide-in-from-top-2 duration-300">
+          <div className="space-y-3 shrink-0">
+            <h3 className="text-sm font-bold text-foreground">Intervalo de datas</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-[200px]">
+              Selecione o dia inicial e o dia final clicando diretamente no calendário para filtrar as métricas do painel.
+            </p>
+            {dateRange?.from && (
+              <div className="p-3 rounded-xl bg-secondary/40 border border-border/40 space-y-1">
+                <span className="text-[10px] uppercase tracking-wider font-extrabold text-muted-foreground block">Período selecionado:</span>
+                <span className="text-xs font-bold text-primary">
+                  {dateRange.from.toLocaleDateString("pt-BR")}
+                  {dateRange.to ? ` — ${dateRange.to.toLocaleDateString("pt-BR")}` : " (Clique no dia de término)"}
+                </span>
+              </div>
+            )}
+          </div>
+          
+          <Calendar
+            mode="range"
+            selected={dateRange}
+            onSelect={setDateRange}
+            className="rounded-xl border border-border/40 bg-card p-3"
+          />
+        </div>
+      )}
 
       {loading ? (
         <div className="grid gap-6 md:grid-cols-3">
@@ -166,22 +284,22 @@ function DashboardPage() {
         <>
           {/* Métricas */}
           <div className="grid gap-6 md:grid-cols-3">
-            {/* Card 1: Agendados pro Dia */}
+            {/* Card 1: Agendados pro Dia/Período */}
             <div className="rounded-2xl border border-border/50 bg-card/45 p-6 shadow-card hover:bg-card/75 transition relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-300">
-                <Calendar className="size-20 text-primary" />
+                <CalendarIcon className="size-20 text-primary" />
               </div>
               <div className="flex items-center gap-3 text-muted-foreground text-sm font-semibold mb-3">
                 <div className="size-8 rounded-lg bg-primary/10 grid place-items-center text-primary">
-                  <Calendar className="size-4" />
+                  <CalendarIcon className="size-4" />
                 </div>
-                Reels Agendados (Hoje)
+                {getScheduledCardTitle()}
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-extrabold text-gradient-brand">
-                  {scheduledToday}
+                  {scheduledPending}
                 </span>
-                <span className="text-xs text-muted-foreground">reels hoje</span>
+                <span className="text-xs text-muted-foreground">{getScheduledLabel()}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
                 Prontos para postagem automática nas próximas horas.
@@ -197,7 +315,7 @@ function DashboardPage() {
                 <div className="size-8 rounded-lg bg-success/10 grid place-items-center text-success">
                   <CheckCircle2 className="size-4" />
                 </div>
-                Reels Publicados
+                {getPublishedCardTitle()}
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-extrabold text-success">{totalPublished}</span>
@@ -205,8 +323,8 @@ function DashboardPage() {
               </div>
               <p className="text-xs text-muted-foreground mt-4 leading-relaxed flex items-center gap-1">
                 {totalFailed > 0 ? (
-                  <span className="text-destructive font-semibold flex items-center gap-0.5">
-                    ⚠️ {totalFailed} falhas registradas
+                  <span className="text-destructive font-semibold flex items-center gap-1">
+                    <AlertCircle className="size-3.5 inline text-destructive shrink-0" /> {totalFailed} falhas registradas
                   </span>
                 ) : (
                   <span>Sem falhas de publicação.</span>
