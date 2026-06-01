@@ -1,9 +1,39 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Instagram, Plus, Trash2, AlertCircle, CheckCircle2, Star, Sparkles, Eye, EyeOff } from "lucide-react";
+import {
+  Instagram,
+  Plus,
+  Trash2,
+  AlertCircle,
+  Star,
+  Eye,
+  EyeOff,
+  Tag,
+  Pencil,
+  X,
+  Palette,
+  Check,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { buildInstagramAuthUrl } from "@/lib/instagram";
 import { getMetaAppId } from "@/lib/instagram.functions";
@@ -18,6 +48,16 @@ export const Route = createFileRoute("/accounts")({
   ),
 });
 
+// ─── Types ──────────────────────────────────────────────────────────────────────
+
+type Category = {
+  id: string;
+  name: string;
+  color: string;
+  user_id: string;
+  created_at: string;
+};
+
 type IgAccount = {
   id: string;
   username: string;
@@ -25,16 +65,125 @@ type IgAccount = {
   token_expires_at: string | null;
   created_at: string;
   hidden: boolean;
+  category_id: string | null;
+  account_categories: { id: string; name: string; color: string } | null;
 };
+
+// ─── Color Palette ──────────────────────────────────────────────────────────────
+
+const CATEGORY_COLORS = [
+  { value: "#ef4444", label: "Vermelho" },
+  { value: "#f97316", label: "Laranja" },
+  { value: "#f59e0b", label: "Âmbar" },
+  { value: "#22c55e", label: "Verde" },
+  { value: "#14b8a6", label: "Teal" },
+  { value: "#06b6d4", label: "Ciano" },
+  { value: "#3b82f6", label: "Azul" },
+  { value: "#6366f1", label: "Índigo" },
+  { value: "#8b5cf6", label: "Violeta" },
+  { value: "#d946ef", label: "Fúcsia" },
+  { value: "#ec4899", label: "Rosa" },
+  { value: "#f43f5e", label: "Coral" },
+];
+
+// ─── Category Dot Component ─────────────────────────────────────────────────────
+
+function CategoryBadge({ category }: { category: { name: string; color: string } | null }) {
+  if (!category) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border transition"
+      style={{
+        backgroundColor: `${category.color}18`,
+        borderColor: `${category.color}40`,
+        color: category.color,
+      }}
+    >
+      <span
+        className="size-1.5 rounded-full shrink-0"
+        style={{ backgroundColor: category.color }}
+      />
+      {category.name}
+    </span>
+  );
+}
+
+// ─── Main Component ─────────────────────────────────────────────────────────────
 
 function AccountsPage() {
   const [accounts, setAccounts] = useState<IgAccount[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [appId, setAppId] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
   const [showHiddenList, setShowHiddenList] = useState(false);
+
+  // Category modal state
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryName, setCategoryName] = useState("");
+  const [categoryColor, setCategoryColor] = useState(CATEGORY_COLORS[0].value);
+  const [savingCategory, setSavingCategory] = useState(false);
+
   const fetchAppId = useServerFn(getMetaAppId);
+
+  // ─── Data Loading ───────────────────────────────────────────────────────────
+
+  async function loadCategories() {
+    const { data, error } = await supabase
+      .from("account_categories")
+      .select("*")
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    setCategories(data ?? []);
+  }
+
+  async function load() {
+    try {
+      const { data, error } = await supabase
+        .from("instagram_accounts")
+        .select(
+          "id, username, instagram_user_id, token_expires_at, created_at, hidden, category_id, account_categories(id, name, color)",
+        )
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      setAccounts((data as any) ?? []);
+
+      // Load current active account
+      const storedId = localStorage.getItem("active_ig_account_id");
+      if (storedId) {
+        setActiveAccountId(storedId);
+      } else if (data && data.length > 0) {
+        setActiveAccountId(data[0].id);
+        localStorage.setItem("active_ig_account_id", data[0].id);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao carregar contas");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    Promise.all([load(), loadCategories()]);
+    fetchAppId()
+      .then((r) => setAppId(r.appId))
+      .catch(() => setAppId(null));
+
+    // Sync active account if changed elsewhere (e.g. topbar)
+    const handleActiveAccountChange = () => {
+      const storedId = localStorage.getItem("active_ig_account_id");
+      if (storedId) {
+        setActiveAccountId(storedId);
+      }
+    };
+    window.addEventListener("active-account-changed", handleActiveAccountChange);
+    return () => window.removeEventListener("active-account-changed", handleActiveAccountChange);
+  }, [fetchAppId]);
+
+  // ─── Account Actions ────────────────────────────────────────────────────────
 
   async function hideAccount(id: string, username: string) {
     try {
@@ -46,7 +195,6 @@ function AccountsPage() {
 
       toast.success(`Conta @${username} oculta com sucesso!`);
 
-      // If the hidden account was active, switch to first visible one
       const storedActiveId = localStorage.getItem("active_ig_account_id");
       if (storedActiveId === id) {
         const nextActive = accounts.find((a) => a.id !== id && !a.hidden);
@@ -76,7 +224,6 @@ function AccountsPage() {
 
       toast.success(`Conta @${username} visível novamente!`);
 
-      // If there is no active account now, set this one active
       const storedActiveId = localStorage.getItem("active_ig_account_id");
       if (!storedActiveId) {
         localStorage.setItem("active_ig_account_id", id);
@@ -89,48 +236,6 @@ function AccountsPage() {
       toast.error(err.message || "Erro ao reexibir conta");
     }
   }
-
-  async function load() {
-    try {
-      const { data, error } = await supabase
-        .from("instagram_accounts")
-        .select("id, username, instagram_user_id, token_expires_at, created_at, hidden")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-
-      setAccounts(data ?? []);
-
-      // Load current active account
-      const storedId = localStorage.getItem("active_ig_account_id");
-      if (storedId) {
-        setActiveAccountId(storedId);
-      } else if (data && data.length > 0) {
-        setActiveAccountId(data[0].id);
-        localStorage.setItem("active_ig_account_id", data[0].id);
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao carregar contas");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-    fetchAppId()
-      .then((r) => setAppId(r.appId))
-      .catch(() => setAppId(null));
-
-    // Sync active account if changed elsewhere (e.g. topbar)
-    const handleActiveAccountChange = () => {
-      const storedId = localStorage.getItem("active_ig_account_id");
-      if (storedId) {
-        setActiveAccountId(storedId);
-      }
-    };
-    window.addEventListener("active-account-changed", handleActiveAccountChange);
-    return () => window.removeEventListener("active-account-changed", handleActiveAccountChange);
-  }, [fetchAppId]);
 
   async function disconnect(id: string) {
     if (
@@ -145,7 +250,6 @@ function AccountsPage() {
 
       toast.success("Conta desconectada com sucesso!");
 
-      // If the disconnected account was the active one, clear/change active account
       const storedId = localStorage.getItem("active_ig_account_id");
       if (storedId === id) {
         localStorage.removeItem("active_ig_account_id");
@@ -174,9 +278,100 @@ function AccountsPage() {
     window.location.href = buildInstagramAuthUrl(appId);
   }
 
+  // ─── Category CRUD ──────────────────────────────────────────────────────────
+
+  function openCreateCategory() {
+    setEditingCategory(null);
+    setCategoryName("");
+    setCategoryColor(CATEGORY_COLORS[0].value);
+    setShowCategoryModal(true);
+  }
+
+  function openEditCategory(cat: Category) {
+    setEditingCategory(cat);
+    setCategoryName(cat.name);
+    setCategoryColor(cat.color);
+    setShowCategoryModal(true);
+  }
+
+  async function saveCategory() {
+    if (!categoryName.trim()) {
+      toast.error("Digite um nome para a categoria");
+      return;
+    }
+
+    setSavingCategory(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id;
+      if (!uid) throw new Error("Sessão expirada");
+
+      if (editingCategory) {
+        // Update
+        const { error } = await supabase
+          .from("account_categories")
+          .update({ name: categoryName.trim(), color: categoryColor })
+          .eq("id", editingCategory.id);
+        if (error) throw error;
+        toast.success(`Categoria "${categoryName.trim()}" atualizada!`);
+      } else {
+        // Create
+        const { error } = await supabase.from("account_categories").insert({
+          user_id: uid,
+          name: categoryName.trim(),
+          color: categoryColor,
+        });
+        if (error) throw error;
+        toast.success(`Categoria "${categoryName.trim()}" criada!`);
+      }
+
+      setShowCategoryModal(false);
+      await Promise.all([loadCategories(), load()]);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao salvar categoria");
+    } finally {
+      setSavingCategory(false);
+    }
+  }
+
+  async function deleteCategory(cat: Category) {
+    if (!confirm(`Excluir a categoria "${cat.name}"? As contas associadas ficarão sem categoria.`))
+      return;
+    try {
+      const { error } = await supabase.from("account_categories").delete().eq("id", cat.id);
+      if (error) throw error;
+      toast.success(`Categoria "${cat.name}" excluída`);
+      await Promise.all([loadCategories(), load()]);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao excluir categoria");
+    }
+  }
+
+  async function assignCategory(accountId: string, categoryId: string | null) {
+    try {
+      const { error } = await supabase
+        .from("instagram_accounts")
+        .update({ category_id: categoryId })
+        .eq("id", accountId);
+      if (error) throw error;
+
+      const catName = categoryId
+        ? categories.find((c) => c.id === categoryId)?.name
+        : null;
+      toast.success(catName ? `Categoria "${catName}" atribuída` : "Categoria removida");
+      load();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao atribuir categoria");
+    }
+  }
+
+  // ─── Derived Data ───────────────────────────────────────────────────────────
+
   const configured = !!appId;
   const visibleAccounts = accounts.filter((a) => !a.hidden);
   const hiddenAccounts = accounts.filter((a) => a.hidden);
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -187,14 +382,52 @@ function AccountsPage() {
             Conecte suas contas comerciais do Instagram para agendar Reels automaticamente.
           </p>
         </div>
-        <Button
-          onClick={connect}
-          disabled={connecting}
-          className="bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold shadow-glow shrink-0"
-        >
-          <Instagram className="size-4 mr-2" /> Conectar Novo Instagram
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            onClick={openCreateCategory}
+            variant="outline"
+            className="border-border/60 hover:bg-secondary font-semibold rounded-xl h-10 gap-2"
+          >
+            <Palette className="size-4 text-primary" /> Categorias
+          </Button>
+          <Button
+            onClick={connect}
+            disabled={connecting}
+            className="bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold shadow-glow"
+          >
+            <Instagram className="size-4 mr-2" /> Conectar Novo Instagram
+          </Button>
+        </div>
       </div>
+
+      {/* Category pills row */}
+      {categories.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 animate-in fade-in duration-300">
+          <span className="text-xs text-muted-foreground font-semibold mr-1">Categorias:</span>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => openEditCategory(cat)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition hover:scale-105 cursor-pointer"
+              style={{
+                backgroundColor: `${cat.color}18`,
+                borderColor: `${cat.color}40`,
+                color: cat.color,
+              }}
+              title={`Editar categoria "${cat.name}"`}
+            >
+              <span
+                className="size-2 rounded-full shrink-0"
+                style={{ backgroundColor: cat.color }}
+              />
+              {cat.name}
+              <span className="text-[9px] opacity-60 ml-0.5">
+                ({accounts.filter((a) => a.category_id === cat.id).length})
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {!configured && (
         <div className="rounded-2xl border border-warning/30 bg-warning/10 p-5 flex gap-4 animate-in fade-in duration-300">
@@ -266,6 +499,11 @@ function AccountsPage() {
                         ? "border-primary/80 ring-1 ring-primary/45 bg-primary/[0.02]"
                         : "border-border/50 hover:border-muted-foreground/40 hover:bg-card/75"
                     }`}
+                    style={
+                      a.account_categories
+                        ? { borderTopColor: a.account_categories.color, borderTopWidth: "3px" }
+                        : undefined
+                    }
                   >
                     <div>
                       <div className="flex items-start justify-between gap-3">
@@ -286,10 +524,71 @@ function AccountsPage() {
                             <div className="text-xs text-muted-foreground mt-0.5 truncate">
                               ID: {a.instagram_user_id}
                             </div>
+                            {a.account_categories && (
+                              <div className="mt-1.5">
+                                <CategoryBadge category={a.account_categories} />
+                              </div>
+                            )}
                           </div>
                         </div>
 
                         <div className="flex items-center gap-0.5 shrink-0">
+                          {/* Category assignment dropdown */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition"
+                                title="Atribuir categoria"
+                              >
+                                <Tag className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              className="w-52 bg-card border border-border/60"
+                            >
+                              <DropdownMenuLabel className="text-xs text-muted-foreground font-semibold">
+                                Categoria da Conta
+                              </DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => assignCategory(a.id, null)}
+                                className="cursor-pointer text-xs py-2 flex items-center justify-between"
+                              >
+                                <span className="text-muted-foreground">Sem categoria</span>
+                                {!a.category_id && (
+                                  <Check className="size-3.5 text-success" />
+                                )}
+                              </DropdownMenuItem>
+                              {categories.map((cat) => (
+                                <DropdownMenuItem
+                                  key={cat.id}
+                                  onClick={() => assignCategory(a.id, cat.id)}
+                                  className="cursor-pointer text-xs py-2 flex items-center justify-between"
+                                >
+                                  <span className="flex items-center gap-2 font-medium">
+                                    <span
+                                      className="size-3 rounded-full shrink-0 ring-1 ring-white/10"
+                                      style={{ backgroundColor: cat.color }}
+                                    />
+                                    {cat.name}
+                                  </span>
+                                  {a.category_id === cat.id && (
+                                    <Check className="size-3.5 text-success" />
+                                  )}
+                                </DropdownMenuItem>
+                              ))}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={openCreateCategory}
+                                className="cursor-pointer text-xs py-2 text-primary font-semibold"
+                              >
+                                <Plus className="size-3.5 mr-1.5" /> Nova Categoria
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -388,7 +687,12 @@ function AccountsPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-sm truncate">@{a.username}</p>
-                          <p className="text-[10px] text-muted-foreground truncate">ID: {a.instagram_user_id}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[10px] text-muted-foreground truncate">ID: {a.instagram_user_id}</p>
+                            {a.account_categories && (
+                              <CategoryBadge category={a.account_categories} />
+                            )}
+                          </div>
                         </div>
                       </div>
                       <Button
@@ -409,6 +713,158 @@ function AccountsPage() {
           )}
         </div>
       )}
+
+      {/* ─── Category Management Dialog ──────────────────────────────────────── */}
+      <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
+        <DialogContent className="sm:max-w-lg bg-card border border-border/60 rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold flex items-center gap-2">
+              <Palette className="size-5 text-primary" />
+              {editingCategory ? "Editar Categoria" : "Nova Categoria"}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              {editingCategory
+                ? "Altere o nome ou a cor desta categoria."
+                : "Crie uma categoria colorida para organizar suas contas."
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 mt-4">
+            {/* Name Input */}
+            <div className="space-y-2">
+              <Label className="text-sm font-bold">Nome da Categoria</Label>
+              <Input
+                value={categoryName}
+                onChange={(e) => setCategoryName(e.target.value)}
+                placeholder="Ex: Pessoal, Negócios, Clientes..."
+                className="bg-secondary/40 border-border/60 rounded-xl h-10"
+                maxLength={30}
+                autoFocus
+              />
+            </div>
+
+            {/* Color Selector */}
+            <div className="space-y-2">
+              <Label className="text-sm font-bold">Cor da Categoria</Label>
+              <div className="grid grid-cols-6 gap-2.5">
+                {CATEGORY_COLORS.map((c) => {
+                  const isSelected = categoryColor === c.value;
+                  return (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setCategoryColor(c.value)}
+                      className={`group/color relative size-10 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center ${
+                        isSelected
+                          ? "ring-2 ring-offset-2 ring-offset-card scale-110"
+                          : "hover:scale-110"
+                      }`}
+                      style={{
+                        backgroundColor: c.value,
+                        ringColor: isSelected ? c.value : undefined,
+                      }}
+                      title={c.label}
+                    >
+                      {isSelected && (
+                        <Check className="size-5 text-white drop-shadow-md animate-in zoom-in-50 duration-200" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Preview */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground font-semibold">Preview</Label>
+              <div className="p-4 rounded-xl bg-secondary/20 border border-border/40 flex items-center gap-3">
+                <span
+                  className="size-4 rounded-full shrink-0 ring-1 ring-white/10"
+                  style={{ backgroundColor: categoryColor }}
+                />
+                <span className="font-bold text-sm">
+                  {categoryName.trim() || "Nome da categoria"}
+                </span>
+                <span className="ml-auto">
+                  <CategoryBadge
+                    category={{
+                      name: categoryName.trim() || "Preview",
+                      color: categoryColor,
+                    }}
+                  />
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                onClick={saveCategory}
+                disabled={savingCategory || !categoryName.trim()}
+                className="flex-1 bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-bold h-11 shadow-glow rounded-xl"
+              >
+                {savingCategory ? "Salvando..." : editingCategory ? "Salvar Alterações" : "Criar Categoria"}
+              </Button>
+              {editingCategory && (
+                <Button
+                  variant="outline"
+                  onClick={() => deleteCategory(editingCategory)}
+                  className="border-destructive/40 text-destructive hover:bg-destructive/10 h-11 rounded-xl font-semibold px-5"
+                >
+                  <Trash2 className="size-4 mr-1.5" /> Excluir
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Existing Categories List (shown when creating) */}
+          {!editingCategory && categories.length > 0 && (
+            <div className="mt-6 pt-5 border-t border-border/40">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
+                Categorias Existentes
+              </h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {categories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-secondary/20 border border-border/30 hover:bg-secondary/40 transition group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className="size-3.5 rounded-full shrink-0 ring-1 ring-white/10"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                      <span className="text-sm font-semibold">{cat.name}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        ({accounts.filter((a) => a.category_id === cat.id).length} contas)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditCategory(cat)}
+                        className="size-7 text-muted-foreground hover:text-primary rounded-lg"
+                      >
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteCategory(cat)}
+                        className="size-7 text-muted-foreground hover:text-destructive rounded-lg"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -48,6 +48,8 @@ export const Route = createFileRoute("/dashboard")({
 interface Account {
   id: string;
   username: string;
+  category_id: string | null;
+  account_categories: { id: string; name: string; color: string } | null;
 }
 
 interface Post {
@@ -74,7 +76,7 @@ function DashboardPage() {
       // 1. Fetch instagram accounts - only visible (non-hidden) ones!
       const { data: accs, error: accsErr } = await supabase
         .from("instagram_accounts")
-        .select("id, username")
+        .select("id, username, category_id, account_categories(id, name, color)")
         .eq("hidden", false)
         .order("created_at", { ascending: false });
       if (accsErr) throw accsErr;
@@ -278,7 +280,15 @@ function DashboardPage() {
                       onSelect={(e) => e.preventDefault()}
                       className="cursor-pointer font-medium text-xs py-2"
                     >
-                      @{a.username}
+                      <span className="flex items-center gap-2">
+                        {a.account_categories && (
+                          <span
+                            className="size-2.5 rounded-full shrink-0 ring-1 ring-white/10"
+                            style={{ backgroundColor: a.account_categories.color }}
+                          />
+                        )}
+                        @{a.username}
+                      </span>
                     </DropdownMenuCheckboxItem>
                   );
                 })}
@@ -464,7 +474,7 @@ function DashboardPage() {
                         <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
                           <div>
                             <div className="flex items-center gap-2 text-xs">
-                              <span className="font-bold text-primary">
+                              <span className="font-bold text-primary flex items-center gap-1.5">
                                 @{p.instagram_accounts?.username || "instagram"}
                               </span>
                               <span className="text-muted-foreground">•</span>

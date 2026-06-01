@@ -66,6 +66,8 @@ export const Route = createFileRoute("/calendar")({
 interface Account {
   id: string;
   username: string;
+  category_id: string | null;
+  account_categories: { id: string; name: string; color: string } | null;
 }
 
 interface Post {
@@ -118,7 +120,7 @@ function CalendarPage() {
       // Load accounts - only visible (non-hidden) ones!
       const { data: accs } = await supabase
         .from("instagram_accounts")
-        .select("id, username")
+        .select("id, username, category_id, account_categories(id, name, color)")
         .eq("hidden", false)
         .order("created_at", { ascending: false });
       
@@ -465,7 +467,15 @@ function CalendarPage() {
                       onSelect={(e) => e.preventDefault()} // Mantém o dropdown aberto
                       className="cursor-pointer font-medium text-xs py-2"
                     >
-                      @{a.username}
+                      <span className="flex items-center gap-2">
+                        {a.account_categories && (
+                          <span
+                            className="size-2.5 rounded-full shrink-0 ring-1 ring-white/10"
+                            style={{ backgroundColor: a.account_categories.color }}
+                          />
+                        )}
+                        @{a.username}
+                      </span>
                     </DropdownMenuCheckboxItem>
                   );
                 })}
@@ -829,7 +839,15 @@ function CalendarPage() {
                   <SelectContent className="bg-card border-border/60">
                     {accounts.map((a) => (
                       <SelectItem key={a.id} value={a.id} className="cursor-pointer font-medium">
-                        @{a.username}
+                        <span className="flex items-center gap-2">
+                          {a.account_categories && (
+                            <span
+                              className="size-2.5 rounded-full shrink-0 ring-1 ring-white/10"
+                              style={{ backgroundColor: a.account_categories.color }}
+                            />
+                          )}
+                          @{a.username}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>

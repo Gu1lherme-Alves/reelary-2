@@ -22,7 +22,7 @@ type Post = {
   scheduled_at: string;
   status: "pending" | "published" | "failed";
   error_message: string | null;
-  instagram_accounts: { username: string } | null;
+  instagram_accounts: { username: string; category_id: string | null; account_categories: { color: string } | null } | null;
 };
 
 const statusMeta = {
@@ -47,7 +47,7 @@ function PostsPage() {
     const { data, error } = await supabase
       .from("scheduled_posts")
       .select(
-        "id, caption, video_url, scheduled_at, status, error_message, instagram_accounts(username)",
+        "id, caption, video_url, scheduled_at, status, error_message, instagram_accounts(username, category_id, account_categories(color))",
       )
       .order("scheduled_at", { ascending: true });
     if (error) toast.error(error.message);
@@ -121,7 +121,13 @@ function PostsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">
+                        <span className="font-medium text-foreground flex items-center gap-1.5">
+                          {p.instagram_accounts?.account_categories?.color && (
+                            <span
+                              className="size-2 rounded-full shrink-0 ring-1 ring-white/10"
+                              style={{ backgroundColor: p.instagram_accounts.account_categories.color }}
+                            />
+                          )}
                           @{p.instagram_accounts?.username ?? "—"}
                         </span>
                         <span>•</span>

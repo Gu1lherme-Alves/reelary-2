@@ -30,6 +30,8 @@ import { toast } from "sonner";
 interface Account {
   id: string;
   username: string;
+  category_id: string | null;
+  account_categories: { id: string; name: string; color: string } | null;
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -59,17 +61,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("instagram_accounts")
-        .select("id, username")
+        .select("id, username, category_id, account_categories(id, name, color)")
         .eq("hidden", false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      const list = data || [];
+      const list = (data as any) || [];
       setAccounts(list);
 
       const storedId = localStorage.getItem("active_ig_account_id");
-      let active = list.find((a) => a.id === storedId);
+      let active = list.find((a: Account) => a.id === storedId);
 
       if (!active && list.length > 0) {
         active = list[0];
@@ -262,7 +264,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                     size="sm"
                     className="border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 text-xs md:text-sm font-semibold rounded-full px-4 h-9 gap-2 shadow-sm text-foreground flex items-center"
                   >
-                    <span className="size-1.5 rounded-full bg-success animate-pulse shrink-0" />
+                    {activeAccount?.account_categories && (
+                      <span
+                        className="size-2.5 rounded-full shrink-0 ring-1 ring-white/10"
+                        style={{ backgroundColor: activeAccount.account_categories.color }}
+                      />
+                    )}
+                    {!activeAccount?.account_categories && (
+                      <span className="size-1.5 rounded-full bg-success animate-pulse shrink-0" />
+                    )}
                     <span>
                       Estou na conta:{" "}
                       <strong className="text-primary font-bold">@{activeAccount?.username}</strong>
@@ -270,7 +280,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <ChevronDown className="size-3 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-card border border-border/60">
+                <DropdownMenuContent align="end" className="w-64 bg-card border border-border/60">
                   <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">
                     Alternar Conta Ativa
                   </DropdownMenuLabel>
@@ -279,10 +289,28 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <DropdownMenuItem
                       key={acc.id}
                       onClick={() => selectActiveAccount(acc)}
-                      className="flex items-center justify-between py-2 cursor-pointer text-sm"
+                      className="flex items-center justify-between py-2.5 cursor-pointer text-sm"
                     >
                       <span className="flex items-center gap-2 font-medium">
-                        <Instagram className="size-4 text-primary" />@{acc.username}
+                        {acc.account_categories ? (
+                          <span
+                            className="size-3 rounded-full shrink-0 ring-1 ring-white/10"
+                            style={{ backgroundColor: acc.account_categories.color }}
+                          />
+                        ) : (
+                          <Instagram className="size-4 text-primary" />
+                        )}
+                        <span className="flex flex-col">
+                          <span>@{acc.username}</span>
+                          {acc.account_categories && (
+                            <span
+                              className="text-[10px] font-semibold leading-tight"
+                              style={{ color: acc.account_categories.color }}
+                            >
+                              {acc.account_categories.name}
+                            </span>
+                          )}
+                        </span>
                       </span>
                       {activeAccount?.id === acc.id && <Check className="size-4 text-success" />}
                     </DropdownMenuItem>

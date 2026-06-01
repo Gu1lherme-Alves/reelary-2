@@ -8,9 +8,34 @@ export type Database = {
   };
   public: {
     Tables: {
+      account_categories: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          color: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          color?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          color?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       instagram_accounts: {
         Row: {
           access_token: string;
+          category_id: string | null;
           created_at: string;
           hidden: boolean;
           id: string;
@@ -22,6 +47,7 @@ export type Database = {
         };
         Insert: {
           access_token: string;
+          category_id?: string | null;
           created_at?: string;
           hidden?: boolean;
           id?: string;
@@ -33,6 +59,7 @@ export type Database = {
         };
         Update: {
           access_token?: string;
+          category_id?: string | null;
           created_at?: string;
           hidden?: boolean;
           id?: string;
@@ -42,7 +69,15 @@ export type Database = {
           user_id?: string;
           username?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "instagram_accounts_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "account_categories";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       scheduled_posts: {
         Row: {
