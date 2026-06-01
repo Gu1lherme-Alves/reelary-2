@@ -72,7 +72,11 @@ interface Post {
   scheduled_at: string;
   status: "pending" | "published" | "failed";
   instagram_account_id: string;
-  instagram_accounts: { username: string } | null;
+  instagram_accounts: {
+    username: string;
+    category_id?: string | null;
+    account_categories?: { id: string; name: string; color: string } | null;
+  } | null;
 }
 
 function CalendarPage() {
@@ -142,7 +146,7 @@ function CalendarPage() {
       const { data: postsData } = await supabase
         .from("scheduled_posts")
         .select(
-          "id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)",
+          "id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username, category_id, account_categories(id, name, color))",
         )
         .order("scheduled_at", { ascending: true });
       setPosts((postsData as any) || []);
@@ -543,37 +547,53 @@ function CalendarPage() {
                   <button
                     key={idx}
                     onClick={() => setSelectedDate(cell.date)}
-                    className={`aspect-square rounded-xl p-2 flex flex-col justify-between items-start transition cursor-pointer border relative ${
+                    className={`min-h-[105px] md:min-h-[125px] aspect-auto rounded-2xl p-2.5 flex flex-col justify-between items-start transition-all duration-300 cursor-pointer border relative active:scale-[0.97] hover:scale-[1.03] hover:shadow-md ${
                       !cell.isCurrentMonth
-                        ? "text-muted-foreground/45 border-transparent bg-transparent"
+                        ? "text-muted-foreground/35 border-transparent bg-transparent cursor-default pointer-events-none"
                         : isSelected
-                          ? "bg-primary/10 border-primary text-primary font-bold shadow-sm"
+                          ? "bg-primary/[0.07] border-primary text-primary font-bold shadow-sm shadow-primary/10 ring-1 ring-primary/30"
                           : isTodayDate
-                            ? "bg-secondary/40 border-primary/45 font-bold"
-                            : "bg-card border-border/45 hover:border-muted-foreground/45"
+                            ? "bg-secondary/60 border-primary/45 font-bold shadow-sm ring-1 ring-primary/15"
+                            : "bg-card border-border/40 hover:border-primary/30 hover:bg-card/85"
                     }`}
                   >
-                    <span className="text-sm font-semibold">{cell.day}</span>
+                    <div className="flex items-center justify-between w-full">
+                      <span className={`text-xs md:text-sm font-semibold ${isTodayDate ? "text-primary bg-primary/10 px-1.5 py-0.5 rounded-md" : ""}`}>{cell.day}</span>
+                      {isTodayDate && (
+                        <span className="size-1.5 rounded-full bg-primary" />
+                      )}
+                    </div>
                     
-                    {/* Visual post status dots at the bottom of the cell */}
+                    {/* Visual post badges inside the cell */}
                     {dayPosts.length > 0 && (
-                      <div className="flex gap-1 mt-auto w-full justify-start overflow-hidden pt-1">
-                        {dayPosts.slice(0, 3).map((p) => {
-                          let dotColor = "bg-warning animate-pulse"; // pending
-                          if (p.status === "published") dotColor = "bg-success";
-                          if (p.status === "failed") dotColor = "bg-destructive animate-pulse";
+                      <div className="w-full space-y-1 mt-2.5 overflow-hidden text-left">
+                        {dayPosts.slice(0, 2).map((p) => {
+                          const categoryColor = p.instagram_accounts?.account_categories?.color || "#6366f1";
+                          const postTime = new Date(p.scheduled_at).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          });
                           return (
-                            <span
+                            <div
                               key={p.id}
-                              className={`size-1.5 rounded-full shrink-0 ${dotColor}`}
-                              title={`@${p.instagram_accounts?.username || "instagram"}: ${p.status}`}
-                            />
+                              className="w-full text-[9px] font-bold px-1.5 py-1 rounded-lg truncate flex items-center gap-1 hover:brightness-105 border transition-all"
+                              style={{
+                                backgroundColor: `${categoryColor}12`,
+                                borderColor: `${categoryColor}25`,
+                                color: categoryColor,
+                                borderLeft: `3px solid ${categoryColor}`,
+                              }}
+                              title={`@${p.instagram_accounts?.username}: ${p.status}`}
+                            >
+                              <span className="shrink-0 text-[8px] opacity-75">{postTime}</span>
+                              <span className="truncate">@{p.instagram_accounts?.username}</span>
+                            </div>
                           );
                         })}
-                        {dayPosts.length > 3 && (
-                          <span className="text-[8px] leading-[6px] font-bold text-muted-foreground shrink-0">
-                            +{dayPosts.length - 3}
-                          </span>
+                        {dayPosts.length > 2 && (
+                          <div className="text-[9px] font-extrabold text-muted-foreground/80 pl-1 mt-0.5 animate-pulse">
+                            + {dayPosts.length - 2} postagens
+                          </div>
                         )}
                       </div>
                     )}
@@ -587,7 +607,7 @@ function CalendarPage() {
         {/* Lado Direito: Reels Agendados do Dia Selecionado */}
         <div className="rounded-2xl border border-border/50 bg-card/45 p-5 shadow-card flex flex-col justify-between">
           <div>
-            <h3 className="font-extrabold text-lg border-b border-border/40 pb-4 mb-4">
+            <h3 className="font-extrabold text-lg border-b border-border/40 pb-4 mb-5">
               Reels para o dia {selectedDate.toLocaleDateString("pt-BR", { dateStyle: "medium" })}
             </h3>
 
@@ -620,75 +640,89 @@ function CalendarPage() {
                 )}
               </div>
             ) : (
-              <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1.5">
+              <div className="space-y-5 max-h-[500px] overflow-y-auto pr-1.5 relative pl-4 border-l border-border/30">
                 {postsOnSelectedDay.map((post) => {
                   const statusLabel = {
                     pending: {
                       text: "Agendado",
                       cls: "bg-warning/15 text-warning border-warning/30",
+                      dotCls: "bg-warning ring-warning/20",
                     },
                     published: {
                       text: "Publicado",
                       cls: "bg-success/15 text-success border-success/30",
+                      dotCls: "bg-success ring-success/20",
                     },
                     failed: {
                       text: "Falhou",
                       cls: "bg-destructive/15 text-destructive border-destructive/30",
+                      dotCls: "bg-destructive ring-destructive/20",
                     },
                   };
                   const st = statusLabel[post.status] || {
                     text: "Pendente",
                     cls: "bg-secondary text-foreground",
+                    dotCls: "bg-muted ring-muted/20",
                   };
+                  const categoryColor = post.instagram_accounts?.account_categories?.color || "#6366f1";
 
                   return (
                     <div
                       key={post.id}
-                      className="p-3.5 rounded-xl bg-card border border-border/50 hover:bg-card/75 transition shadow-sm flex gap-3 relative group"
+                      className="relative group transition-all duration-300 hover:-translate-y-0.5"
                     >
-                      <video
-                        src={post.video_url}
-                        className="size-16 rounded-lg object-cover bg-background shrink-0"
-                        muted
-                      />
-                      <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
-                        <div>
-                          <div className="flex items-center gap-1.5 text-[10px]">
-                            <strong className="text-primary truncate">
-                              @{post.instagram_accounts?.username || "instagram"}
-                            </strong>
-                            <span className="text-muted-foreground">•</span>
-                            <span className="text-muted-foreground font-semibold">
-                              {new Date(post.scheduled_at).toLocaleTimeString("pt-BR", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
+                      {/* Timeline dot */}
+                      <span className={`absolute -left-[21.5px] top-4 size-2.5 rounded-full ring-4 ${st.dotCls} z-10 transition-transform group-hover:scale-125`} />
+                      
+                      <div className="p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/20 hover:bg-card/75 transition-all shadow-sm flex gap-4 relative">
+                        <video
+                          src={post.video_url}
+                          className="w-16 h-20 rounded-xl object-cover bg-background shrink-0 shadow-inner"
+                          muted
+                        />
+                        <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
+                          <div>
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <span
+                                className="size-2 rounded-full shrink-0 ring-1 ring-white/10"
+                                style={{ backgroundColor: categoryColor }}
+                              />
+                              <strong className="text-foreground truncate font-bold text-xs">
+                                @{post.instagram_accounts?.username || "instagram"}
+                              </strong>
+                              <span className="text-muted-foreground">•</span>
+                              <span className="text-muted-foreground font-bold text-xs">
+                                {new Date(post.scheduled_at).toLocaleTimeString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-xs text-foreground/80 mt-2 line-clamp-2 leading-relaxed">
+                              {post.caption || (
+                                <span className="text-muted-foreground italic">Sem legenda</span>
+                              )}
+                            </p>
                           </div>
-                          <p className="text-xs text-foreground/80 mt-1 line-clamp-1">
-                            {post.caption || (
-                              <span className="text-muted-foreground italic">Sem legenda</span>
-                            )}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span
-                            className={`inline-flex items-center text-[9px] font-bold border px-1.5 py-0.5 rounded-full ${st.cls}`}
-                          >
-                            {st.text}
-                          </span>
+                          <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-border/20">
+                            <span
+                              className={`inline-flex items-center text-[10px] font-bold border px-2 py-0.5 rounded-full ${st.cls}`}
+                            >
+                              {st.text}
+                            </span>
+                            
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deletePost(post.id)}
+                              className="size-7 text-muted-foreground hover:text-destructive rounded-lg hover:bg-destructive/10 transition cursor-pointer"
+                              title="Excluir"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deletePost(post.id)}
-                        className="size-7 text-muted-foreground hover:text-destructive absolute right-2 bottom-2 rounded-lg opacity-0 group-hover:opacity-100 transition cursor-pointer"
-                        title="Excluir"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
                     </div>
                   );
                 })}
