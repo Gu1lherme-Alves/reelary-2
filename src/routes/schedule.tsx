@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { DateTimePicker } from "@/components/DateTimePicker";
 
 import {
   Tabs,
@@ -367,15 +368,12 @@ function SchedulePage() {
           </div>
 
           {publishMode === "schedule" && (
-            <div className="space-y-2">
-              <Label htmlFor="scheduled">Data e hora</Label>
-              <Input
-                id="scheduled"
-                type="datetime-local"
-                required
-                min={minDateTime}
+            <div className="space-y-2 flex flex-col">
+              <Label className="text-sm font-bold">Data e hora</Label>
+              <DateTimePicker
                 value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
+                onChange={setScheduledAt}
+                min={minDateTime}
               />
             </div>
           )}

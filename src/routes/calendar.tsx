@@ -40,6 +40,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DateTimePicker } from "@/components/DateTimePicker";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -977,18 +978,14 @@ function CalendarPage() {
 
               {/* Data e Hora de Publicação */}
               {publishMode === "schedule" && (
-                <div className="space-y-2">
-                  <Label htmlFor="modalScheduled" className="text-sm font-bold">
+                <div className="space-y-2 flex flex-col">
+                  <Label className="text-sm font-bold">
                     Data e Hora de Publicação
                   </Label>
-                  <Input
-                    id="modalScheduled"
-                    type="datetime-local"
-                    required
-                    min={minDateTime}
+                  <DateTimePicker
                     value={scheduledAt}
-                    onChange={(e) => setScheduledAt(e.target.value)}
-                    className="bg-secondary/40 border-border/60 rounded-xl h-10"
+                    onChange={setScheduledAt}
+                    min={minDateTime}
                   />
                 </div>
               )}
