@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Layers,
   ChevronRight,
+  ChevronDown,
   Clock,
   AlertCircle,
   ArrowUpRight,
@@ -26,6 +27,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Painel de Controle — Reelary" }] }),
@@ -53,22 +62,33 @@ interface Post {
 
 function DashboardPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterAccountId, setFilterAccountId] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const navigate = useNavigate();
 
   async function loadData() {
     try {
-      // 1. Fetch instagram accounts
+      // 1. Fetch instagram accounts - only visible (non-hidden) ones!
       const { data: accs, error: accsErr } = await supabase
         .from("instagram_accounts")
         .select("id, username")
+        .eq("hidden", false)
         .order("created_at", { ascending: false });
       if (accsErr) throw accsErr;
-      setAccounts(accs || []);
+      
+      const loadedAccounts = accs || [];
+      setAccounts(loadedAccounts);
+
+      // Pre-fill selectedAccountIds with loaded visible accounts on first load
+      setSelectedAccountIds((prev) => {
+        if (prev.length === 0) {
+          return loadedAccounts.map((a) => a.id);
+        }
+        return prev.filter((id) => loadedAccounts.some((a) => a.id === id));
+      });
 
       // 2. Fetch scheduled posts
       const { data: postsData, error: postsErr } = await supabase
@@ -138,7 +158,7 @@ function DashboardPage() {
 
   // Filter calculations
   const filteredPosts = posts.filter((p) => {
-    const matchAccount = filterAccountId === "all" ? true : p.instagram_account_id === filterAccountId;
+    const matchAccount = selectedAccountIds.includes(p.instagram_account_id);
     if (!matchAccount) return false;
 
     if (filterStart && filterEnd) {
@@ -204,21 +224,66 @@ function DashboardPage() {
             <span className="text-sm text-muted-foreground font-medium shrink-0">
               Conta:
             </span>
-            <Select value={filterAccountId} onValueChange={setFilterAccountId}>
-              <SelectTrigger className="w-48 bg-card border-border/60 rounded-xl h-10 font-medium">
-                <SelectValue placeholder="Todas as contas" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border/60">
-                <SelectItem value="all" className="cursor-pointer">
-                  Todas as contas
-                </SelectItem>
-                {accounts.map((acc) => (
-                  <SelectItem key={acc.id} value={acc.id} className="cursor-pointer">
-                    @{acc.username}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="border-border/60 bg-card hover:bg-secondary rounded-xl text-xs font-semibold h-10 gap-2 cursor-pointer w-48 justify-between">
+                  <span className="truncate">
+                    {selectedAccountIds.length === accounts.length
+                      ? "Todas as contas"
+                      : selectedAccountIds.length === 0
+                        ? "Nenhuma conta"
+                        : `${selectedAccountIds.length} selecionada(s)`}
+                  </span>
+                  <ChevronDown className="size-3 text-muted-foreground shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-card border border-border/60">
+                <DropdownMenuLabel className="text-xs text-muted-foreground font-semibold flex items-center justify-between">
+                  <span>Selecionar Contas</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedAccountIds(accounts.map((a) => a.id));
+                      }}
+                      className="text-[10px] text-primary hover:underline font-bold cursor-pointer"
+                    >
+                      Todas
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedAccountIds([]);
+                      }}
+                      className="text-[10px] text-destructive hover:underline font-bold cursor-pointer"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {accounts.map((a) => {
+                  const isChecked = selectedAccountIds.includes(a.id);
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={a.id}
+                      checked={isChecked}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedAccountIds((prev) => [...prev, a.id]);
+                        } else {
+                          setSelectedAccountIds((prev) => prev.filter((id) => id !== a.id));
+                        }
+                      }}
+                      onSelect={(e) => e.preventDefault()}
+                      className="cursor-pointer font-medium text-xs py-2"
+                    >
+                      @{a.username}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Filtro por Período */}
