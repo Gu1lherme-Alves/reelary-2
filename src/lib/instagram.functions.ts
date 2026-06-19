@@ -31,80 +31,100 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
       throw new Error("Meta App credentials não configuradas no servidor.");
     }
 
-    // 1. Trocar code por short-lived access token (Instagram Login)
-    const tokenBody = new URLSearchParams({
-      client_id: appId,
-      client_secret: appSecret,
-      grant_type: "authorization_code",
-      redirect_uri: data.redirectUri,
-      code: data.code,
-    });
+    // 1. Trocar code por short-lived access token (Facebook Login)
+    const tokenUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
+    tokenUrl.searchParams.set("client_id", appId);
+    tokenUrl.searchParams.set("client_secret", appSecret);
+    tokenUrl.searchParams.set("redirect_uri", data.redirectUri);
+    tokenUrl.searchParams.set("code", data.code);
 
-    const tokenRes = await fetch("https://api.instagram.com/oauth/access_token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: tokenBody,
-    });
-
+    const tokenRes = await fetch(tokenUrl.toString());
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
       console.error("Token exchange failed:", err);
-      throw new Error(`Falha na troca do código por token: ${err}`);
+      throw new Error("Falha na troca do código por token. Verifique o redirect URI no app Meta.");
     }
-
     const tokenJson = (await tokenRes.json()) as {
       access_token: string;
-      user_id: number | string;
+      expires_in?: number;
     };
 
-    const shortLivedToken = tokenJson.access_token;
-    const initialUserId = String(tokenJson.user_id);
+    let accessToken = tokenJson.access_token;
+    let expiresIn = tokenJson.expires_in ?? 0;
 
     // 2. Trocar por long-lived token (60 dias)
-    let accessToken = shortLivedToken;
-    let expiresIn = 0;
-
     try {
-      const llUrl = new URL("https://graph.instagram.com/access_token");
-      llUrl.searchParams.set("grant_type", "ig_exchange_token");
+      const llUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
+      llUrl.searchParams.set("grant_type", "fb_exchange_token");
+      llUrl.searchParams.set("client_id", appId);
       llUrl.searchParams.set("client_secret", appSecret);
-      llUrl.searchParams.set("access_token", shortLivedToken);
-
+      llUrl.searchParams.set("fb_exchange_token", accessToken);
       const llRes = await fetch(llUrl.toString());
-      if (!llRes.ok) {
-        const err = await llRes.text();
-        console.error("Long-lived token exchange failed:", err);
-        throw new Error(`Erro na API do Instagram ao gerar token de longa duração: ${err}`);
+      if (llRes.ok) {
+        const llJson = (await llRes.json()) as { access_token: string; expires_in?: number };
+        accessToken = llJson.access_token;
+        expiresIn = llJson.expires_in ?? expiresIn;
       }
-      const llJson = (await llRes.json()) as { access_token: string; expires_in?: number };
-      accessToken = llJson.access_token;
-      expiresIn = llJson.expires_in ?? 0;
-    } catch (e: any) {
-      console.error("Long-lived token exchange failed:", e);
-      throw new Error(e.message || "Falha ao gerar token de longa duração.");
+    } catch (e) {
+      console.warn("Long-lived token exchange skipped:", e);
     }
 
-    // 3. Buscar informações do perfil do usuário no Instagram (username e ID definitivo)
-    const profileUrl = new URL("https://graph.instagram.com/me");
-    profileUrl.searchParams.set("fields", "id,username");
-    profileUrl.searchParams.set("access_token", accessToken);
-
-    const profileRes = await fetch(profileUrl.toString());
-    if (!profileRes.ok) {
-      const err = await profileRes.text();
-      console.error("Profile fetch failed:", err);
-      throw new Error(`Não foi possível buscar as informações do perfil do Instagram: ${err}`);
+    // 3. Buscar Pages do usuário → instagram_business_account
+    const pagesRes = await fetch(
+      `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${encodeURIComponent(accessToken)}`,
+    );
+    if (!pagesRes.ok) {
+      const err = await pagesRes.text();
+      console.error("Pages fetch failed:", err);
+      throw new Error("Não foi possível buscar as páginas conectadas.");
     }
-
-    const profileJson = (await profileRes.json()) as {
-      id: string;
-      username: string;
+    const pagesJson = (await pagesRes.json()) as {
+      data: Array<{
+        id: string;
+        name: string;
+        access_token: string;
+        instagram_business_account?: { id: string; username: string };
+      }>;
     };
 
-    const igUserId = profileJson.id || initialUserId;
-    const username = profileJson.username;
+    console.log("[Meta API] /me/accounts raw response:", JSON.stringify(pagesJson, null, 2));
+
+    const pageWithIg = pagesJson.data.find((p) => p.instagram_business_account);
+    if (!pageWithIg || !pageWithIg.instagram_business_account) {
+      // Buscar as permissões ativas para ajudar no diagnóstico
+      let permDetails = "Não foi possível verificar permissões";
+      try {
+        const permRes = await fetch(
+          `https://graph.facebook.com/v21.0/me/permissions?access_token=${encodeURIComponent(accessToken)}`,
+        );
+        if (permRes.ok) {
+          const permJson = (await permRes.json()) as {
+            data: Array<{ permission: string; status: string }>;
+          };
+          permDetails = permJson.data.map((p) => `${p.permission}: ${p.status}`).join(" | ");
+        }
+      } catch (pe) {
+        console.error("Failed to fetch permissions:", pe);
+      }
+
+      const pageDetails = pagesJson.data
+        .map(
+          (p) =>
+            `Página "${p.name}" (ID: ${p.id}) -> IG Vinculado: ${p.instagram_business_account ? `@${p.instagram_business_account.username}` : "NENHUM"}`,
+        )
+        .join(" | ");
+
+      const errorMsg =
+        pagesJson.data.length === 0
+          ? `Nenhuma página do Facebook foi retornada pelo Meta para esta conta. Verifique se você selecionou a Página na tela de permissões do Facebook. Permissões ativas no Token: [ ${permDetails} ].`
+          : `Nenhuma conta Instagram Business encontrada vinculada às suas páginas. Páginas encontradas: [ ${pageDetails} ]. Permissões ativas no Token: [ ${permDetails} ]. Conecte uma conta IG profissional (Business ou Creator) à sua Página do Facebook nas configurações da Página.`;
+
+      throw new Error(errorMsg);
+    }
+
+    const ig = pageWithIg.instagram_business_account;
+    // Para publicar Reels usamos o Page Access Token (longa duração).
+    const pageAccessToken = pageWithIg.access_token;
 
     const expiresAt = expiresIn > 0 ? new Date(Date.now() + expiresIn * 1000).toISOString() : null;
 
@@ -112,9 +132,9 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
     const { error } = await supabase.from("instagram_accounts").upsert(
       {
         user_id: userId,
-        instagram_user_id: igUserId,
-        username: username,
-        access_token: accessToken,
+        instagram_user_id: ig.id,
+        username: ig.username,
+        access_token: pageAccessToken,
         token_expires_at: expiresAt,
       },
       { onConflict: "user_id,instagram_user_id" } as never,
@@ -123,13 +143,13 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
       // Fallback: insert simples se não houver unique constraint
       const { error: insErr } = await supabase.from("instagram_accounts").insert({
         user_id: userId,
-        instagram_user_id: igUserId,
-        username: username,
-        access_token: accessToken,
+        instagram_user_id: ig.id,
+        username: ig.username,
+        access_token: pageAccessToken,
         token_expires_at: expiresAt,
       });
       if (insErr) throw new Error(insErr.message);
     }
 
-    return { username, instagramUserId: igUserId };
+    return { username: ig.username, instagramUserId: ig.id };
   });
