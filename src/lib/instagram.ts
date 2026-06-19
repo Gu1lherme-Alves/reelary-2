@@ -5,8 +5,7 @@ export const INSTAGRAM_REDIRECT_PATH = "/auth/instagram/callback";
 
 export function buildInstagramAuthUrl(appId: string): string {
   const redirectUri = `${window.location.origin}${INSTAGRAM_REDIRECT_PATH}`;
-  const scope =
-    "instagram_content_publish,pages_show_list,instagram_basic,pages_read_engagement,business_management";
+  const scope = "instagram_content_publish";
 
   const params = new URLSearchParams({
     client_id: appId,
