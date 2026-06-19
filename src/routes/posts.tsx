@@ -22,7 +22,11 @@ type Post = {
   scheduled_at: string;
   status: "pending" | "published" | "failed";
   error_message: string | null;
-  instagram_accounts: { username: string; category_id: string | null; account_categories: { color: string } | null } | null;
+  instagram_accounts: {
+    username: string;
+    category_id: string | null;
+    account_categories: { color: string } | null;
+  } | null;
 };
 
 const statusMeta = {
@@ -125,7 +129,9 @@ function PostsPage() {
                           {p.instagram_accounts?.account_categories?.color && (
                             <span
                               className="size-2 rounded-full shrink-0 ring-1 ring-white/10"
-                              style={{ backgroundColor: p.instagram_accounts.account_categories.color }}
+                              style={{
+                                backgroundColor: p.instagram_accounts.account_categories.color,
+                              }}
                             />
                           )}
                           @{p.instagram_accounts?.username ?? "—"}

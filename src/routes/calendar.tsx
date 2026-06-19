@@ -24,11 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -123,7 +119,7 @@ function CalendarPage() {
         .select("id, username, category_id, account_categories(id, name, color)")
         .eq("hidden", false)
         .order("created_at", { ascending: false });
-      
+
       const loadedAccounts = accs || [];
       setAccounts(loadedAccounts);
 
@@ -238,9 +234,8 @@ function CalendarPage() {
         coverUrl = coverPub.publicUrl;
       }
 
-      const scheduledDate = publishMode === "now"
-        ? new Date().toISOString()
-        : new Date(scheduledAt).toISOString();
+      const scheduledDate =
+        publishMode === "now" ? new Date().toISOString() : new Date(scheduledAt).toISOString();
 
       // Insert scheduled post record
       const postsToInsert = accountIds.map((accId) => ({
@@ -383,8 +378,9 @@ function CalendarPage() {
 
   // Filter posts for selected day and selected accounts
   const postsOnSelectedDay = posts.filter(
-    (p) => isSameDay(new Date(p.scheduled_at), selectedDate) &&
-           selectedAccountIds.includes(p.instagram_account_id)
+    (p) =>
+      isSameDay(new Date(p.scheduled_at), selectedDate) &&
+      selectedAccountIds.includes(p.instagram_account_id),
   );
 
   // Minimum date-time for scheduling picker
@@ -423,9 +419,14 @@ function CalendarPage() {
           {accounts.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="border-border/60 hover:bg-secondary rounded-xl text-xs font-semibold h-10 gap-2 cursor-pointer">
+                <Button
+                  variant="outline"
+                  className="border-border/60 hover:bg-secondary rounded-xl text-xs font-semibold h-10 gap-2 cursor-pointer"
+                >
                   <Instagram className="size-4 text-muted-foreground" />
-                  <span>Filtrar Contas ({selectedAccountIds.length}/{accounts.length})</span>
+                  <span>
+                    Filtrar Contas ({selectedAccountIds.length}/{accounts.length})
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 bg-card border border-border/60">
@@ -537,9 +538,10 @@ function CalendarPage() {
             {/* Dias do calendário */}
             <div className="grid grid-cols-7 gap-2">
               {allCalendarDays.map((cell, idx) => {
-                const dayPosts = posts.filter((p) =>
-                  isSameDay(new Date(p.scheduled_at), cell.date) &&
-                  selectedAccountIds.includes(p.instagram_account_id)
+                const dayPosts = posts.filter(
+                  (p) =>
+                    isSameDay(new Date(p.scheduled_at), cell.date) &&
+                    selectedAccountIds.includes(p.instagram_account_id),
                 );
                 const isSelected = isSameDay(cell.date, selectedDate);
                 const isTodayDate = isSameDay(cell.date, new Date());
@@ -559,17 +561,20 @@ function CalendarPage() {
                     }`}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <span className={`text-xs md:text-sm font-semibold ${isTodayDate ? "text-primary bg-primary/10 px-1.5 py-0.5 rounded-md" : ""}`}>{cell.day}</span>
-                      {isTodayDate && (
-                        <span className="size-1.5 rounded-full bg-primary" />
-                      )}
+                      <span
+                        className={`text-xs md:text-sm font-semibold ${isTodayDate ? "text-primary bg-primary/10 px-1.5 py-0.5 rounded-md" : ""}`}
+                      >
+                        {cell.day}
+                      </span>
+                      {isTodayDate && <span className="size-1.5 rounded-full bg-primary" />}
                     </div>
-                    
+
                     {/* Visual post badges inside the cell */}
                     {dayPosts.length > 0 && (
                       <div className="w-full space-y-1 mt-2.5 overflow-hidden text-left">
                         {dayPosts.slice(0, 2).map((p) => {
-                          const categoryColor = p.instagram_accounts?.account_categories?.color || "#6366f1";
+                          const categoryColor =
+                            p.instagram_accounts?.account_categories?.color || "#6366f1";
                           const postTime = new Date(p.scheduled_at).toLocaleTimeString("pt-BR", {
                             hour: "2-digit",
                             minute: "2-digit",
@@ -665,7 +670,8 @@ function CalendarPage() {
                     cls: "bg-secondary text-foreground",
                     dotCls: "bg-muted ring-muted/20",
                   };
-                  const categoryColor = post.instagram_accounts?.account_categories?.color || "#6366f1";
+                  const categoryColor =
+                    post.instagram_accounts?.account_categories?.color || "#6366f1";
 
                   return (
                     <div
@@ -673,8 +679,10 @@ function CalendarPage() {
                       className="relative group transition-all duration-300 hover:-translate-y-0.5"
                     >
                       {/* Timeline dot */}
-                      <span className={`absolute -left-[21.5px] top-4 size-2.5 rounded-full ring-4 ${st.dotCls} z-10 transition-transform group-hover:scale-125`} />
-                      
+                      <span
+                        className={`absolute -left-[21.5px] top-4 size-2.5 rounded-full ring-4 ${st.dotCls} z-10 transition-transform group-hover:scale-125`}
+                      />
+
                       <div className="p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/20 hover:bg-card/75 transition-all shadow-sm flex gap-4 relative">
                         <video
                           src={post.video_url}
@@ -711,7 +719,7 @@ function CalendarPage() {
                             >
                               {st.text}
                             </span>
-                            
+
                             <Button
                               variant="ghost"
                               size="icon"
@@ -836,12 +844,16 @@ function CalendarPage() {
                           />
                         )}
                         <div className="flex items-center gap-1 text-xs">
-                          <span className="font-semibold truncate max-w-[180px]">{coverFile.name}</span>
+                          <span className="font-semibold truncate max-w-[180px]">
+                            {coverFile.name}
+                          </span>
                           <span className="text-[9px] text-muted-foreground">
                             {(coverFile.size / 1024 / 1024).toFixed(1)} MB
                           </span>
                         </div>
-                        <span className="text-[9px] text-primary underline font-medium">Trocar imagem</span>
+                        <span className="text-[9px] text-primary underline font-medium">
+                          Trocar imagem
+                        </span>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-1 text-muted-foreground">
@@ -900,7 +912,10 @@ function CalendarPage() {
                       <ChevronDown className="size-4 text-muted-foreground opacity-60 shrink-0 ml-2" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent align="start" className="w-80 bg-popover border border-border/60 p-3 shadow-card rounded-xl z-50">
+                  <PopoverContent
+                    align="start"
+                    className="w-80 bg-popover border border-border/60 p-3 shadow-card rounded-xl z-50"
+                  >
                     <div className="text-xs text-muted-foreground font-semibold flex items-center justify-between pb-2 mb-2 border-b border-border/40 font-semibold">
                       <span>Selecionar Contas</span>
                       <div className="flex gap-2">
@@ -970,8 +985,18 @@ function CalendarPage() {
                   className="w-full"
                 >
                   <TabsList className="grid w-full grid-cols-2 bg-secondary/60">
-                    <TabsTrigger value="now" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Postar Agora</TabsTrigger>
-                    <TabsTrigger value="schedule" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs">Agendar</TabsTrigger>
+                    <TabsTrigger
+                      value="now"
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs"
+                    >
+                      Postar Agora
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="schedule"
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs"
+                    >
+                      Agendar
+                    </TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
@@ -979,14 +1004,8 @@ function CalendarPage() {
               {/* Data e Hora de Publicação */}
               {publishMode === "schedule" && (
                 <div className="space-y-2 flex flex-col">
-                  <Label className="text-sm font-bold">
-                    Data e Hora de Publicação
-                  </Label>
-                  <DateTimePicker
-                    value={scheduledAt}
-                    onChange={setScheduledAt}
-                    min={minDateTime}
-                  />
+                  <Label className="text-sm font-bold">Data e Hora de Publicação</Label>
+                  <DateTimePicker value={scheduledAt} onChange={setScheduledAt} min={minDateTime} />
                 </div>
               )}
 
@@ -1013,7 +1032,10 @@ function CalendarPage() {
               >
                 {submitting ? (
                   <span className="flex items-center gap-2 justify-center">
-                    <Loader2 className="size-4 animate-spin" /> {publishMode === "now" ? "Uploading & Publicando..." : "Uploading & Agendando..."}
+                    <Loader2 className="size-4 animate-spin" />{" "}
+                    {publishMode === "now"
+                      ? "Uploading & Publicando..."
+                      : "Uploading & Agendando..."}
                   </span>
                 ) : publishMode === "now" ? (
                   "Publicar Agora"

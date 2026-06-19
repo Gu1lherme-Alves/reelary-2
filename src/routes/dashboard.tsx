@@ -80,7 +80,7 @@ function DashboardPage() {
         .eq("hidden", false)
         .order("created_at", { ascending: false });
       if (accsErr) throw accsErr;
-      
+
       const loadedAccounts = accs || [];
       setAccounts(loadedAccounts);
 
@@ -223,12 +223,13 @@ function DashboardPage() {
         <div className="flex flex-wrap items-center gap-4">
           {/* Filtro por Conta */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground font-medium shrink-0">
-              Conta:
-            </span>
+            <span className="text-sm text-muted-foreground font-medium shrink-0">Conta:</span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="border-border/60 bg-card hover:bg-secondary rounded-xl text-xs font-semibold h-10 gap-2 cursor-pointer w-48 justify-between">
+                <Button
+                  variant="outline"
+                  className="border-border/60 bg-card hover:bg-secondary rounded-xl text-xs font-semibold h-10 gap-2 cursor-pointer w-48 justify-between"
+                >
                   <span className="truncate">
                     {selectedAccountIds.length === accounts.length
                       ? "Todas as contas"
@@ -298,20 +299,30 @@ function DashboardPage() {
 
           {/* Filtro por Período */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground font-medium shrink-0">
-              Período:
-            </span>
+            <span className="text-sm text-muted-foreground font-medium shrink-0">Período:</span>
             <Select value={dateFilter} onValueChange={setDateFilter}>
               <SelectTrigger className="w-48 bg-card border-border/60 rounded-xl h-10 font-medium">
                 <SelectValue placeholder="Qualquer período" />
               </SelectTrigger>
               <SelectContent className="bg-card border-border/60">
-                <SelectItem value="all" className="cursor-pointer">Qualquer período</SelectItem>
-                <SelectItem value="today" className="cursor-pointer">Hoje</SelectItem>
-                <SelectItem value="yesterday" className="cursor-pointer">Ontem</SelectItem>
-                <SelectItem value="7d" className="cursor-pointer">Últimos 7 dias</SelectItem>
-                <SelectItem value="30d" className="cursor-pointer">Últimos 30 dias</SelectItem>
-                <SelectItem value="custom" className="cursor-pointer">Personalizado...</SelectItem>
+                <SelectItem value="all" className="cursor-pointer">
+                  Qualquer período
+                </SelectItem>
+                <SelectItem value="today" className="cursor-pointer">
+                  Hoje
+                </SelectItem>
+                <SelectItem value="yesterday" className="cursor-pointer">
+                  Ontem
+                </SelectItem>
+                <SelectItem value="7d" className="cursor-pointer">
+                  Últimos 7 dias
+                </SelectItem>
+                <SelectItem value="30d" className="cursor-pointer">
+                  Últimos 30 dias
+                </SelectItem>
+                <SelectItem value="custom" className="cursor-pointer">
+                  Personalizado...
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -324,19 +335,24 @@ function DashboardPage() {
           <div className="space-y-3 shrink-0">
             <h3 className="text-sm font-bold text-foreground">Intervalo de datas</h3>
             <p className="text-xs text-muted-foreground leading-relaxed max-w-[200px]">
-              Selecione o dia inicial e o dia final clicando diretamente no calendário para filtrar as métricas do painel.
+              Selecione o dia inicial e o dia final clicando diretamente no calendário para filtrar
+              as métricas do painel.
             </p>
             {dateRange?.from && (
               <div className="p-3 rounded-xl bg-secondary/40 border border-border/40 space-y-1">
-                <span className="text-[10px] uppercase tracking-wider font-extrabold text-muted-foreground block">Período selecionado:</span>
+                <span className="text-[10px] uppercase tracking-wider font-extrabold text-muted-foreground block">
+                  Período selecionado:
+                </span>
                 <span className="text-xs font-bold text-primary">
                   {dateRange.from.toLocaleDateString("pt-BR")}
-                  {dateRange.to ? ` — ${dateRange.to.toLocaleDateString("pt-BR")}` : " (Clique no dia de término)"}
+                  {dateRange.to
+                    ? ` — ${dateRange.to.toLocaleDateString("pt-BR")}`
+                    : " (Clique no dia de término)"}
                 </span>
               </div>
             )}
           </div>
-          
+
           <Calendar
             mode="range"
             selected={dateRange}
@@ -399,7 +415,8 @@ function DashboardPage() {
               <p className="text-xs text-muted-foreground mt-4 leading-relaxed flex items-center gap-1">
                 {totalFailed > 0 ? (
                   <span className="text-destructive font-semibold flex items-center gap-1">
-                    <AlertCircle className="size-3.5 inline text-destructive shrink-0" /> {totalFailed} falhas registradas
+                    <AlertCircle className="size-3.5 inline text-destructive shrink-0" />{" "}
+                    {totalFailed} falhas registradas
                   </span>
                 ) : (
                   <span>Sem falhas de publicação.</span>

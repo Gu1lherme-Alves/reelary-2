@@ -26,7 +26,7 @@ Deno.serve(async (req: Request) => {
       .from("scheduled_posts")
       .select(
         `id, video_url, caption, scheduled_at, ig_container_id, cover_url,
-         instagram_accounts!inner(instagram_user_id, access_token, username)`
+         instagram_accounts!inner(instagram_user_id, access_token, username)`,
       )
       .eq("status", "pending")
       .lte("scheduled_at", new Date().toISOString())
@@ -67,14 +67,14 @@ Deno.serve(async (req: Request) => {
         // ════════════════════════════════════════════
         if (!containerId) {
           console.log(`[${post.id}] Creating media container for @${ig.username}...`);
-          
+
           const body: any = {
             video_url: post.video_url,
             caption: post.caption,
             media_type: "REELS",
             access_token: ig.access_token,
           };
-          
+
           if (post.cover_url) {
             console.log(`[${post.id}] Using custom cover image: ${post.cover_url}`);
             body.cover_url = post.cover_url;
@@ -111,7 +111,7 @@ Deno.serve(async (req: Request) => {
         console.log(`[${post.id}] Checking container ${containerId} status...`);
         try {
           const statusRes = await fetch(
-            `${GRAPH_API}/${containerId}?fields=status_code&access_token=${encodeURIComponent(ig.access_token)}`
+            `${GRAPH_API}/${containerId}?fields=status_code&access_token=${encodeURIComponent(ig.access_token)}`,
           );
 
           if (!statusRes.ok) {
@@ -132,7 +132,9 @@ Deno.serve(async (req: Request) => {
           }
         } catch (statusErr: any) {
           // If status check fails (due to known Meta bug e.g. subcode 33), we fallback to direct publish attempt!
-          console.warn(`[${post.id}] Status check failed. Attempting direct publish fallback. Error: ${statusErr.message}`);
+          console.warn(
+            `[${post.id}] Status check failed. Attempting direct publish fallback. Error: ${statusErr.message}`,
+          );
           shouldPublish = true; // Attempt to publish and let media_publish handle the state
         }
 
@@ -159,13 +161,21 @@ Deno.serve(async (req: Request) => {
           if (!pubRes.ok) {
             const errBody = await pubRes.text();
             let parsedErr: any = null;
-            try { parsedErr = JSON.parse(errBody); } catch (_) {}
+            try {
+              parsedErr = JSON.parse(errBody);
+            } catch (_) {
+              // ignore parse errors
+            }
 
             const subcode = parsedErr?.error?.error_subcode;
             const message = parsedErr?.error?.message ?? "";
 
             // Check for "Media is not ready" error subcode 2207027 or text pattern
-            if (subcode === 2207027 || message.toLowerCase().includes("not ready") || errBody.includes("2207027")) {
+            if (
+              subcode === 2207027 ||
+              message.toLowerCase().includes("not ready") ||
+              errBody.includes("2207027")
+            ) {
               console.log(`[${post.id}] Video is still processing on Meta. Retrying on next run.`);
               results.skipped++;
               continue;
@@ -202,13 +212,12 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    console.log(`Done. Processed: ${results.processed}, Published: ${results.published}, Skipped: ${results.skipped}, Errors: ${results.errors.length}`);
+    console.log(
+      `Done. Processed: ${results.processed}, Published: ${results.published}, Skipped: ${results.skipped}, Errors: ${results.errors.length}`,
+    );
     return Response.json(results);
   } catch (err: any) {
     console.error("Fatal error in publish-reels:", err);
-    return Response.json(
-      { error: err?.message ?? String(err) },
-      { status: 500 }
-    );
+    return Response.json({ error: err?.message ?? String(err) }, { status: 500 });
   }
 });

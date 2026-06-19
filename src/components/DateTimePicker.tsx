@@ -88,7 +88,7 @@ export function DateTimePicker({ value, onChange, min, className }: DateTimePick
           type="button"
           className={cn(
             "w-full justify-between border-border/60 bg-secondary/45 hover:bg-secondary/60 rounded-xl text-left font-medium h-10 px-3.5 text-xs text-foreground transition-colors flex items-center",
-            className
+            className,
           )}
         >
           <span className="flex items-center gap-2 truncate">
@@ -98,7 +98,10 @@ export function DateTimePicker({ value, onChange, min, className }: DateTimePick
           <Clock className="size-4 text-muted-foreground opacity-60 shrink-0 ml-2" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto p-4 flex flex-col md:flex-row gap-4 bg-popover/95 border border-border/60 shadow-xl rounded-2xl z-[100] backdrop-blur-md">
+      <PopoverContent
+        align="start"
+        className="w-auto p-4 flex flex-col md:flex-row gap-4 bg-popover/95 border border-border/60 shadow-xl rounded-2xl z-[100] backdrop-blur-md"
+      >
         {/* Calendar Side */}
         <div className="border-r border-border/40 pr-2">
           <Calendar
@@ -134,7 +137,7 @@ export function DateTimePicker({ value, onChange, min, className }: DateTimePick
                       "w-full text-center py-1.5 text-xs font-bold rounded-lg cursor-pointer transition-colors block",
                       isActive
                         ? "bg-primary text-primary-foreground font-extrabold shadow-sm"
-                        : "hover:bg-secondary text-foreground/80 hover:text-foreground"
+                        : "hover:bg-secondary text-foreground/80 hover:text-foreground",
                     )}
                   >
                     {h}h
@@ -160,7 +163,7 @@ export function DateTimePicker({ value, onChange, min, className }: DateTimePick
                       "w-full text-center py-1.5 text-xs font-bold rounded-lg cursor-pointer transition-colors block",
                       isActive
                         ? "bg-primary text-primary-foreground font-extrabold shadow-sm"
-                        : "hover:bg-secondary text-foreground/80 hover:text-foreground"
+                        : "hover:bg-secondary text-foreground/80 hover:text-foreground",
                     )}
                   >
                     {m}m

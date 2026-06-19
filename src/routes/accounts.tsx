@@ -355,9 +355,7 @@ function AccountsPage() {
         .eq("id", accountId);
       if (error) throw error;
 
-      const catName = categoryId
-        ? categories.find((c) => c.id === categoryId)?.name
-        : null;
+      const catName = categoryId ? categories.find((c) => c.id === categoryId)?.name : null;
       toast.success(catName ? `Categoria "${catName}" atribuída` : "Categoria removida");
       load();
     } catch (err: any) {
@@ -484,7 +482,8 @@ function AccountsPage() {
               </div>
               <h3 className="font-bold text-xl">Todas as contas estão ocultas</h3>
               <p className="text-muted-foreground text-sm mt-2.5 max-w-md mx-auto leading-relaxed">
-                Você ocultou todas as suas contas do Instagram deste painel. Você pode gerenciá-las ou reexibi-las na seção de contas ocultas abaixo.
+                Você ocultou todas as suas contas do Instagram deste painel. Você pode gerenciá-las
+                ou reexibi-las na seção de contas ocultas abaixo.
               </p>
             </div>
           ) : (
@@ -558,9 +557,7 @@ function AccountsPage() {
                                 className="cursor-pointer text-xs py-2 flex items-center justify-between"
                               >
                                 <span className="text-muted-foreground">Sem categoria</span>
-                                {!a.category_id && (
-                                  <Check className="size-3.5 text-success" />
-                                )}
+                                {!a.category_id && <Check className="size-3.5 text-success" />}
                               </DropdownMenuItem>
                               {categories.map((cat) => (
                                 <DropdownMenuItem
@@ -611,7 +608,9 @@ function AccountsPage() {
                       </div>
 
                       <div className="mt-4 pt-4 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Vinculada em {new Date(a.created_at).toLocaleDateString("pt-BR")}</span>
+                        <span>
+                          Vinculada em {new Date(a.created_at).toLocaleDateString("pt-BR")}
+                        </span>
                         {a.token_expires_at && (
                           <span className="text-warning">
                             Expira em {new Date(a.token_expires_at).toLocaleDateString("pt-BR")}
@@ -688,7 +687,9 @@ function AccountsPage() {
                         <div className="min-w-0">
                           <p className="font-bold text-sm truncate">@{a.username}</p>
                           <div className="flex items-center gap-2">
-                            <p className="text-[10px] text-muted-foreground truncate">ID: {a.instagram_user_id}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              ID: {a.instagram_user_id}
+                            </p>
                             {a.account_categories && (
                               <CategoryBadge category={a.account_categories} />
                             )}
@@ -725,8 +726,7 @@ function AccountsPage() {
             <DialogDescription className="text-xs text-muted-foreground mt-1">
               {editingCategory
                 ? "Altere o nome ou a cor desta categoria."
-                : "Crie uma categoria colorida para organizar suas contas."
-              }
+                : "Crie uma categoria colorida para organizar suas contas."}
             </DialogDescription>
           </DialogHeader>
 
@@ -804,7 +804,11 @@ function AccountsPage() {
                 disabled={savingCategory || !categoryName.trim()}
                 className="flex-1 bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-bold h-11 shadow-glow rounded-xl"
               >
-                {savingCategory ? "Salvando..." : editingCategory ? "Salvar Alterações" : "Criar Categoria"}
+                {savingCategory
+                  ? "Salvando..."
+                  : editingCategory
+                    ? "Salvar Alterações"
+                    : "Criar Categoria"}
               </Button>
               {editingCategory && (
                 <Button

@@ -12,11 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DateTimePicker } from "@/components/DateTimePicker";
 
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/schedule")({
   head: () => ({ meta: [{ title: "Novo Reel — Reelary" }] }),
@@ -102,9 +98,8 @@ function SchedulePage() {
         coverUrl = coverPub.publicUrl;
       }
 
-      const scheduledDate = publishMode === "now"
-        ? new Date().toISOString()
-        : new Date(scheduledAt).toISOString();
+      const scheduledDate =
+        publishMode === "now" ? new Date().toISOString() : new Date(scheduledAt).toISOString();
 
       const postsToInsert = accountIds.map((accId) => ({
         user_id: uid,
@@ -223,17 +218,23 @@ function SchedulePage() {
                       />
                     )}
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-xs text-foreground truncate max-w-[200px]">{coverFile.name}</span>
+                      <span className="font-semibold text-xs text-foreground truncate max-w-[200px]">
+                        {coverFile.name}
+                      </span>
                       <span className="text-[10px] text-muted-foreground">
                         {(coverFile.size / 1024 / 1024).toFixed(1)} MB
                       </span>
                     </div>
-                    <span className="text-[10px] text-primary underline font-medium">Trocar imagem</span>
+                    <span className="text-[10px] text-primary underline font-medium">
+                      Trocar imagem
+                    </span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Upload className="size-5" />
-                    <span className="text-xs font-semibold text-foreground">Escolher Foto de Capa</span>
+                    <span className="text-xs font-semibold text-foreground">
+                      Escolher Foto de Capa
+                    </span>
                     <span className="text-[10px]">Formato JPG, PNG (Aspecto 9:16 recomendado)</span>
                   </div>
                 )}
@@ -281,7 +282,10 @@ function SchedulePage() {
                   <ChevronDown className="size-4 text-muted-foreground opacity-60 shrink-0 ml-2" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-80 bg-popover border border-border/60 p-3 shadow-card rounded-xl z-50">
+              <PopoverContent
+                align="start"
+                className="w-80 bg-popover border border-border/60 p-3 shadow-card rounded-xl z-50"
+              >
                 <div className="text-xs text-muted-foreground font-semibold flex items-center justify-between pb-2 mb-2 border-b border-border/40">
                   <span>Selecionar Contas</span>
                   <div className="flex gap-2">
@@ -361,8 +365,18 @@ function SchedulePage() {
               className="w-full"
             >
               <TabsList className="grid w-full grid-cols-2 bg-secondary/60">
-                <TabsTrigger value="now" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Postar Agora</TabsTrigger>
-                <TabsTrigger value="schedule" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Agendar</TabsTrigger>
+                <TabsTrigger
+                  value="now"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Postar Agora
+                </TabsTrigger>
+                <TabsTrigger
+                  value="schedule"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Agendar
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -370,11 +384,7 @@ function SchedulePage() {
           {publishMode === "schedule" && (
             <div className="space-y-2 flex flex-col">
               <Label className="text-sm font-bold">Data e hora</Label>
-              <DateTimePicker
-                value={scheduledAt}
-                onChange={setScheduledAt}
-                min={minDateTime}
-              />
+              <DateTimePicker value={scheduledAt} onChange={setScheduledAt} min={minDateTime} />
             </div>
           )}
 
