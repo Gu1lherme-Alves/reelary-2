@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Instagram,
@@ -125,6 +125,13 @@ function AccountsPage() {
   const [categoryName, setCategoryName] = useState("");
   const [categoryColor, setCategoryColor] = useState(CATEGORY_COLORS[0].value);
   const [savingCategory, setSavingCategory] = useState(false);
+
+  // Manual connection modal state
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualIgUserId, setManualIgUserId] = useState("");
+  const [manualUsername, setManualUsername] = useState("");
+  const [manualAccessToken, setManualAccessToken] = useState("");
+  const [savingManual, setSavingManual] = useState(false);
 
   const fetchAppId = useServerFn(getMetaAppId);
 
@@ -278,6 +285,89 @@ function AccountsPage() {
     window.location.href = buildInstagramAuthUrl(appId);
   }
 
+  async function handleManualConnectSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!manualUsername.trim() || !manualIgUserId.trim() || !manualAccessToken.trim()) {
+      toast.error("Todos os 3 campos são obrigatórios.");
+      return;
+    }
+
+    setSavingManual(true);
+    try {
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userData.user) {
+        throw new Error("Sessão expirada ou usuário não autenticado.");
+      }
+      const uid = userData.user.id;
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 60);
+      const tokenExpiresAt = expiresAt.toISOString();
+
+      const { data: upsertData, error: upsertErr } = await supabase
+        .from("instagram_accounts")
+        .upsert(
+          {
+            user_id: uid,
+            instagram_user_id: manualIgUserId.trim(),
+            username: manualUsername.trim(),
+            access_token: manualAccessToken.trim(),
+            token_expires_at: tokenExpiresAt,
+          },
+          { onConflict: "user_id,instagram_user_id" } as any,
+        )
+        .select("id");
+
+      if (upsertErr) {
+        // Fallback simple insert if upsert fails
+        const { data: insData, error: insErr } = await supabase
+          .from("instagram_accounts")
+          .insert({
+            user_id: uid,
+            instagram_user_id: manualIgUserId.trim(),
+            username: manualUsername.trim(),
+            access_token: manualAccessToken.trim(),
+            token_expires_at: tokenExpiresAt,
+          })
+          .select("id");
+
+        if (insErr) {
+          throw insErr;
+        }
+
+        if (insData && insData[0]) {
+          const storedActiveId = localStorage.getItem("active_ig_account_id");
+          if (!storedActiveId) {
+            localStorage.setItem("active_ig_account_id", insData[0].id);
+            setActiveAccountId(insData[0].id);
+          }
+        }
+      } else if (upsertData && upsertData[0]) {
+        const storedActiveId = localStorage.getItem("active_ig_account_id");
+        if (!storedActiveId) {
+          localStorage.setItem("active_ig_account_id", upsertData[0].id);
+          setActiveAccountId(upsertData[0].id);
+        }
+      }
+
+      toast.success(`Conta @${manualUsername.trim()} conectada manualmente com sucesso!`);
+      
+      // Reset form
+      setManualUsername("");
+      setManualIgUserId("");
+      setManualAccessToken("");
+      setShowManualModal(false);
+
+      // Reload lists and dispatch event for updating UI elsewhere
+      await load();
+      window.dispatchEvent(new Event("active-account-changed"));
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao salvar conexão manual");
+    } finally {
+      setSavingManual(false);
+    }
+  }
+
   // ─── Category CRUD ──────────────────────────────────────────────────────────
 
   function openCreateCategory() {
@@ -380,13 +470,20 @@ function AccountsPage() {
             Conecte suas contas comerciais do Instagram para agendar Reels automaticamente.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <Button
             onClick={openCreateCategory}
             variant="outline"
             className="border-border/60 hover:bg-secondary font-semibold rounded-xl h-10 gap-2"
           >
             <Palette className="size-4 text-primary" /> Categorias
+          </Button>
+          <Button
+            onClick={() => setShowManualModal(true)}
+            variant="outline"
+            className="border-border/60 hover:bg-secondary font-semibold rounded-xl h-10 gap-2"
+          >
+            Conectar Manualmente
           </Button>
           <Button
             onClick={connect}
@@ -466,12 +563,21 @@ function AccountsPage() {
             Vincule sua primeira conta do Instagram para desbloquear o agendamento de Reels e
             acompanhar suas publicações em nosso calendário integrado.
           </p>
-          <Button
-            onClick={connect}
-            className="mt-8 bg-gradient-brand text-primary-foreground border-0 font-semibold shadow-glow"
-          >
-            <Instagram className="size-4 mr-2" /> Conectar Conta Comercial
-          </Button>
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button
+              onClick={connect}
+              className="bg-gradient-brand text-primary-foreground border-0 font-semibold shadow-glow w-full sm:w-auto"
+            >
+              <Instagram className="size-4 mr-2" /> Conectar Conta Comercial
+            </Button>
+            <Button
+              onClick={() => setShowManualModal(true)}
+              variant="outline"
+              className="border-border hover:bg-secondary font-semibold rounded-xl w-full sm:w-auto h-10 px-4"
+            >
+              Conectar Manualmente
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-8 animate-in fade-in duration-300">
@@ -867,6 +973,93 @@ function AccountsPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Manual Connection Dialog ────────────────────────────────────────── */}
+      <Dialog open={showManualModal} onOpenChange={setShowManualModal}>
+        <DialogContent className="sm:max-w-lg bg-card/95 border border-border/60 rounded-2xl p-6 backdrop-blur-xl shadow-glow">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold flex items-center gap-2 text-foreground">
+              <Instagram className="size-5 text-primary" />
+              Conectar Instagram Manualmente
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Insira as credenciais da conta do Instagram para realizar a conexão manual como alternativa temporária ao OAuth.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleManualConnectSubmit} className="space-y-5 mt-4">
+            {/* username */}
+            <div className="space-y-2">
+              <Label className="text-sm font-bold flex items-center gap-1">
+                Nome de Usuário (username) <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={manualUsername}
+                onChange={(e) => setManualUsername(e.target.value)}
+                placeholder="Ex: meu_perfil_comercial"
+                className="bg-secondary/40 border-border/60 rounded-xl h-10"
+                required
+              />
+              <p className="text-[10px] text-muted-foreground">
+                O nome de usuário do perfil do Instagram (sem o @).
+              </p>
+            </div>
+
+            {/* instagram_user_id */}
+            <div className="space-y-2">
+              <Label className="text-sm font-bold flex items-center gap-1">
+                ID do Usuário do Instagram <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={manualIgUserId}
+                onChange={(e) => setManualIgUserId(e.target.value)}
+                placeholder="Ex: 17841401234567890"
+                className="bg-secondary/40 border-border/60 rounded-xl h-10"
+                required
+              />
+              <p className="text-[10px] text-muted-foreground">
+                O identificador numérico exclusivo da conta comercial do Instagram.
+              </p>
+            </div>
+
+            {/* access_token */}
+            <div className="space-y-2">
+              <Label className="text-sm font-bold flex items-center gap-1">
+                Token de Acesso (access_token) <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={manualAccessToken}
+                onChange={(e) => setManualAccessToken(e.target.value)}
+                placeholder="Insira o access_token da API de Gráficos do Instagram"
+                className="bg-secondary/40 border-border/60 rounded-xl h-10 font-mono text-xs"
+                required
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Token de acesso (geralmente gerado na Meta para Desenvolvedores).
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowManualModal(false)}
+                className="flex-1 border-border rounded-xl font-semibold h-11"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={savingManual || !manualUsername.trim() || !manualIgUserId.trim() || !manualAccessToken.trim()}
+                className="flex-1 bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-bold h-11 shadow-glow rounded-xl"
+              >
+                {savingManual ? "Conectando..." : "Salvar Conexão"}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
