@@ -35,7 +35,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
-import { buildInstagramAuthUrl } from "@/lib/instagram";
+import { buildInstagramAuthUrl, buildFacebookAuthUrl } from "@/lib/instagram";
 import { getMetaAppId } from "@/lib/instagram.functions";
 import { toast } from "sonner";
 
@@ -116,6 +116,7 @@ function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [appId, setAppId] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [connectingFacebook, setConnectingFacebook] = useState(false);
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
   const [showHiddenList, setShowHiddenList] = useState(false);
 
@@ -283,6 +284,15 @@ function AccountsPage() {
     }
     setConnecting(true);
     window.location.href = buildInstagramAuthUrl(appId);
+  }
+
+  function connectFacebook() {
+    if (!appId) {
+      toast.error("Meta App ID não configurado no servidor");
+      return;
+    }
+    setConnectingFacebook(true);
+    window.location.href = buildFacebookAuthUrl(appId);
   }
 
   async function handleManualConnectSubmit(e: FormEvent) {
@@ -479,18 +489,19 @@ function AccountsPage() {
             <Palette className="size-4 text-primary" /> Categorias
           </Button>
           <Button
+            onClick={connectFacebook}
+            disabled={connectingFacebook}
+            className="bg-[#1877F2] text-white border-0 hover:bg-[#166FE5] font-semibold rounded-xl h-10 gap-2 shadow-md"
+          >
+            <svg className="size-4" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            Conectar via Facebook
+          </Button>
+          <Button
             onClick={() => setShowManualModal(true)}
             variant="outline"
             className="border-border/60 hover:bg-secondary font-semibold rounded-xl h-10 gap-2"
           >
             Conectar Manualmente
-          </Button>
-          <Button
-            onClick={connect}
-            disabled={connecting}
-            className="bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-semibold shadow-glow"
-          >
-            <Instagram className="size-4 mr-2" /> Conectar Novo Instagram
           </Button>
         </div>
       </div>
