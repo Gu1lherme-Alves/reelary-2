@@ -1,8 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const GRAPH_API = "https://graph.facebook.com/v21.0";
-
 Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -59,6 +57,10 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
+      const graphApiUrl = ig.access_token.startsWith("IGAA")
+        ? "https://graph.instagram.com/v21.0"
+        : "https://graph.facebook.com/v21.0";
+
       try {
         let containerId = post.ig_container_id;
 
@@ -80,7 +82,7 @@ Deno.serve(async (req: Request) => {
             body.cover_url = post.cover_url;
           }
 
-          const createRes = await fetch(`${GRAPH_API}/${ig.instagram_user_id}/media`, {
+          const createRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
@@ -111,7 +113,7 @@ Deno.serve(async (req: Request) => {
         console.log(`[${post.id}] Checking container ${containerId} status...`);
         try {
           const statusRes = await fetch(
-            `${GRAPH_API}/${containerId}?fields=status_code&access_token=${encodeURIComponent(ig.access_token)}`,
+            `${graphApiUrl}/${containerId}?fields=status_code&access_token=${encodeURIComponent(ig.access_token)}`,
           );
 
           if (!statusRes.ok) {
@@ -149,7 +151,7 @@ Deno.serve(async (req: Request) => {
         // ════════════════════════════════════════════
         if (shouldPublish) {
           console.log(`[${post.id}] Publishing reel to @${ig.username}...`);
-          const pubRes = await fetch(`${GRAPH_API}/${ig.instagram_user_id}/media_publish`, {
+          const pubRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media_publish`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
