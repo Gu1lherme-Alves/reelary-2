@@ -34,8 +34,38 @@ function SchedulePage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountIds, setAccountIds] = useState<string[]>([]);
   const [caption, setCaption] = useState("");
-  const [publishMode, setPublishMode] = useState<"now" | "schedule">("now");
-  const [scheduledAt, setScheduledAt] = useState("");
+  const [publishMode, setPublishMode] = useState<"now" | "schedule">(() => {
+    const saved = localStorage.getItem("last_scheduled_publish_mode");
+    return saved === "now" || saved === "schedule" ? saved : "now";
+  });
+  const [scheduledAt, setScheduledAt] = useState(() => {
+    const futureDate = new Date();
+    const savedTime = localStorage.getItem("last_scheduled_time");
+    let timeSet = false;
+
+    if (savedTime) {
+      const parts = savedTime.split(":");
+      if (parts.length === 2) {
+        const hours = parseInt(parts[0], 10);
+        const minutes = parseInt(parts[1], 10);
+        if (!isNaN(hours) && !isNaN(minutes)) {
+          futureDate.setHours(hours, minutes, 0, 0);
+          timeSet = true;
+        }
+      }
+    }
+
+    if (!timeSet) {
+      futureDate.setHours(futureDate.getHours() + 1, 0, 0, 0);
+    }
+
+    if (futureDate.getTime() < Date.now()) {
+      futureDate.setDate(futureDate.getDate() + 1);
+    }
+
+    const timezoneOffset = futureDate.getTimezoneOffset() * 60000;
+    return new Date(futureDate.getTime() - timezoneOffset).toISOString().slice(0, 16);
+  });
   const [file, setFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
@@ -51,11 +81,28 @@ function SchedulePage() {
       .then(({ data }) => {
         const loadedAccounts = data ?? [];
         setAccounts(loadedAccounts);
-        const activeId = localStorage.getItem("active_ig_account_id");
-        if (activeId && loadedAccounts.some((a) => a.id === activeId)) {
-          setAccountIds([activeId]);
-        } else if (loadedAccounts.length > 0) {
-          setAccountIds([loadedAccounts[0].id]);
+        const savedAccountsStr = localStorage.getItem("last_scheduled_accounts");
+        let initialAccountIds: string[] = [];
+        if (savedAccountsStr) {
+          try {
+            const parsed = JSON.parse(savedAccountsStr);
+            if (Array.isArray(parsed)) {
+              initialAccountIds = parsed.filter((id) => loadedAccounts.some((a) => a.id === id));
+            }
+          } catch (e) {
+            console.error("Error parsing last_scheduled_accounts:", e);
+          }
+        }
+
+        if (initialAccountIds.length > 0) {
+          setAccountIds(initialAccountIds);
+        } else {
+          const activeId = localStorage.getItem("active_ig_account_id");
+          if (activeId && loadedAccounts.some((a) => a.id === activeId)) {
+            setAccountIds([activeId]);
+          } else if (loadedAccounts.length > 0) {
+            setAccountIds([loadedAccounts[0].id]);
+          }
         }
       });
   }, []);
@@ -113,6 +160,16 @@ function SchedulePage() {
 
       const { error } = await supabase.from("scheduled_posts").insert(postsToInsert);
       if (error) throw error;
+
+      // Save settings to localStorage on success
+      localStorage.setItem("last_scheduled_accounts", JSON.stringify(accountIds));
+      localStorage.setItem("last_scheduled_publish_mode", publishMode);
+      if (publishMode === "schedule" && scheduledAt) {
+        const timePart = scheduledAt.split("T")[1];
+        if (timePart) {
+          localStorage.setItem("last_scheduled_time", timePart);
+        }
+      }
 
       if (publishMode === "now") {
         toast.info("Publicando Reel imediatamente nas contas selecionadas...");

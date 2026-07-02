@@ -91,7 +91,10 @@ function CalendarPage() {
   // Form State
   const [accountIds, setAccountIds] = useState<string[]>([]);
   const [caption, setCaption] = useState("");
-  const [publishMode, setPublishMode] = useState<"now" | "schedule">("now");
+  const [publishMode, setPublishMode] = useState<"now" | "schedule">(() => {
+    const saved = localStorage.getItem("last_scheduled_publish_mode");
+    return saved === "now" || saved === "schedule" ? saved : "now";
+  });
   const [scheduledAt, setScheduledAt] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
@@ -131,12 +134,29 @@ function CalendarPage() {
         return prev.filter((id) => loadedAccounts.some((a) => a.id === id));
       });
 
-      // Load active account from local storage to pre-select
-      const activeId = localStorage.getItem("active_ig_account_id");
-      if (activeId && loadedAccounts.some((a) => a.id === activeId)) {
-        setAccountIds([activeId]);
-      } else if (loadedAccounts.length > 0) {
-        setAccountIds([loadedAccounts[0].id]);
+      // Load last scheduled accounts or active account from local storage to pre-select
+      const savedAccountsStr = localStorage.getItem("last_scheduled_accounts");
+      let initialAccountIds: string[] = [];
+      if (savedAccountsStr) {
+        try {
+          const parsed = JSON.parse(savedAccountsStr);
+          if (Array.isArray(parsed)) {
+            initialAccountIds = parsed.filter((id) => loadedAccounts.some((a) => a.id === id));
+          }
+        } catch (e) {
+          console.error("Error parsing last_scheduled_accounts:", e);
+        }
+      }
+
+      if (initialAccountIds.length > 0) {
+        setAccountIds(initialAccountIds);
+      } else {
+        const activeId = localStorage.getItem("active_ig_account_id");
+        if (activeId && loadedAccounts.some((a) => a.id === activeId)) {
+          setAccountIds([activeId]);
+        } else if (loadedAccounts.length > 0) {
+          setAccountIds([loadedAccounts[0].id]);
+        }
       }
 
       // Load posts
@@ -251,6 +271,16 @@ function CalendarPage() {
       const { error } = await supabase.from("scheduled_posts").insert(postsToInsert);
 
       if (error) throw error;
+
+      // Save settings to localStorage on success
+      localStorage.setItem("last_scheduled_accounts", JSON.stringify(accountIds));
+      localStorage.setItem("last_scheduled_publish_mode", publishMode);
+      if (publishMode === "schedule" && scheduledAt) {
+        const timePart = scheduledAt.split("T")[1];
+        if (timePart) {
+          localStorage.setItem("last_scheduled_time", timePart);
+        }
+      }
 
       if (publishMode === "now") {
         toast.info("Publicando Reel imediatamente nas contas selecionadas...");
@@ -391,10 +421,27 @@ function CalendarPage() {
   const openScheduleForDay = (date: Date) => {
     setSelectedDate(date);
 
-    // Set scheduledAt input to selected day with current time + 1 hour
+    // Set scheduledAt input to selected day with last scheduled time or current time + 1 hour
     const futureDate = new Date(date);
-    const nowTime = new Date();
-    futureDate.setHours(nowTime.getHours() + 1, 0, 0, 0);
+    const savedTime = localStorage.getItem("last_scheduled_time");
+    let timeSet = false;
+
+    if (savedTime) {
+      const parts = savedTime.split(":");
+      if (parts.length === 2) {
+        const hours = parseInt(parts[0], 10);
+        const minutes = parseInt(parts[1], 10);
+        if (!isNaN(hours) && !isNaN(minutes)) {
+          futureDate.setHours(hours, minutes, 0, 0);
+          timeSet = true;
+        }
+      }
+    }
+
+    if (!timeSet) {
+      const nowTime = new Date();
+      futureDate.setHours(nowTime.getHours() + 1, 0, 0, 0);
+    }
 
     // Adjust timezone offset to match local input string format
     const timezoneOffset = futureDate.getTimezoneOffset() * 60000;
