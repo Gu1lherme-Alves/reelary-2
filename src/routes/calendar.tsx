@@ -731,11 +731,18 @@ function CalendarPage() {
                       />
 
                       <div className="p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/20 hover:bg-card/75 transition-all shadow-sm flex gap-4 relative">
-                        <video
-                          src={post.video_url}
-                          className="w-16 h-20 rounded-xl object-cover bg-background shrink-0 shadow-inner"
-                          muted
-                        />
+                        {post.video_url ? (
+                          <video
+                            src={post.video_url}
+                            className="w-16 h-20 rounded-xl object-cover bg-background shrink-0 shadow-inner"
+                            muted
+                          />
+                        ) : (
+                          <div className="w-16 h-20 rounded-xl bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1" title="Vídeo removido para economizar espaço">
+                            <Video className="size-5 text-muted-foreground/60" />
+                            <span className="text-[8px] text-muted-foreground/80 font-bold">Limpo</span>
+                          </div>
+                        )}
                         <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
                           <div>
                             <div className="flex items-center gap-1.5 text-xs">

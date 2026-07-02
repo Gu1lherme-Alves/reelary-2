@@ -1,6 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+function getStoragePathFromUrl(url: string | null): string | null {
+  if (!url) return null;
+  const parts = url.split("/reels/");
+  if (parts.length > 1) {
+    return decodeURIComponent(parts[parts.length - 1]);
+  }
+  return null;
+}
+
 Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -189,17 +198,43 @@ Deno.serve(async (req: Request) => {
           const pubData = await pubRes.json();
           console.log(`[${post.id}] ✅ Published! Media ID: ${pubData.id}`);
 
-          // Mark as published
+          // Mark as published and clear video/cover URLs
           await supabase
             .from("scheduled_posts")
             .update({
               status: "published",
               published_at: new Date().toISOString(),
               error_message: null,
+              video_url: "",
+              cover_url: null,
             })
             .eq("id", post.id);
 
           results.published++;
+
+          // Delete files from storage
+          try {
+            const filesToDelete: string[] = [];
+            const videoPath = getStoragePathFromUrl(post.video_url);
+            if (videoPath) filesToDelete.push(videoPath);
+
+            const coverPath = getStoragePathFromUrl(post.cover_url);
+            if (coverPath) filesToDelete.push(coverPath);
+
+            if (filesToDelete.length > 0) {
+              console.log(`[${post.id}] Deleting files from 'reels' bucket:`, filesToDelete);
+              const { error: deleteErr } = await supabase.storage
+                .from("reels")
+                .remove(filesToDelete);
+              if (deleteErr) {
+                console.error(`[${post.id}] Failed to delete files: ${deleteErr.message}`);
+              } else {
+                console.log(`[${post.id}] Successfully deleted storage files.`);
+              }
+            }
+          } catch (storageErr) {
+            console.error(`[${post.id}] Error deleting storage files:`, storageErr);
+          }
         }
       } catch (err: any) {
         const msg = (err?.message ?? String(err)).slice(0, 500);

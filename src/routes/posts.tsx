@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { CalendarClock, CheckCircle2, Clock, XCircle, Trash2, Plus } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock, XCircle, Trash2, Plus, Video } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -116,11 +116,18 @@ function PostsPage() {
                 key={p.id}
                 className="rounded-2xl border border-border/60 bg-card p-4 flex gap-4 shadow-card"
               >
-                <video
-                  src={p.video_url}
-                  className="size-24 rounded-xl object-cover bg-background shrink-0"
-                  muted
-                />
+                {p.video_url ? (
+                  <video
+                    src={p.video_url}
+                    className="size-24 rounded-xl object-cover bg-background shrink-0"
+                    muted
+                  />
+                ) : (
+                  <div className="size-24 rounded-xl bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1.5" title="Vídeo removido para economizar espaço">
+                    <Video className="size-6 text-muted-foreground/60" />
+                    <span className="text-[9px] text-muted-foreground/80 font-bold">Limpo</span>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
