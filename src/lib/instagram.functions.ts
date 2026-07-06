@@ -48,7 +48,9 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
       console.error("Short-lived token exchange failed:", err);
-      throw new Error("Falha na troca do código por token. Verifique as permissões ou redirect URI no app Meta.");
+      throw new Error(
+        "Falha na troca do código por token. Verifique as permissões ou redirect URI no app Meta.",
+      );
     }
     const tokenJson = (await tokenRes.json()) as {
       access_token: string;
@@ -205,7 +207,9 @@ export const connectFacebookAccount = createServerFn({ method: "POST" })
     };
 
     if (!pagesJson.data || pagesJson.data.length === 0) {
-      throw new Error("Nenhuma Página do Facebook encontrada. Crie uma Página e vincule ao Instagram Business.");
+      throw new Error(
+        "Nenhuma Página do Facebook encontrada. Crie uma Página e vincule ao Instagram Business.",
+      );
     }
 
     // 4. Encontrar a primeira página com conta IG Business vinculada

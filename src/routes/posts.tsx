@@ -123,7 +123,10 @@ function PostsPage() {
                     muted
                   />
                 ) : (
-                  <div className="size-24 rounded-xl bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1.5" title="Vídeo removido para economizar espaço">
+                  <div
+                    className="size-24 rounded-xl bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1.5"
+                    title="Vídeo removido para economizar espaço"
+                  >
                     <Video className="size-6 text-muted-foreground/60" />
                     <span className="text-[9px] text-muted-foreground/80 font-bold">Limpo</span>
                   </div>

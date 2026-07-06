@@ -49,7 +49,6 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" })
     }
 
     const authHeader = request.headers.get("authorization");
-    console.log("[Supabase Auth] Authorization header present:", !!authHeader);
 
     if (!authHeader) {
       console.error("[Supabase Auth] No authorization header found in request");

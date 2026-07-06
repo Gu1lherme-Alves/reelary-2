@@ -738,9 +738,14 @@ function CalendarPage() {
                             muted
                           />
                         ) : (
-                          <div className="w-16 h-20 rounded-xl bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1" title="Vídeo removido para economizar espaço">
+                          <div
+                            className="w-16 h-20 rounded-xl bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1"
+                            title="Vídeo removido para economizar espaço"
+                          >
                             <Video className="size-5 text-muted-foreground/60" />
-                            <span className="text-[8px] text-muted-foreground/80 font-bold">Limpo</span>
+                            <span className="text-[8px] text-muted-foreground/80 font-bold">
+                              Limpo
+                            </span>
                           </div>
                         )}
                         <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">

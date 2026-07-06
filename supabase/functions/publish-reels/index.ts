@@ -20,6 +20,8 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false },
     });
 
+
+
     const results = {
       processed: 0,
       published: 0,
