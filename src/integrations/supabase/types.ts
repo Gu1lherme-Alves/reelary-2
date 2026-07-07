@@ -135,6 +135,27 @@ export type Database = {
           },
         ];
       };
+      user_settings: {
+        Row: {
+          user_id: string;
+          meta_credential_profile: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          meta_credential_profile?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          meta_credential_profile?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

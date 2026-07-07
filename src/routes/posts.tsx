@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { deleteR2File } from "@/lib/r2.functions";
 
 export const Route = createFileRoute("/posts")({
   head: () => ({ meta: [{ title: "Agendados — Reelary" }] }),
@@ -19,6 +20,7 @@ type Post = {
   id: string;
   caption: string;
   video_url: string;
+  cover_url: string | null;
   scheduled_at: string;
   status: "pending" | "published" | "failed";
   error_message: string | null;
@@ -65,10 +67,33 @@ function PostsPage() {
 
   async function remove(id: string) {
     if (!confirm("Excluir este agendamento?")) return;
-    const { error } = await supabase.from("scheduled_posts").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Agendamento excluído");
-    load();
+    try {
+      const post = posts.find((p) => p.id === id);
+      if (post) {
+        if (post.video_url) {
+          try {
+            await deleteR2File({ data: { url: post.video_url } });
+          } catch (err) {
+            console.error("Erro ao deletar vídeo do R2:", err);
+          }
+        }
+        if (post.cover_url) {
+          try {
+            await deleteR2File({ data: { url: post.cover_url } });
+          } catch (err) {
+            console.error("Erro ao deletar capa do R2:", err);
+          }
+        }
+      }
+
+      const { error } = await supabase.from("scheduled_posts").delete().eq("id", id);
+      if (error) throw error;
+
+      toast.success("Agendamento excluído");
+      load();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao excluir agendamento.");
+    }
   }
 
   return (
@@ -121,6 +146,7 @@ function PostsPage() {
                     src={p.video_url}
                     className="size-24 rounded-xl object-cover bg-background shrink-0"
                     muted
+                    preload="none"
                   />
                 ) : (
                   <div

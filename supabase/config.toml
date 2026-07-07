@@ -1,1 +1,4 @@
-project_id = "kxezvyhlgqxgzmdaavdy"
+project_id = "fzmzdodpiedpjnxyiyis"
+
+[functions.publish-reels]
+verify_jwt = false

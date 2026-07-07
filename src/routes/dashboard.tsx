@@ -483,11 +483,21 @@ function DashboardPage() {
                         key={p.id}
                         className="flex gap-4 p-3 rounded-xl bg-card/65 border border-border/40 hover:bg-card/90 transition shadow-sm"
                       >
+                        {p.video_url ? (
                         <video
                           src={p.video_url}
                           className="size-16 rounded-lg object-cover bg-background shrink-0"
                           muted
+                          preload="none"
                         />
+                        ) : (
+                        <div
+                          className="size-16 rounded-lg bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1"
+                          title="Vídeo removido para economizar espaço"
+                        >
+                          <span className="text-[8px] text-muted-foreground/80 font-bold">Limpo</span>
+                        </div>
+                        )}
                         <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
                           <div>
                             <div className="flex items-center gap-2 text-xs">

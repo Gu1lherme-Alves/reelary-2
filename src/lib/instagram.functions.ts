@@ -2,15 +2,46 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-function getConfiguredMetaAppId() {
-  const rawAppId = process.env.META_APP_ID ?? import.meta.env.VITE_META_APP_ID;
-  return rawAppId?.match(/\d+/)?.[0] ?? null;
+export async function getMetaCredentialsForUser(supabase: any, userId: string) {
+  // Query user settings
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("meta_credential_profile")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Erro ao buscar configurações de credenciais da Meta:", error);
+  }
+
+  const profile = data?.meta_credential_profile || "guilherme";
+
+  let appId = "";
+  let appSecret = "";
+
+  if (profile === "matheus") {
+    appId = process.env.META_APP_ID_MATHEUS || "";
+    appSecret = process.env.META_APP_SECRET_MATHEUS || "";
+  } else {
+    // default/guilherme
+    appId = process.env.META_APP_ID_GUILHERME || process.env.META_APP_ID || import.meta.env.VITE_META_APP_ID || "";
+    appSecret = process.env.META_APP_SECRET_GUILHERME || process.env.META_APP_SECRET || "";
+  }
+
+  // Clean the app ID
+  const cleanedAppId = appId?.toString()?.match(/\d+/)?.[0] ?? null;
+
+  return { appId: cleanedAppId, appSecret, profile };
 }
 
-// Returns the public Meta App ID so the client can build the OAuth URL.
-export const getMetaAppId = createServerFn({ method: "GET" }).handler(async () => {
-  return { appId: getConfiguredMetaAppId() };
-});
+// Returns the public Meta App ID and profile so the client can build the OAuth URL.
+export const getMetaAppId = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { appId, profile } = await getMetaCredentialsForUser(supabase, userId);
+    return { appId, profile };
+  });
 
 // ─── Método 1 (Instagram Login direto) ──────────────────────────────────────────
 // Exchanges the OAuth `code` for an access_token, fetches the IG account
@@ -26,8 +57,8 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const appId = getConfiguredMetaAppId();
-    const appSecret = process.env.META_APP_SECRET;
+    const { supabase, userId } = context;
+    const { appId, appSecret } = await getMetaCredentialsForUser(supabase, userId);
     if (!appId || !appSecret) {
       throw new Error("Meta App credentials não configuradas no servidor.");
     }
@@ -99,7 +130,6 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
     const username = meJson.username;
     const expiresAt = expiresIn > 0 ? new Date(Date.now() + expiresIn * 1000).toISOString() : null;
 
-    const { supabase, userId } = context;
     const { error } = await supabase.from("instagram_accounts").upsert(
       {
         user_id: userId,
@@ -139,8 +169,8 @@ export const connectFacebookAccount = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const appId = getConfiguredMetaAppId();
-    const appSecret = process.env.META_APP_SECRET;
+    const { supabase, userId } = context;
+    const { appId, appSecret } = await getMetaCredentialsForUser(supabase, userId);
     if (!appId || !appSecret) {
       throw new Error("Meta App credentials não configuradas no servidor.");
     }
@@ -243,7 +273,6 @@ export const connectFacebookAccount = createServerFn({ method: "POST" })
         : null;
 
     // 6. Salvar na tabela instagram_accounts (usando o Page access token)
-    const { supabase, userId } = context;
     const { error } = await supabase.from("instagram_accounts").upsert(
       {
         user_id: userId,
@@ -267,4 +296,18 @@ export const connectFacebookAccount = createServerFn({ method: "POST" })
     }
 
     return { username, instagramUserId };
+  });
+
+export const getAvailableMetaAppIds = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const rawGuilherme = process.env.META_APP_ID_GUILHERME || process.env.META_APP_ID || import.meta.env.VITE_META_APP_ID || "";
+    const rawMatheus = process.env.META_APP_ID_MATHEUS || "";
+    const guilhermeAppId = rawGuilherme.match(/\d+/)?.[0] ?? null;
+    const matheusAppId = rawMatheus.match(/\d+/)?.[0] ?? null;
+
+    return {
+      guilherme: guilhermeAppId,
+      matheus: matheusAppId,
+    };
   });

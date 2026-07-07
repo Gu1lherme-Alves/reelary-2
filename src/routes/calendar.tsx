@@ -37,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateTimePicker } from "@/components/DateTimePicker";
+import { getUploadPresignedUrl, deleteR2File } from "@/lib/r2.functions";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -66,6 +67,7 @@ interface Post {
   id: string;
   caption: string;
   video_url: string;
+  cover_url: string | null;
   scheduled_at: string;
   status: "pending" | "published" | "failed";
   instagram_account_id: string;
@@ -229,29 +231,51 @@ function CalendarPage() {
       const uid = userData.user?.id;
       if (!uid) throw new Error("Sessão expirada. Faça login novamente.");
 
-      // Upload to reels bucket
-      const ext = videoFile.name.split(".").pop() ?? "mp4";
-      const path = `${uid}/${Date.now()}.${ext}`;
-
-      const uploadResult = await supabase.storage.from("reels").upload(path, videoFile, {
-        contentType: videoFile.type || "video/mp4",
+      // 1. Upload Video to Cloudflare R2
+      const videoUpload = await getUploadPresignedUrl({
+        data: {
+          fileName: videoFile.name,
+          contentType: videoFile.type || "video/mp4",
+        },
       });
 
-      if (uploadResult.error) throw uploadResult.error;
+      const videoPutRes = await fetch(videoUpload.uploadUrl, {
+        method: "PUT",
+        body: videoFile,
+        headers: {
+          "Content-Type": videoFile.type || "video/mp4",
+        },
+      });
 
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage.from("reels").getPublicUrl(path);
+      if (!videoPutRes.ok) {
+        throw new Error(`Falha ao fazer upload do vídeo no Cloudflare R2 (${videoPutRes.status})`);
+      }
 
+      const videoUrl = videoUpload.publicUrl;
+
+      // 2. Upload Cover to Cloudflare R2 (if exists)
       let coverUrl = null;
       if (coverFile) {
-        const coverExt = coverFile.name.split(".").pop() ?? "jpg";
-        const coverPath = `${uid}/${Date.now()}_cover.${coverExt}`;
-        const coverUp = await supabase.storage.from("reels").upload(coverPath, coverFile, {
-          contentType: coverFile.type || "image/jpeg",
+        const coverUpload = await getUploadPresignedUrl({
+          data: {
+            fileName: coverFile.name,
+            contentType: coverFile.type || "image/jpeg",
+          },
         });
-        if (coverUp.error) throw coverUp.error;
-        const { data: coverPub } = supabase.storage.from("reels").getPublicUrl(coverPath);
-        coverUrl = coverPub.publicUrl;
+
+        const coverPutRes = await fetch(coverUpload.uploadUrl, {
+          method: "PUT",
+          body: coverFile,
+          headers: {
+            "Content-Type": coverFile.type || "image/jpeg",
+          },
+        });
+
+        if (!coverPutRes.ok) {
+          throw new Error(`Falha ao fazer upload da capa no Cloudflare R2 (${coverPutRes.status})`);
+        }
+
+        coverUrl = coverUpload.publicUrl;
       }
 
       const scheduledDate =
@@ -261,7 +285,7 @@ function CalendarPage() {
       const postsToInsert = accountIds.map((accId) => ({
         user_id: uid,
         instagram_account_id: accId,
-        video_url: publicUrlData.publicUrl,
+        video_url: videoUrl,
         cover_url: coverUrl,
         caption,
         scheduled_at: scheduledDate,
@@ -318,6 +342,24 @@ function CalendarPage() {
   const deletePost = async (id: string) => {
     if (!confirm("Excluir este agendamento de Reel definitivamente?")) return;
     try {
+      const post = posts.find((p) => p.id === id);
+      if (post) {
+        if (post.video_url) {
+          try {
+            await deleteR2File({ data: { url: post.video_url } });
+          } catch (err) {
+            console.error("Erro ao deletar vídeo do R2:", err);
+          }
+        }
+        if (post.cover_url) {
+          try {
+            await deleteR2File({ data: { url: post.cover_url } });
+          } catch (err) {
+            console.error("Erro ao deletar capa do R2:", err);
+          }
+        }
+      }
+
       const { error } = await supabase.from("scheduled_posts").delete().eq("id", id);
       if (error) throw error;
       toast.success("Agendamento excluído.");
@@ -736,6 +778,7 @@ function CalendarPage() {
                             src={post.video_url}
                             className="w-16 h-20 rounded-xl object-cover bg-background shrink-0 shadow-inner"
                             muted
+                            preload="none"
                           />
                         ) : (
                           <div

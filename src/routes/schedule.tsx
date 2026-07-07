@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DateTimePicker } from "@/components/DateTimePicker";
+import { getUploadPresignedUrl } from "@/lib/r2.functions";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -125,24 +126,51 @@ function SchedulePage() {
       const uid = userData.user?.id;
       if (!uid) throw new Error("Sessão expirada");
 
-      const ext = file.name.split(".").pop() ?? "mp4";
-      const path = `${uid}/${Date.now()}.${ext}`;
-      const up = await supabase.storage.from("reels").upload(path, file, {
-        contentType: file.type || "video/mp4",
+      // 1. Upload Video to Cloudflare R2
+      const videoUpload = await getUploadPresignedUrl({
+        data: {
+          fileName: file.name,
+          contentType: file.type || "video/mp4",
+        },
       });
-      if (up.error) throw up.error;
-      const { data: pub } = supabase.storage.from("reels").getPublicUrl(path);
 
+      const videoPutRes = await fetch(videoUpload.uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type || "video/mp4",
+        },
+      });
+
+      if (!videoPutRes.ok) {
+        throw new Error(`Falha ao fazer upload do vídeo no Cloudflare R2 (${videoPutRes.status})`);
+      }
+
+      const videoUrl = videoUpload.publicUrl;
+
+      // 2. Upload Cover to Cloudflare R2 (if exists)
       let coverUrl = null;
       if (coverFile) {
-        const coverExt = coverFile.name.split(".").pop() ?? "jpg";
-        const coverPath = `${uid}/${Date.now()}_cover.${coverExt}`;
-        const coverUp = await supabase.storage.from("reels").upload(coverPath, coverFile, {
-          contentType: coverFile.type || "image/jpeg",
+        const coverUpload = await getUploadPresignedUrl({
+          data: {
+            fileName: coverFile.name,
+            contentType: coverFile.type || "image/jpeg",
+          },
         });
-        if (coverUp.error) throw coverUp.error;
-        const { data: coverPub } = supabase.storage.from("reels").getPublicUrl(coverPath);
-        coverUrl = coverPub.publicUrl;
+
+        const coverPutRes = await fetch(coverUpload.uploadUrl, {
+          method: "PUT",
+          body: coverFile,
+          headers: {
+            "Content-Type": coverFile.type || "image/jpeg",
+          },
+        });
+
+        if (!coverPutRes.ok) {
+          throw new Error(`Falha ao fazer upload da capa no Cloudflare R2 (${coverPutRes.status})`);
+        }
+
+        coverUrl = coverUpload.publicUrl;
       }
 
       const scheduledDate =
@@ -151,7 +179,7 @@ function SchedulePage() {
       const postsToInsert = accountIds.map((accId) => ({
         user_id: uid,
         instagram_account_id: accId,
-        video_url: pub.publicUrl,
+        video_url: videoUrl,
         cover_url: coverUrl,
         caption,
         scheduled_at: scheduledDate,
