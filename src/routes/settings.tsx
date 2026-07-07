@@ -104,19 +104,6 @@ function SettingsPage() {
       </div>
 
       <div className="space-y-6">
-        {/* Card Informativo Principal */}
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 flex gap-4 animate-in fade-in duration-300">
-          <Info className="size-5 text-primary shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-bold text-foreground">Como funcionam as credenciais?</p>
-            <p className="text-muted-foreground mt-1.5 leading-relaxed">
-              O site permite usar diferentes painéis da Meta Developers. Ao selecionar um perfil, todas as 
-              próximas conexões de conta do Instagram ou páginas do Facebook usarão o aplicativo cadastrado 
-              daquele painel. Isso resolve o problema de limite de contas ou contas de teste em ambientes separados.
-            </p>
-          </div>
-        </div>
-
         {/* Escolha do Perfil */}
         <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-card">
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
@@ -194,33 +181,6 @@ function SettingsPage() {
                 </span>
               </div>
             </button>
-          </div>
-        </div>
-
-        {/* Informações Técnicas */}
-        <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-card">
-          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-            <Key className="size-5 text-muted-foreground" /> Configuração do Servidor (.env)
-          </h2>
-          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-            Para que cada perfil funcione corretamente, as variáveis de ambiente correspondentes devem estar configuradas no seu arquivo <code className="text-xs bg-secondary px-1 py-0.5 rounded">.env</code> no servidor.
-          </p>
-
-          <div className="bg-secondary/30 rounded-xl p-4 font-mono text-xs text-muted-foreground space-y-2 border border-border/40">
-            <div>
-              <span className="text-foreground font-bold"># Perfil Guilherme</span>
-              <br />
-              META_APP_ID_GUILHERME="1919721542062088"
-              <br />
-              META_APP_SECRET_GUILHERME="714a96a..."
-            </div>
-            <div className="pt-2 border-t border-border/40">
-              <span className="text-foreground font-bold"># Perfil Matheus</span>
-              <br />
-              META_APP_ID_MATHEUS="{appIds.matheus || "insira_o_app_id_do_matheus"}"
-              <br />
-              META_APP_SECRET_MATHEUS="insira_o_secret_do_matheus"
-            </div>
           </div>
         </div>
       </div>
