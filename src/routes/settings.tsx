@@ -18,12 +18,17 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const [profile, setProfile] = useState<"guilherme" | "matheus">("guilherme");
+  const [profile, setProfile] = useState<"guilherme" | "matheus" | "pedro">("guilherme");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [appIds, setAppIds] = useState<{ guilherme: string | null; matheus: string | null }>({
+  const [appIds, setAppIds] = useState<{
+    guilherme: string | null;
+    matheus: string | null;
+    pedro: string | null;
+  }>({
     guilherme: null,
     matheus: null,
+    pedro: null,
   });
 
   const fetchAppIds = useServerFn(getAvailableMetaAppIds);
@@ -41,11 +46,11 @@ function SettingsPage() {
 
       if (error) throw error;
       if (data) {
-        setProfile(data.meta_credential_profile as "guilherme" | "matheus");
+        setProfile(data.meta_credential_profile as "guilherme" | "matheus" | "pedro");
       }
 
       const ids = await fetchAppIds();
-      setAppIds(ids);
+      setAppIds(ids as any);
     } catch (err: any) {
       console.error("Erro ao carregar configurações:", err);
       toast.error("Erro ao carregar configurações.");
@@ -58,7 +63,7 @@ function SettingsPage() {
     loadSettings();
   }, []);
 
-  async function handleSave(selectedProfile: "guilherme" | "matheus") {
+  async function handleSave(selectedProfile: "guilherme" | "matheus" | "pedro") {
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -77,7 +82,12 @@ function SettingsPage() {
 
       if (error) throw error;
       setProfile(selectedProfile);
-      toast.success(`Perfil de credenciais "${selectedProfile === "guilherme" ? "Guilherme" : "Matheus"}" selecionado!`);
+      const profileNames = {
+        guilherme: "Guilherme",
+        matheus: "Matheus",
+        pedro: "Pedro",
+      };
+      toast.success(`Perfil de credenciais "${profileNames[selectedProfile]}" selecionado!`);
     } catch (err: any) {
       toast.error(err.message || "Erro ao salvar configurações.");
     } finally {
@@ -113,7 +123,7 @@ function SettingsPage() {
             Escolha qual aplicativo de desenvolvedor da Meta será responsável pelo fluxo de login e conexão do Instagram.
           </p>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             {/* Card Guilherme */}
             <button
               onClick={() => handleSave("guilherme")}
@@ -178,6 +188,40 @@ function SettingsPage() {
               <div className="border-t border-border/40 pt-3 mt-auto">
                 <span className={`text-[10px] font-mono block truncate ${!appIds.matheus ? "text-warning" : "text-muted-foreground"}`}>
                   App ID: {appIds.matheus || "Configuração pendente no .env"}
+                </span>
+              </div>
+            </button>
+
+            {/* Card Pedro */}
+            <button
+              onClick={() => handleSave("pedro")}
+              disabled={saving}
+              className={`text-left rounded-2xl border p-5 transition-all duration-300 relative overflow-hidden group cursor-pointer flex flex-col justify-between ${
+                profile === "pedro"
+                  ? "border-primary bg-primary/5 shadow-glow"
+                  : "border-border/60 bg-secondary/10 hover:bg-secondary/40 hover:border-border-hover"
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="size-10 rounded-xl bg-violet-500/10 grid place-items-center group-hover:scale-105 transition-transform">
+                    <User className="size-5 text-violet-500" />
+                  </div>
+                  {profile === "pedro" && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-success/20 text-success border border-success/30">
+                      <Check className="size-3" /> ATIVO
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-bold text-base text-foreground mb-1">Painel: Pedro</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                  Configuração utilizando as credenciais da Meta do Pedro.
+                </p>
+              </div>
+
+              <div className="border-t border-border/40 pt-3 mt-auto">
+                <span className={`text-[10px] font-mono block truncate ${!appIds.pedro ? "text-warning" : "text-muted-foreground"}`}>
+                  App ID: {appIds.pedro || "Configuração pendente no .env"}
                 </span>
               </div>
             </button>
