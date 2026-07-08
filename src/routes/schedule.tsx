@@ -134,13 +134,21 @@ function SchedulePage() {
         },
       });
 
-      const videoPutRes = await fetch(videoUpload.uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type || "video/mp4",
-        },
-      });
+      let videoPutRes;
+      try {
+        videoPutRes = await fetch(videoUpload.uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type || "video/mp4",
+          },
+        });
+      } catch (fetchErr: any) {
+        console.error("Erro de rede ao fazer upload para o Cloudflare R2:", fetchErr);
+        throw new Error(
+          "Falha de rede ao enviar o vídeo para o Cloudflare R2. Se você está em ambiente de desenvolvimento (localhost), por favor verifique se a política de CORS do seu bucket R2 está configurada para aceitar requisições de origem local (PUT de localhost)."
+        );
+      }
 
       if (!videoPutRes.ok) {
         throw new Error(`Falha ao fazer upload do vídeo no Cloudflare R2 (${videoPutRes.status})`);
@@ -158,13 +166,21 @@ function SchedulePage() {
           },
         });
 
-        const coverPutRes = await fetch(coverUpload.uploadUrl, {
-          method: "PUT",
-          body: coverFile,
-          headers: {
-            "Content-Type": coverFile.type || "image/jpeg",
-          },
-        });
+        let coverPutRes;
+        try {
+          coverPutRes = await fetch(coverUpload.uploadUrl, {
+            method: "PUT",
+            body: coverFile,
+            headers: {
+              "Content-Type": coverFile.type || "image/jpeg",
+            },
+          });
+        } catch (fetchErr: any) {
+          console.error("Erro de rede ao fazer upload da capa para o Cloudflare R2:", fetchErr);
+          throw new Error(
+            "Falha de rede ao enviar a capa do Reel para o Cloudflare R2. Verifique as configurações de CORS do seu bucket R2."
+          );
+        }
 
         if (!coverPutRes.ok) {
           throw new Error(`Falha ao fazer upload da capa no Cloudflare R2 (${coverPutRes.status})`);
