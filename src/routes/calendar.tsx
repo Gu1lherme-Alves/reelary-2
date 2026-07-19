@@ -167,7 +167,8 @@ function CalendarPage() {
         .select(
           "id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username, category_id, account_categories(id, name, color))",
         )
-        .order("scheduled_at", { ascending: true });
+        .order("scheduled_at", { ascending: true })
+        .limit(10000);
       setPosts((postsData as any) || []);
     } catch (err: any) {
       toast.error(err.message || "Erro ao carregar dados do calendário");

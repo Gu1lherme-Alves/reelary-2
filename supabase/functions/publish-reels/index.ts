@@ -200,17 +200,9 @@ Deno.serve(async (req: Request) => {
       timestamp: new Date().toISOString(),
     };
 
-    // Fetch pending posts that are due
+    // Fetch pending posts that are due using the atomic grab and lock function
     const { data: posts, error: fetchErr } = await supabase
-      .from("scheduled_posts")
-      .select(
-        `id, video_url, caption, scheduled_at, ig_container_id, cover_url,
-         instagram_accounts!inner(instagram_user_id, access_token, username)`,
-      )
-      .eq("status", "pending")
-      .lte("scheduled_at", new Date().toISOString())
-      .order("scheduled_at", { ascending: true })
-      .limit(50);
+      .rpc("grab_pending_posts_to_publish", { limit_count: 50 });
 
     if (fetchErr) {
       console.error("DB fetch error:", fetchErr);
@@ -226,13 +218,17 @@ Deno.serve(async (req: Request) => {
 
     for (const post of posts) {
       results.processed++;
-      const ig = (post as any).instagram_accounts;
+      const ig = {
+        instagram_user_id: (post as any).instagram_user_id,
+        access_token: (post as any).access_token,
+        username: (post as any).username,
+      };
 
-      if (!ig?.access_token || !ig?.instagram_user_id) {
+      if (!ig.access_token || !ig.instagram_user_id) {
         const msg = "Conta Instagram desconectada ou sem token.";
         await supabase
           .from("scheduled_posts")
-          .update({ status: "failed", error_message: msg })
+          .update({ status: "failed", error_message: msg, locked_at: null })
           .eq("id", post.id);
         results.errors.push(`Post ${post.id}: ${msg}`);
         continue;
@@ -323,6 +319,12 @@ Deno.serve(async (req: Request) => {
 
         if (isProcessing) {
           console.log(`[${post.id}] Still processing (reported by API), will retry next run.`);
+          // Unlock the post so the next run can check it again
+          await supabase
+            .from("scheduled_posts")
+            .update({ locked_at: null })
+            .eq("id", post.id);
+
           results.skipped++;
           continue;
         }
@@ -360,6 +362,12 @@ Deno.serve(async (req: Request) => {
               errBody.includes("2207027")
             ) {
               console.log(`[${post.id}] Video is still processing on Meta. Retrying on next run.`);
+              // Unlock the post so the next run can check it again
+              await supabase
+                .from("scheduled_posts")
+                .update({ locked_at: null })
+                .eq("id", post.id);
+
               results.skipped++;
               continue;
             }
@@ -370,7 +378,7 @@ Deno.serve(async (req: Request) => {
           const pubData = await pubRes.json();
           console.log(`[${post.id}] ✅ Published! Media ID: ${pubData.id}`);
 
-          // Mark as published and clear video/cover URLs
+          // Mark as published, clear video/cover URLs and reset locked_at
           await supabase
             .from("scheduled_posts")
             .update({
@@ -379,6 +387,7 @@ Deno.serve(async (req: Request) => {
               error_message: null,
               video_url: "",
               cover_url: null,
+              locked_at: null,
             })
             .eq("id", post.id);
 
@@ -399,11 +408,11 @@ Deno.serve(async (req: Request) => {
                   .eq("video_url", post.video_url)
                   .neq("id", post.id);
                   
-                if (!videoRefs || videoRefs.length === 0) {
+                if (videoRefs && videoRefs.length === 0) {
                   console.log(`[${post.id}] Deleting video from R2 (no other references): ${videoKey}`);
                   await s3.send(new DeleteObjectCommand({ Bucket: r2BucketName, Key: videoKey }));
                 } else {
-                  console.log(`[${post.id}] Skipping video deletion, still referenced by ${videoRefs.length} other post(s).`);
+                  console.log(`[${post.id}] Skipping video deletion, still referenced by ${videoRefs?.length ?? 0} other post(s).`);
                 }
               }
 
@@ -415,11 +424,11 @@ Deno.serve(async (req: Request) => {
                   .eq("cover_url", post.cover_url)
                   .neq("id", post.id);
                   
-                if (!coverRefs || coverRefs.length === 0) {
+                if (coverRefs && coverRefs.length === 0) {
                   console.log(`[${post.id}] Deleting cover from R2 (no other references): ${coverKey}`);
                   await s3.send(new DeleteObjectCommand({ Bucket: r2BucketName, Key: coverKey }));
                 } else {
-                  console.log(`[${post.id}] Skipping cover deletion, still referenced by ${coverRefs.length} other post(s).`);
+                  console.log(`[${post.id}] Skipping cover deletion, still referenced by ${coverRefs?.length ?? 0} other post(s).`);
                 }
               }
             } else {
@@ -435,7 +444,7 @@ Deno.serve(async (req: Request) => {
 
         await supabase
           .from("scheduled_posts")
-          .update({ status: "failed", error_message: msg })
+          .update({ status: "failed", error_message: msg, locked_at: null })
           .eq("id", post.id);
 
         results.errors.push(`Post ${post.id}: ${msg}`);

@@ -48,6 +48,7 @@ const statusMeta = {
 function PostsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(50);
 
   async function load() {
     const { data, error } = await supabase
@@ -55,7 +56,8 @@ function PostsPage() {
       .select(
         "id, caption, video_url, scheduled_at, status, error_message, instagram_accounts(username, category_id, account_categories(color))",
       )
-      .order("scheduled_at", { ascending: true });
+      .order("scheduled_at", { ascending: true })
+      .limit(10000);
     if (error) toast.error(error.message);
     setPosts((data as any) ?? []);
     setLoading(false);
@@ -132,78 +134,92 @@ function PostsPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {posts.map((p) => {
-            const meta = statusMeta[p.status];
-            const Icon = meta.icon;
-            return (
-              <div
-                key={p.id}
-                className="rounded-2xl border border-border/60 bg-card p-4 flex gap-4 shadow-card"
-              >
-                {p.video_url ? (
-                  <video
-                    src={p.video_url}
-                    className="size-24 rounded-xl object-cover bg-background shrink-0"
-                    muted
-                    preload="none"
-                  />
-                ) : (
-                  <div
-                    className="size-24 rounded-xl bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1.5"
-                    title="Vídeo removido para economizar espaço"
-                  >
-                    <Video className="size-6 text-muted-foreground/60" />
-                    <span className="text-[9px] text-muted-foreground/80 font-bold">Limpo</span>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground flex items-center gap-1.5">
-                          {p.instagram_accounts?.account_categories?.color && (
-                            <span
-                              className="size-2 rounded-full shrink-0 ring-1 ring-white/10"
-                              style={{
-                                backgroundColor: p.instagram_accounts.account_categories.color,
-                              }}
-                            />
-                          )}
-                          @{p.instagram_accounts?.username ?? "—"}
-                        </span>
-                        <span>•</span>
-                        <span>
-                          {new Date(p.scheduled_at).toLocaleString("pt-BR", {
-                            dateStyle: "short",
-                            timeStyle: "short",
-                          })}
-                        </span>
-                      </div>
-                      <p className="mt-1.5 text-sm line-clamp-2 text-foreground/90">
-                        {p.caption || (
-                          <span className="text-muted-foreground italic">Sem legenda</span>
-                        )}
-                      </p>
-                      {p.error_message && (
-                        <p className="mt-1 text-xs text-destructive">{p.error_message}</p>
-                      )}
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {posts.slice(0, visibleCount).map((p) => {
+              const meta = statusMeta[p.status];
+              const Icon = meta.icon;
+              return (
+                <div
+                  key={p.id}
+                  className="rounded-2xl border border-border/60 bg-card p-4 flex gap-4 shadow-card"
+                >
+                  {p.video_url ? (
+                    <video
+                      src={p.video_url}
+                      className="size-24 rounded-xl object-cover bg-background shrink-0"
+                      muted
+                      preload="none"
+                    />
+                  ) : (
+                    <div
+                      className="size-24 rounded-xl bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1.5"
+                      title="Vídeo removido para economizar espaço"
+                    >
+                      <Video className="size-6 text-muted-foreground/60" />
+                      <span className="text-[9px] text-muted-foreground/80 font-bold">Limpo</span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${meta.cls}`}
-                      >
-                        <Icon className="size-3" /> {meta.label}
-                      </span>
-                      <Button variant="ghost" size="icon" onClick={() => remove(p.id)}>
-                        <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground flex items-center gap-1.5">
+                            {p.instagram_accounts?.account_categories?.color && (
+                              <span
+                                className="size-2 rounded-full shrink-0 ring-1 ring-white/10"
+                                style={{
+                                  backgroundColor: p.instagram_accounts.account_categories.color,
+                                }}
+                              />
+                            )}
+                            @{p.instagram_accounts?.username ?? "—"}
+                          </span>
+                          <span>•</span>
+                          <span>
+                            {new Date(p.scheduled_at).toLocaleString("pt-BR", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })}
+                          </span>
+                        </div>
+                        <p className="mt-1.5 text-sm line-clamp-2 text-foreground/90">
+                          {p.caption || (
+                            <span className="text-muted-foreground italic">Sem legenda</span>
+                          )}
+                        </p>
+                        {p.error_message && (
+                          <p className="mt-1 text-xs text-destructive">{p.error_message}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${meta.cls}`}
+                        >
+                          <Icon className="size-3" /> {meta.label}
+                        </span>
+                        <Button variant="ghost" size="icon" onClick={() => remove(p.id)}>
+                          <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          {posts.length > visibleCount && (
+            <div className="flex justify-center pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setVisibleCount((prev) => prev + 50)}
+                className="font-bold text-xs border-border hover:bg-secondary h-11 px-6 rounded-xl cursor-pointer"
+              >
+                Carregar mais ({posts.length - visibleCount} restantes)
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
