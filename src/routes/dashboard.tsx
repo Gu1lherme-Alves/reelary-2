@@ -549,7 +549,6 @@ function DashboardPage() {
                         {p.video_url ? (
                         <video
                           src={p.video_url}
-                          poster={p.cover_url || undefined}
                           className="size-16 rounded-lg object-cover bg-background shrink-0"
                           muted
                           preload="metadata"

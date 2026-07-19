@@ -822,7 +822,6 @@ function CalendarPage() {
                         {post.video_url ? (
                           <video
                             src={post.video_url}
-                            poster={post.cover_url || undefined}
                             className="w-16 h-20 rounded-xl object-cover bg-background shrink-0 shadow-inner"
                             muted
                             preload="metadata"

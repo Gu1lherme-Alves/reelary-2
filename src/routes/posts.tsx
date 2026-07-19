@@ -169,7 +169,6 @@ function PostsPage() {
                   {p.video_url ? (
                     <video
                       src={p.video_url}
-                      poster={p.cover_url || undefined}
                       className="size-24 rounded-xl object-cover bg-background shrink-0"
                       muted
                       preload="metadata"
