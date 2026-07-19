@@ -176,23 +176,47 @@ function CalendarPage() {
       const startOfMonth = new Date(year, month - 1, 20).toISOString();
       const endOfMonth = new Date(year, month + 1, 10).toISOString();
 
-      let query = supabase
-        .from("scheduled_posts")
-        .select(
-          "id, caption, video_url, cover_url, scheduled_at, status, instagram_account_id, instagram_accounts(username, category_id, account_categories(id, name, color))",
-        )
-        .gte("scheduled_at", startOfMonth)
-        .lte("scheduled_at", endOfMonth)
-        .order("scheduled_at", { ascending: true })
-        .limit(2000); // Plenty for a single month
+      let allPosts: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (selectedAccountIds.length > 0) {
-        query = query.in("instagram_account_id", selectedAccountIds);
+      while (hasMore) {
+        let query = supabase
+          .from("scheduled_posts")
+          .select(
+            "id, caption, video_url, cover_url, scheduled_at, status, instagram_account_id, instagram_accounts(username, category_id, account_categories(id, name, color))",
+          )
+          .gte("scheduled_at", startOfMonth)
+          .lte("scheduled_at", endOfMonth)
+          .order("scheduled_at", { ascending: true })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (selectedAccountIds.length > 0) {
+          query = query.in("instagram_account_id", selectedAccountIds);
+        }
+
+        const { data: postsData, error } = await query;
+        if (error) throw error;
+
+        if (postsData && postsData.length > 0) {
+          allPosts = [...allPosts, ...postsData];
+          if (postsData.length < pageSize) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+
+        // Safety limit to prevent infinite loop (caps at 10k posts)
+        if (page >= 10) {
+          hasMore = false;
+        }
       }
 
-      const { data: postsData, error } = await query;
-      if (error) throw error;
-      setPosts((postsData as any) || []);
+      setPosts(allPosts);
     } catch (err: any) {
       toast.error(err.message || "Erro ao carregar posts do calendário");
     } finally {
