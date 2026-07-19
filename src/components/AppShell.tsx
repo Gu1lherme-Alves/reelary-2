@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Settings,
   Layers,
+  AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -131,6 +132,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/calendar", label: "Calendário", icon: Calendar },
     { to: "/bulk", label: "Postar em Massa", icon: Layers },
     { to: "/accounts", label: "Contas", icon: Instagram },
+    { to: "/failed", label: "Falhas", icon: AlertTriangle },
     { to: "/settings", label: "Configurações", icon: Settings },
   ];
 
