@@ -115,7 +115,7 @@ function CalendarPage() {
 
   const navigate = useNavigate();
 
-  // Load Accounts & Posts
+  // Load Accounts
   async function loadData() {
     try {
       // Load accounts - only visible (non-hidden) ones!
@@ -160,18 +160,41 @@ function CalendarPage() {
           setAccountIds([loadedAccounts[0].id]);
         }
       }
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao carregar dados do calendário");
+    }
+  }
 
-      // Load posts
-      const { data: postsData } = await supabase
+  // Load Posts for the currently visible month
+  async function loadPosts() {
+    setLoading(true);
+    try {
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+      
+      // Calculate a range that safely covers all days shown on a monthly calendar grid (including leading/trailing days)
+      const startOfMonth = new Date(year, month - 1, 20).toISOString();
+      const endOfMonth = new Date(year, month + 1, 10).toISOString();
+
+      let query = supabase
         .from("scheduled_posts")
         .select(
           "id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username, category_id, account_categories(id, name, color))",
         )
+        .gte("scheduled_at", startOfMonth)
+        .lte("scheduled_at", endOfMonth)
         .order("scheduled_at", { ascending: true })
-        .limit(10000);
+        .limit(2000); // Plenty for a single month
+
+      if (selectedAccountIds.length > 0) {
+        query = query.in("instagram_account_id", selectedAccountIds);
+      }
+
+      const { data: postsData, error } = await query;
+      if (error) throw error;
       setPosts((postsData as any) || []);
     } catch (err: any) {
-      toast.error(err.message || "Erro ao carregar dados do calendário");
+      toast.error(err.message || "Erro ao carregar posts do calendário");
     } finally {
       setLoading(false);
     }
@@ -187,6 +210,12 @@ function CalendarPage() {
     window.addEventListener("active-account-changed", syncActiveAccount);
     return () => window.removeEventListener("active-account-changed", syncActiveAccount);
   }, []);
+
+  useEffect(() => {
+    if (accounts.length > 0) {
+      loadPosts();
+    }
+  }, [accounts, currentMonth, selectedAccountIds]);
 
   // Cleanup object URL
   useEffect(() => {

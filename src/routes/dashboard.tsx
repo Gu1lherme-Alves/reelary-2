@@ -65,7 +65,10 @@ interface Post {
 function DashboardPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [scheduledPending, setScheduledPending] = useState(0);
+  const [totalPublished, setTotalPublished] = useState(0);
+  const [totalFailed, setTotalFailed] = useState(0);
+  const [upcomingPosts, setUpcomingPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -91,20 +94,96 @@ function DashboardPage() {
         }
         return prev.filter((id) => loadedAccounts.some((a) => a.id === id));
       });
+    } catch (err: any) {
+      console.error("Dashboard error:", err);
+      toast.error(err.message || "Erro ao carregar contas do painel");
+    }
+  }
 
-      // 2. Fetch scheduled posts
-      const { data: postsData, error: postsErr } = await supabase
+  async function loadMetricsAndUpcoming(accountIds: string[], filter: string, range: DateRange | undefined) {
+    setLoading(true);
+    try {
+      const nowStr = new Date().toISOString();
+      const { start: filterStart, end: filterEnd } = getFilterDateRange();
+
+      // 1. Pending count query
+      let pendingQuery = supabase
+        .from("scheduled_posts")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending");
+
+      if (accountIds.length > 0) {
+        pendingQuery = pendingQuery.in("instagram_account_id", accountIds);
+      }
+      if (filterStart) {
+        pendingQuery = pendingQuery.gte("scheduled_at", filterStart.toISOString());
+      }
+      if (filterEnd) {
+        pendingQuery = pendingQuery.lte("scheduled_at", filterEnd.toISOString());
+      }
+      const { count: pendingCount, error: pendingErr } = await pendingQuery;
+      if (pendingErr) throw pendingErr;
+      setScheduledPending(pendingCount || 0);
+
+      // 2. Published count query
+      let publishedQuery = supabase
+        .from("scheduled_posts")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "published");
+
+      if (accountIds.length > 0) {
+        publishedQuery = publishedQuery.in("instagram_account_id", accountIds);
+      }
+      if (filterStart) {
+        publishedQuery = publishedQuery.gte("scheduled_at", filterStart.toISOString());
+      }
+      if (filterEnd) {
+        publishedQuery = publishedQuery.lte("scheduled_at", filterEnd.toISOString());
+      }
+      const { count: publishedCount, error: publishedErr } = await publishedQuery;
+      if (publishedErr) throw publishedErr;
+      setTotalPublished(publishedCount || 0);
+
+      // 3. Failed count query
+      let failedQuery = supabase
+        .from("scheduled_posts")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "failed");
+
+      if (accountIds.length > 0) {
+        failedQuery = failedQuery.in("instagram_account_id", accountIds);
+      }
+      if (filterStart) {
+        failedQuery = failedQuery.gte("scheduled_at", filterStart.toISOString());
+      }
+      if (filterEnd) {
+        failedQuery = failedQuery.lte("scheduled_at", filterEnd.toISOString());
+      }
+      const { count: failedCount, error: failedErr } = await failedQuery;
+      if (failedErr) throw failedErr;
+      setTotalFailed(failedCount || 0);
+
+      // 4. Upcoming posts query
+      let upcomingQuery = supabase
         .from("scheduled_posts")
         .select(
           "id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)",
         )
+        .eq("status", "pending")
+        .gt("scheduled_at", nowStr)
         .order("scheduled_at", { ascending: true })
-        .limit(10000);
-      if (postsErr) throw postsErr;
-      setPosts((postsData as any) || []);
+        .limit(3);
+
+      if (accountIds.length > 0) {
+        upcomingQuery = upcomingQuery.in("instagram_account_id", accountIds);
+      }
+      const { data: upcomingData, error: upcomingErr } = await upcomingQuery;
+      if (upcomingErr) throw upcomingErr;
+      setUpcomingPosts((upcomingData as any) || []);
+
     } catch (err: any) {
-      console.error("Dashboard error:", err);
-      toast.error(err.message || "Erro ao carregar dados do painel");
+      console.error("Metrics load error:", err);
+      toast.error("Erro ao atualizar métricas do painel");
     } finally {
       setLoading(false);
     }
@@ -120,6 +199,12 @@ function DashboardPage() {
     window.addEventListener("active-account-changed", handleSync);
     return () => window.removeEventListener("active-account-changed", handleSync);
   }, []);
+
+  useEffect(() => {
+    if (accounts.length > 0) {
+      loadMetricsAndUpcoming(selectedAccountIds, dateFilter, dateRange);
+    }
+  }, [accounts, selectedAccountIds, dateFilter, dateRange]);
 
   // Compute date range for filtering
   const getFilterDateRange = () => {
@@ -157,31 +242,7 @@ function DashboardPage() {
     return { start: null, end: null };
   };
 
-  const { start: filterStart, end: filterEnd } = getFilterDateRange();
-
-  // Filter calculations
-  const filteredPosts = posts.filter((p) => {
-    const matchAccount = selectedAccountIds.includes(p.instagram_account_id);
-    if (!matchAccount) return false;
-
-    if (filterStart && filterEnd) {
-      const postDate = new Date(p.scheduled_at);
-      return postDate >= filterStart && postDate <= filterEnd;
-    }
-    return true;
-  });
-
   const totalAccounts = accounts.length;
-
-  const scheduledPending = filteredPosts.filter((p) => p.status === "pending").length;
-  const totalPublished = filteredPosts.filter((p) => p.status === "published").length;
-  const totalFailed = filteredPosts.filter((p) => p.status === "failed").length;
-
-  // Get upcoming posts (scheduled after now, pending) within date range
-  const now = new Date();
-  const upcomingPosts = filteredPosts
-    .filter((p) => p.status === "pending" && new Date(p.scheduled_at) > now)
-    .slice(0, 3); // Get top 3
 
   // Dynamic titles based on selected filter
   const getScheduledCardTitle = () => {
@@ -538,7 +599,7 @@ function DashboardPage() {
                       className="text-muted-foreground hover:text-foreground text-xs font-semibold"
                     >
                       Gerenciar Agendamentos (
-                      {filteredPosts.filter((p) => p.status === "pending").length}) →
+                      {scheduledPending}) →
                     </Button>
                   </Link>
                 </div>

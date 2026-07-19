@@ -48,23 +48,45 @@ const statusMeta = {
 function PostsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [visibleCount, setVisibleCount] = useState(50);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
-  async function load() {
+  async function load(isInitial = true) {
+    if (isInitial) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    const startOffset = isInitial ? 0 : posts.length;
+    const endOffset = startOffset + 49;
+
     const { data, error } = await supabase
       .from("scheduled_posts")
       .select(
         "id, caption, video_url, scheduled_at, status, error_message, instagram_accounts(username, category_id, account_categories(color))",
       )
       .order("scheduled_at", { ascending: true })
-      .limit(10000);
-    if (error) toast.error(error.message);
-    setPosts((data as any) ?? []);
+      .range(startOffset, endOffset);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      const newPosts = (data as any) ?? [];
+      if (isInitial) {
+        setPosts(newPosts);
+      } else {
+        setPosts((prev) => [...prev, ...newPosts]);
+      }
+      setHasMore(newPosts.length === 50);
+    }
+
     setLoading(false);
+    setLoadingMore(false);
   }
 
   useEffect(() => {
-    load();
+    load(true);
   }, []);
 
   async function remove(id: string) {
@@ -136,7 +158,7 @@ function PostsPage() {
       ) : (
         <div className="space-y-4">
           <div className="space-y-3">
-            {posts.slice(0, visibleCount).map((p) => {
+            {posts.map((p) => {
               const meta = statusMeta[p.status];
               const Icon = meta.icon;
               return (
@@ -209,14 +231,15 @@ function PostsPage() {
             })}
           </div>
 
-          {posts.length > visibleCount && (
+          {hasMore && (
             <div className="flex justify-center pt-4">
               <Button
                 variant="outline"
-                onClick={() => setVisibleCount((prev) => prev + 50)}
+                onClick={() => load(false)}
+                disabled={loadingMore}
                 className="font-bold text-xs border-border hover:bg-secondary h-11 px-6 rounded-xl cursor-pointer"
               >
-                Carregar mais ({posts.length - visibleCount} restantes)
+                {loadingMore ? "Carregando..." : "Carregar mais"}
               </Button>
             </div>
           )}
