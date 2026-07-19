@@ -56,6 +56,7 @@ interface Post {
   id: string;
   caption: string;
   video_url: string;
+  cover_url: string | null;
   scheduled_at: string;
   status: "pending" | "published" | "failed";
   instagram_account_id: string;
@@ -167,7 +168,7 @@ function DashboardPage() {
       let upcomingQuery = supabase
         .from("scheduled_posts")
         .select(
-          "id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)",
+          "id, caption, video_url, cover_url, scheduled_at, status, instagram_account_id, instagram_accounts(username)",
         )
         .eq("status", "pending")
         .gt("scheduled_at", nowStr)
@@ -548,9 +549,10 @@ function DashboardPage() {
                         {p.video_url ? (
                         <video
                           src={p.video_url}
+                          poster={p.cover_url || undefined}
                           className="size-16 rounded-lg object-cover bg-background shrink-0"
                           muted
-                          preload="none"
+                          preload="metadata"
                         />
                         ) : (
                         <div

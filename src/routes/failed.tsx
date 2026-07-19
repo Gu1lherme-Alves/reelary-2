@@ -144,10 +144,11 @@ function FailedPostsPage() {
                   {p.video_url ? (
                     <video
                       src={p.video_url}
+                      poster={p.cover_url || undefined}
                       className="w-24 h-36 md:w-28 md:h-40 rounded-xl object-cover bg-background border border-border/40 shadow-md"
                       muted
                       controls
-                      preload="none"
+                      preload="metadata"
                     />
                   ) : (
                     <div

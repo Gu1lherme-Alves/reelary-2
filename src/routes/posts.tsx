@@ -64,7 +64,7 @@ function PostsPage() {
     const { data, error } = await supabase
       .from("scheduled_posts")
       .select(
-        "id, caption, video_url, scheduled_at, status, error_message, instagram_accounts(username, category_id, account_categories(color))",
+        "id, caption, video_url, cover_url, scheduled_at, status, error_message, instagram_accounts(username, category_id, account_categories(color))",
       )
       .order("scheduled_at", { ascending: true })
       .range(startOffset, endOffset);
@@ -169,9 +169,10 @@ function PostsPage() {
                   {p.video_url ? (
                     <video
                       src={p.video_url}
+                      poster={p.cover_url || undefined}
                       className="size-24 rounded-xl object-cover bg-background shrink-0"
                       muted
-                      preload="none"
+                      preload="metadata"
                     />
                   ) : (
                     <div

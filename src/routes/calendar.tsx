@@ -179,7 +179,7 @@ function CalendarPage() {
       let query = supabase
         .from("scheduled_posts")
         .select(
-          "id, caption, video_url, scheduled_at, status, instagram_account_id, instagram_accounts(username, category_id, account_categories(id, name, color))",
+          "id, caption, video_url, cover_url, scheduled_at, status, instagram_account_id, instagram_accounts(username, category_id, account_categories(id, name, color))",
         )
         .gte("scheduled_at", startOfMonth)
         .lte("scheduled_at", endOfMonth)
@@ -822,9 +822,10 @@ function CalendarPage() {
                         {post.video_url ? (
                           <video
                             src={post.video_url}
+                            poster={post.cover_url || undefined}
                             className="w-16 h-20 rounded-xl object-cover bg-background shrink-0 shadow-inner"
                             muted
-                            preload="none"
+                            preload="metadata"
                           />
                         ) : (
                           <div
