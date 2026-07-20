@@ -18,17 +18,19 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const [profile, setProfile] = useState<"guilherme" | "matheus" | "pedro">("guilherme");
+  const [profile, setProfile] = useState<"guilherme" | "matheus" | "pedro" | "antonio">("guilherme");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [appIds, setAppIds] = useState<{
     guilherme: string | null;
     matheus: string | null;
     pedro: string | null;
+    antonio: string | null;
   }>({
     guilherme: null,
     matheus: null,
     pedro: null,
+    antonio: null,
   });
 
   const fetchAppIds = useServerFn(getAvailableMetaAppIds);
@@ -46,7 +48,7 @@ function SettingsPage() {
 
       if (error) throw error;
       if (data) {
-        setProfile(data.meta_credential_profile as "guilherme" | "matheus" | "pedro");
+        setProfile(data.meta_credential_profile as "guilherme" | "matheus" | "pedro" | "antonio");
       }
 
       const ids = await fetchAppIds();
@@ -63,7 +65,7 @@ function SettingsPage() {
     loadSettings();
   }, []);
 
-  async function handleSave(selectedProfile: "guilherme" | "matheus" | "pedro") {
+  async function handleSave(selectedProfile: "guilherme" | "matheus" | "pedro" | "antonio") {
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -86,6 +88,7 @@ function SettingsPage() {
         guilherme: "Guilherme",
         matheus: "Matheus",
         pedro: "Pedro",
+        antonio: "Antonio",
       };
       toast.success(`Perfil de credenciais "${profileNames[selectedProfile]}" selecionado!`);
     } catch (err: any) {
@@ -123,7 +126,7 @@ function SettingsPage() {
             Escolha qual aplicativo de desenvolvedor da Meta será responsável pelo fluxo de login e conexão do Instagram.
           </p>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Card Guilherme */}
             <button
               onClick={() => handleSave("guilherme")}
@@ -222,6 +225,40 @@ function SettingsPage() {
               <div className="border-t border-border/40 pt-3 mt-auto">
                 <span className={`text-[10px] font-mono block truncate ${!appIds.pedro ? "text-warning" : "text-muted-foreground"}`}>
                   App ID: {appIds.pedro || "Configuração pendente no .env"}
+                </span>
+              </div>
+            </button>
+
+            {/* Card Antonio */}
+            <button
+              onClick={() => handleSave("antonio")}
+              disabled={saving}
+              className={`text-left rounded-2xl border p-5 transition-all duration-300 relative overflow-hidden group cursor-pointer flex flex-col justify-between ${
+                profile === "antonio"
+                  ? "border-primary bg-primary/5 shadow-glow"
+                  : "border-border/60 bg-secondary/10 hover:bg-secondary/40 hover:border-border-hover"
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="size-10 rounded-xl bg-sky-500/10 grid place-items-center group-hover:scale-105 transition-transform">
+                    <User className="size-5 text-sky-500" />
+                  </div>
+                  {profile === "antonio" && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-success/20 text-success border border-success/30">
+                      <Check className="size-3" /> ATIVO
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-bold text-base text-foreground mb-1">Painel: Antonio</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                  Configuração utilizando as credenciais da Meta do Antonio.
+                </p>
+              </div>
+
+              <div className="border-t border-border/40 pt-3 mt-auto">
+                <span className={`text-[10px] font-mono block truncate ${!appIds.antonio ? "text-warning" : "text-muted-foreground"}`}>
+                  App ID: {appIds.antonio || "Configuração pendente no .env"}
                 </span>
               </div>
             </button>

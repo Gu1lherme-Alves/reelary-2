@@ -25,6 +25,9 @@ export async function getMetaCredentialsForUser(supabase: any, userId: string) {
   } else if (profile === "pedro") {
     appId = process.env.META_APP_ID_PEDRO || "";
     appSecret = process.env.META_APP_SECRET_PEDRO || "";
+  } else if (profile === "antonio") {
+    appId = process.env.META_APP_ID_ANTONIO || "";
+    appSecret = process.env.META_APP_SECRET_ANTONIO || "";
   } else {
     // default/guilherme
     appId = process.env.META_APP_ID_GUILHERME || process.env.META_APP_ID || import.meta.env.VITE_META_APP_ID || "";
@@ -307,13 +310,16 @@ export const getAvailableMetaAppIds = createServerFn({ method: "GET" })
     const rawGuilherme = process.env.META_APP_ID_GUILHERME || process.env.META_APP_ID || import.meta.env.VITE_META_APP_ID || "";
     const rawMatheus = process.env.META_APP_ID_MATHEUS || "";
     const rawPedro = process.env.META_APP_ID_PEDRO || "";
+    const rawAntonio = process.env.META_APP_ID_ANTONIO || "";
     const guilhermeAppId = rawGuilherme.match(/\d+/)?.[0] ?? null;
     const matheusAppId = rawMatheus.match(/\d+/)?.[0] ?? null;
     const pedroAppId = rawPedro.match(/\d+/)?.[0] ?? null;
+    const antonioAppId = rawAntonio.match(/\d+/)?.[0] ?? null;
 
     return {
       guilherme: guilhermeAppId,
       matheus: matheusAppId,
       pedro: pedroAppId,
+      antonio: antonioAppId,
     };
   });
