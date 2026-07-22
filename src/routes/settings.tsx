@@ -18,7 +18,9 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const [profile, setProfile] = useState<"guilherme" | "matheus" | "pedro" | "antonio">("guilherme");
+  const [profile, setProfile] = useState<"guilherme" | "matheus" | "pedro" | "antonio">(
+    "guilherme",
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [appIds, setAppIds] = useState<{
@@ -37,7 +39,9 @@ function SettingsPage() {
 
   async function loadSettings() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -68,19 +72,19 @@ function SettingsPage() {
   async function handleSave(selectedProfile: "guilherme" | "matheus" | "pedro" | "antonio") {
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado.");
 
-      const { error } = await supabase
-        .from("user_settings")
-        .upsert(
-          {
-            user_id: user.id,
-            meta_credential_profile: selectedProfile,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id" } as any
-        );
+      const { error } = await supabase.from("user_settings").upsert(
+        {
+          user_id: user.id,
+          meta_credential_profile: selectedProfile,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" } as any,
+      );
 
       if (error) throw error;
       setProfile(selectedProfile);
@@ -123,7 +127,8 @@ function SettingsPage() {
             <Shield className="size-5 text-primary" /> Selecione o Painel da Meta Developers
           </h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Escolha qual aplicativo de desenvolvedor da Meta será responsável pelo fluxo de login e conexão do Instagram.
+            Escolha qual aplicativo de desenvolvedor da Meta será responsável pelo fluxo de login e
+            conexão do Instagram.
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -150,7 +155,8 @@ function SettingsPage() {
                 </div>
                 <h3 className="font-bold text-base text-foreground mb-1">Painel: Guilherme</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                  Configuração padrão do projeto utilizando as credenciais principais da Meta do Guilherme.
+                  Configuração padrão do projeto utilizando as credenciais principais da Meta do
+                  Guilherme.
                 </p>
               </div>
 
@@ -184,12 +190,15 @@ function SettingsPage() {
                 </div>
                 <h3 className="font-bold text-base text-foreground mb-1">Painel: Matheus</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                  Configuração secundária utilizando as credenciais da Meta do Matheus para testes ou produção própria.
+                  Configuração secundária utilizando as credenciais da Meta do Matheus para testes
+                  ou produção própria.
                 </p>
               </div>
 
               <div className="border-t border-border/40 pt-3 mt-auto">
-                <span className={`text-[10px] font-mono block truncate ${!appIds.matheus ? "text-warning" : "text-muted-foreground"}`}>
+                <span
+                  className={`text-[10px] font-mono block truncate ${!appIds.matheus ? "text-warning" : "text-muted-foreground"}`}
+                >
                   App ID: {appIds.matheus || "Configuração pendente no .env"}
                 </span>
               </div>
@@ -223,7 +232,9 @@ function SettingsPage() {
               </div>
 
               <div className="border-t border-border/40 pt-3 mt-auto">
-                <span className={`text-[10px] font-mono block truncate ${!appIds.pedro ? "text-warning" : "text-muted-foreground"}`}>
+                <span
+                  className={`text-[10px] font-mono block truncate ${!appIds.pedro ? "text-warning" : "text-muted-foreground"}`}
+                >
                   App ID: {appIds.pedro || "Configuração pendente no .env"}
                 </span>
               </div>
@@ -257,7 +268,9 @@ function SettingsPage() {
               </div>
 
               <div className="border-t border-border/40 pt-3 mt-auto">
-                <span className={`text-[10px] font-mono block truncate ${!appIds.antonio ? "text-warning" : "text-muted-foreground"}`}>
+                <span
+                  className={`text-[10px] font-mono block truncate ${!appIds.antonio ? "text-warning" : "text-muted-foreground"}`}
+                >
                   App ID: {appIds.antonio || "Configuração pendente no .env"}
                 </span>
               </div>

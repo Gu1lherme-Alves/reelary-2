@@ -59,7 +59,7 @@ export const getUploadPresignedUrl = createServerFn({ method: "POST" })
 
     // A assinatura expira em 1 hora (3600 segundos)
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
-    
+
     // Normaliza domínio público (garante que não termine com barra para construir URL consistente)
     const normalizedDomain = publicDomain.endsWith("/") ? publicDomain.slice(0, -1) : publicDomain;
     const publicUrl = `${normalizedDomain}/${key}`;
@@ -91,7 +91,7 @@ export const deleteR2File = createServerFn({ method: "POST" })
     }
 
     const normalizedDomain = publicDomain.endsWith("/") ? publicDomain : `${publicDomain}/`;
-    
+
     if (!url.startsWith(normalizedDomain)) {
       console.warn(`URL ${url} não pertence ao domínio R2 configurado. Ignorando exclusão.`);
       return { success: false, reason: "Fora do domínio R2" };

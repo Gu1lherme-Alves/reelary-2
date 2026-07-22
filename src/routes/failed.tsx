@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AlertTriangle, Trash2, UserMinus, Video, Calendar, AlertOctagon, HelpCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  Trash2,
+  UserMinus,
+  Video,
+  Calendar,
+  AlertOctagon,
+  HelpCircle,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +48,7 @@ function FailedPostsPage() {
       const { data, error } = await supabase
         .from("scheduled_posts")
         .select(
-          "id, caption, video_url, cover_url, scheduled_at, status, error_message, instagram_account_id, instagram_accounts(id, username)"
+          "id, caption, video_url, cover_url, scheduled_at, status, error_message, instagram_account_id, instagram_accounts(id, username)",
         )
         .eq("status", "failed")
         .order("scheduled_at", { ascending: false });
@@ -61,7 +69,7 @@ function FailedPostsPage() {
   async function deleteAccount(accountId: string, username: string) {
     if (
       !confirm(
-        `Tem certeza que deseja EXCLUIR permanentemente a conta @${username} do Reelary? Todos os agendamentos dela serão removidos.`
+        `Tem certeza que deseja EXCLUIR permanentemente a conta @${username} do Reelary? Todos os agendamentos dela serão removidos.`,
       )
     ) {
       return;
@@ -72,7 +80,7 @@ function FailedPostsPage() {
       if (error) throw error;
 
       toast.success(`Conta @${username} excluída com sucesso!`);
-      
+
       // If the deleted account was the active one, clear it
       const storedActiveId = localStorage.getItem("active_ig_account_id");
       if (storedActiveId === accountId) {
@@ -125,7 +133,8 @@ function FailedPostsPage() {
           </div>
           <h3 className="font-semibold text-lg text-foreground">Nenhuma falha identificada</h3>
           <p className="text-muted-foreground text-sm mt-2 max-w-sm mx-auto">
-            Excelente! Nenhum de seus Reels agendados falhou recentemente ou todos os erros já foram resolvidos.
+            Excelente! Nenhum de seus Reels agendados falhou recentemente ou todos os erros já foram
+            resolvidos.
           </p>
         </div>
       ) : (
@@ -213,7 +222,7 @@ function FailedPostsPage() {
                       <UserMinus className="size-4" />
                       Excluir Conta Banida
                     </Button>
-                    
+
                     <Button
                       variant="outline"
                       size="sm"

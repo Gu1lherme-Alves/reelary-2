@@ -171,7 +171,7 @@ function CalendarPage() {
     try {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth();
-      
+
       // Calculate a range that safely covers all days shown on a monthly calendar grid (including leading/trailing days)
       const startOfMonth = new Date(year, month - 1, 20).toISOString();
       const endOfMonth = new Date(year, month + 1, 10).toISOString();
@@ -305,7 +305,7 @@ function CalendarPage() {
       } catch (fetchErr: any) {
         console.error("Erro de rede ao fazer upload para o Cloudflare R2:", fetchErr);
         throw new Error(
-          "Falha de rede ao enviar o vídeo para o Cloudflare R2. Se você está em ambiente de desenvolvimento (localhost), por favor verifique se a política de CORS do seu bucket R2 está configurada para aceitar requisições de origem local (PUT de localhost)."
+          "Falha de rede ao enviar o vídeo para o Cloudflare R2. Se você está em ambiente de desenvolvimento (localhost), por favor verifique se a política de CORS do seu bucket R2 está configurada para aceitar requisições de origem local (PUT de localhost).",
         );
       }
 
@@ -337,7 +337,7 @@ function CalendarPage() {
         } catch (fetchErr: any) {
           console.error("Erro de rede ao fazer upload da capa para o Cloudflare R2:", fetchErr);
           throw new Error(
-            "Falha de rede ao enviar a capa do Reel para o Cloudflare R2. Verifique as configurações de CORS do seu bucket R2."
+            "Falha de rede ao enviar a capa do Reel para o Cloudflare R2. Verifique as configurações de CORS do seu bucket R2.",
           );
         }
 

@@ -30,7 +30,11 @@ export async function getMetaCredentialsForUser(supabase: any, userId: string) {
     appSecret = process.env.META_APP_SECRET_ANTONIO || "";
   } else {
     // default/guilherme
-    appId = process.env.META_APP_ID_GUILHERME || process.env.META_APP_ID || import.meta.env.VITE_META_APP_ID || "";
+    appId =
+      process.env.META_APP_ID_GUILHERME ||
+      process.env.META_APP_ID ||
+      import.meta.env.VITE_META_APP_ID ||
+      "";
     appSecret = process.env.META_APP_SECRET_GUILHERME || process.env.META_APP_SECRET || "";
   }
 
@@ -307,7 +311,11 @@ export const connectFacebookAccount = createServerFn({ method: "POST" })
 export const getAvailableMetaAppIds = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
-    const rawGuilherme = process.env.META_APP_ID_GUILHERME || process.env.META_APP_ID || import.meta.env.VITE_META_APP_ID || "";
+    const rawGuilherme =
+      process.env.META_APP_ID_GUILHERME ||
+      process.env.META_APP_ID ||
+      import.meta.env.VITE_META_APP_ID ||
+      "";
     const rawMatheus = process.env.META_APP_ID_MATHEUS || "";
     const rawPedro = process.env.META_APP_ID_PEDRO || "";
     const rawAntonio = process.env.META_APP_ID_ANTONIO || "";

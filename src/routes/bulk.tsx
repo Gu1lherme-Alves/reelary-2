@@ -53,6 +53,12 @@ function shuffleArray(arr: number[]): number[] {
   return result;
 }
 
+function parseTimeToMinutes(timeStr: string): number {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
 function BulkSchedulePage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
@@ -60,7 +66,7 @@ function BulkSchedulePage() {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
-  
+
   // Start date default to today in local timezone YYYY-MM-DD
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -73,6 +79,14 @@ function BulkSchedulePage() {
   // Posting times (HH:MM list)
   const [postingTimes, setPostingTimes] = useState<string[]>(["12:00", "18:00"]);
   const [newTime, setNewTime] = useState("");
+
+  // Random time scheduling states
+  const [isRandomTimeMode, setIsRandomTimeMode] = useState(false);
+  const [randomStartHour, setRandomStartHour] = useState("11:00");
+  const [randomEndHour, setRandomEndHour] = useState("22:00");
+  const [randomCountPerDay, setRandomCountPerDay] = useState(2);
+  const [stableRandomTimes, setStableRandomTimes] = useState<Record<string, string[][]>>({});
+  const [randomTrigger, setRandomTrigger] = useState(0);
 
   // Randomize state
   const [randomize, setRandomize] = useState(false);
@@ -148,6 +162,54 @@ function BulkSchedulePage() {
     setAccountVideoOrders(newOrders);
   }, [videoFiles.length, selectedAccounts, randomize]);
 
+  // Generate random posting times per account and day reactively in random mode
+  useEffect(() => {
+    if (!isRandomTimeMode || selectedAccounts.length === 0 || videoFiles.length === 0) {
+      return;
+    }
+
+    const startMin = parseTimeToMinutes(randomStartHour);
+    const endMin = parseTimeToMinutes(randomEndHour);
+    const actualStartMin = Math.min(startMin, endMin);
+    const actualEndMin = Math.max(startMin, endMin);
+
+    const newRandomTimes: Record<string, string[][]> = {};
+
+    selectedAccounts.forEach((accId) => {
+      const accountTimes: string[][] = [];
+      const totalDays = Math.ceil(videoFiles.length / randomCountPerDay);
+
+      for (let d = 0; d < totalDays; d++) {
+        const dayTimes: number[] = [];
+        for (let k = 0; k < randomCountPerDay; k++) {
+          const rand =
+            Math.floor(Math.random() * (actualEndMin - actualStartMin + 1)) + actualStartMin;
+          dayTimes.push(rand);
+        }
+        dayTimes.sort((a, b) => a - b);
+
+        accountTimes.push(
+          dayTimes.map((t) => {
+            const h = Math.floor(t / 60);
+            const m = t % 60;
+            return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+          }),
+        );
+      }
+      newRandomTimes[accId] = accountTimes;
+    });
+
+    setStableRandomTimes(newRandomTimes);
+  }, [
+    isRandomTimeMode,
+    selectedAccounts,
+    videoFiles.length,
+    randomStartHour,
+    randomEndHour,
+    randomCountPerDay,
+    randomTrigger,
+  ]);
+
   const handleReshuffle = () => {
     const newOrders: Record<string, number[]> = {};
     selectedAccounts.forEach((accId) => {
@@ -200,7 +262,10 @@ function BulkSchedulePage() {
   }
 
   const getScheduleSlots = (): ScheduleSlot[] => {
-    if (videoFiles.length === 0 || selectedAccounts.length === 0 || postingTimes.length === 0 || !startDate) {
+    if (videoFiles.length === 0 || selectedAccounts.length === 0 || !startDate) {
+      return [];
+    }
+    if (!isRandomTimeMode && postingTimes.length === 0) {
       return [];
     }
 
@@ -212,12 +277,24 @@ function BulkSchedulePage() {
       const account = accounts.find((a) => a.id === accId);
       if (!account) return;
 
-      const order = accountVideoOrders[accId] || Array.from({ length: videoFiles.length }, (_, i) => i);
+      const order =
+        accountVideoOrders[accId] || Array.from({ length: videoFiles.length }, (_, i) => i);
 
       order.forEach((videoIdx, i) => {
         if (videoIdx >= videoFiles.length) return;
-        const dayIndex = Math.floor(i / sortedTimes.length);
-        const timeIndex = i % sortedTimes.length;
+
+        let timeStr = "";
+        let dayIndex = 0;
+
+        if (isRandomTimeMode) {
+          dayIndex = Math.floor(i / randomCountPerDay);
+          const timeIndex = i % randomCountPerDay;
+          timeStr = stableRandomTimes[accId]?.[dayIndex]?.[timeIndex] || "12:00";
+        } else {
+          dayIndex = Math.floor(i / sortedTimes.length);
+          const timeIndex = i % sortedTimes.length;
+          timeStr = sortedTimes[timeIndex];
+        }
 
         const slotDate = new Date(year, month - 1, day + dayIndex);
         const formattedDate = slotDate.toLocaleDateString("pt-BR", {
@@ -228,7 +305,7 @@ function BulkSchedulePage() {
 
         slots.push({
           dateStr: formattedDate,
-          timeStr: sortedTimes[timeIndex],
+          timeStr,
           accountId: accId,
           accountUsername: account.username,
           accountColor: account.account_categories?.color,
@@ -255,7 +332,7 @@ function BulkSchedulePage() {
   };
 
   const slots = getScheduleSlots();
-  
+
   // Group slots by date for preview
   const slotsByDate: Record<string, ScheduleSlot[]> = {};
   slots.forEach((slot) => {
@@ -277,7 +354,7 @@ function BulkSchedulePage() {
       toast.error("Adicione pelo menos um vídeo para agendar.");
       return;
     }
-    if (postingTimes.length === 0) {
+    if (!isRandomTimeMode && postingTimes.length === 0) {
       toast.error("Configure pelo menos um horário de postagem.");
       return;
     }
@@ -361,12 +438,28 @@ function BulkSchedulePage() {
       const [year, month, day] = startDate.split("-").map(Number);
 
       selectedAccounts.forEach((accId) => {
-        const order = accountVideoOrders[accId] || Array.from({ length: totalVideos }, (_, idx) => idx);
+        const order =
+          accountVideoOrders[accId] || Array.from({ length: totalVideos }, (_, idx) => idx);
 
         order.forEach((videoIdx, i) => {
-          const dayIndex = Math.floor(i / sortedTimes.length);
-          const timeIndex = i % sortedTimes.length;
-          const [hours, minutes] = sortedTimes[timeIndex].split(":").map(Number);
+          let dayIndex = 0;
+          let hours = 12;
+          let minutes = 0;
+
+          if (isRandomTimeMode) {
+            dayIndex = Math.floor(i / randomCountPerDay);
+            const timeIndex = i % randomCountPerDay;
+            const timeStr = stableRandomTimes[accId]?.[dayIndex]?.[timeIndex] || "12:00";
+            const [h, m] = timeStr.split(":").map(Number);
+            hours = h;
+            minutes = m;
+          } else {
+            dayIndex = Math.floor(i / sortedTimes.length);
+            const timeIndex = i % sortedTimes.length;
+            const [h, m] = sortedTimes[timeIndex].split(":").map(Number);
+            hours = h;
+            minutes = m;
+          }
 
           // Construct date time slot in local time representation
           const scheduledDate = new Date(year, month - 1, day + dayIndex, hours, minutes, 0, 0);
@@ -406,7 +499,8 @@ function BulkSchedulePage() {
           <Sparkles className="size-8 text-primary" /> Postar em Massa (Reels)
         </h1>
         <p className="text-muted-foreground mt-1">
-          Distribua vários vídeos em datas e horários sequenciais para múltiplas contas de uma só vez.
+          Distribua vários vídeos em datas e horários sequenciais para múltiplas contas de uma só
+          vez.
         </p>
       </div>
 
@@ -417,14 +511,20 @@ function BulkSchedulePage() {
           <p className="text-sm text-muted-foreground mt-1">
             Conecte ao menos uma conta do Instagram antes de agendar.
           </p>
-          <Button className="mt-4 bg-gradient-brand text-primary-foreground border-0" onClick={() => navigate({ to: "/accounts" })}>
+          <Button
+            className="mt-4 bg-gradient-brand text-primary-foreground border-0"
+            onClick={() => navigate({ to: "/accounts" })}
+          >
             Gerenciar Contas
           </Button>
         </div>
       ) : (
         <div className="grid gap-8 lg:grid-cols-12 items-start">
           {/* Form Column */}
-          <form onSubmit={handleSubmit} className="space-y-6 lg:col-span-7 bg-card border border-border/50 p-6 rounded-2xl shadow-card">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-6 lg:col-span-7 bg-card border border-border/50 p-6 rounded-2xl shadow-card"
+          >
             {/* Step 1: Accounts */}
             <div className="space-y-3">
               <Label className="text-base font-bold text-foreground">1. Selecionar Contas</Label>
@@ -438,7 +538,9 @@ function BulkSchedulePage() {
                     <div className="flex items-center gap-2 truncate">
                       <Instagram className="size-4 text-muted-foreground shrink-0" />
                       {selectedAccounts.length === 0 ? (
-                        <span className="text-muted-foreground text-sm font-normal">Selecione as contas</span>
+                        <span className="text-muted-foreground text-sm font-normal">
+                          Selecione as contas
+                        </span>
                       ) : selectedAccounts.length === 1 ? (
                         <span className="flex items-center gap-1.5 truncate text-foreground font-semibold">
                           {(() => {
@@ -457,13 +559,18 @@ function BulkSchedulePage() {
                           })()}
                         </span>
                       ) : (
-                        <span className="text-foreground font-semibold">{selectedAccounts.length} contas selecionadas</span>
+                        <span className="text-foreground font-semibold">
+                          {selectedAccounts.length} contas selecionadas
+                        </span>
                       )}
                     </div>
                     <ChevronDown className="size-4 text-muted-foreground opacity-60 shrink-0 ml-2" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-80 bg-popover border border-border/60 p-3 shadow-card rounded-xl z-50">
+                <PopoverContent
+                  align="start"
+                  className="w-80 bg-popover border border-border/60 p-3 shadow-card rounded-xl z-50"
+                >
                   <div className="text-xs text-muted-foreground font-semibold flex items-center justify-between pb-2 mb-2 border-b border-border/40">
                     <span>Selecionar Contas</span>
                     <div className="flex gap-2">
@@ -520,8 +627,15 @@ function BulkSchedulePage() {
                             </span>
                           </div>
                           {lastDate ? (
-                            <span className="text-[10px] text-muted-foreground bg-secondary/80 border border-border/40 px-1.5 py-0.5 rounded-md font-mono shrink-0 ml-2" title="Último post agendado">
-                              Até: {new Date(lastDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                            <span
+                              className="text-[10px] text-muted-foreground bg-secondary/80 border border-border/40 px-1.5 py-0.5 rounded-md font-mono shrink-0 ml-2"
+                              title="Último post agendado"
+                            >
+                              Até:{" "}
+                              {new Date(lastDate).toLocaleDateString("pt-BR", {
+                                day: "2-digit",
+                                month: "2-digit",
+                              })}
                             </span>
                           ) : (
                             <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-md shrink-0 ml-2">
@@ -539,9 +653,17 @@ function BulkSchedulePage() {
             {/* Step 2: Upload Multiple Videos */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <Label className="text-base font-bold text-foreground">2. Carregar Vídeos ({videoFiles.length})</Label>
+                <Label className="text-base font-bold text-foreground">
+                  2. Carregar Vídeos ({videoFiles.length})
+                </Label>
                 {videoFiles.length > 0 && (
-                  <Button type="button" variant="ghost" size="sm" onClick={handleClearVideos} className="text-xs text-destructive hover:bg-destructive/10">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearVideos}
+                    className="text-xs text-destructive hover:bg-destructive/10"
+                  >
                     Limpar tudo
                   </Button>
                 )}
@@ -558,8 +680,12 @@ function BulkSchedulePage() {
                 <div className="rounded-xl border-2 border-dashed border-border hover:border-primary/60 transition p-6 text-center bg-card/30">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Upload className="size-6 text-primary" />
-                    <span className="text-sm font-semibold text-foreground">Selecione ou arraste os vídeos</span>
-                    <span className="text-xs">Você pode selecionar múltiplos arquivos MP4, MOV.</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      Selecione ou arraste os vídeos
+                    </span>
+                    <span className="text-xs">
+                      Você pode selecionar múltiplos arquivos MP4, MOV.
+                    </span>
                   </div>
                 </div>
               </label>
@@ -568,10 +694,15 @@ function BulkSchedulePage() {
               {videoFiles.length > 0 && (
                 <div className="max-h-48 overflow-y-auto space-y-2 border border-border/40 p-3 rounded-xl bg-secondary/15">
                   {videoFiles.map((file, idx) => (
-                    <div key={idx} className="flex items-center justify-between gap-3 text-xs bg-card border border-border/30 rounded-lg p-2">
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between gap-3 text-xs bg-card border border-border/30 rounded-lg p-2"
+                    >
                       <div className="flex items-center gap-2 min-w-0">
                         <FileVideo className="size-4 text-primary shrink-0" />
-                        <span className="truncate font-semibold text-foreground/90">{file.name}</span>
+                        <span className="truncate font-semibold text-foreground/90">
+                          {file.name}
+                        </span>
                         <span className="text-[10px] text-muted-foreground shrink-0">
                           ({(file.size / 1024 / 1024).toFixed(1)} MB)
                         </span>
@@ -593,11 +724,15 @@ function BulkSchedulePage() {
 
             {/* Step 3: Common Cover and Caption */}
             <div className="space-y-3">
-              <Label className="text-base font-bold text-foreground">3. Capa e Legenda Únicas</Label>
-              
+              <Label className="text-base font-bold text-foreground">
+                3. Capa e Legenda Únicas
+              </Label>
+
               {/* Optional Cover */}
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-muted-foreground">Foto de Capa Comum (Opcional)</Label>
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  Foto de Capa Comum (Opcional)
+                </Label>
                 <label className="block cursor-pointer">
                   <input
                     type="file"
@@ -645,7 +780,9 @@ function BulkSchedulePage() {
 
               {/* Caption */}
               <div className="space-y-1">
-                <Label htmlFor="caption" className="text-xs font-semibold text-muted-foreground">Legenda dos Reels</Label>
+                <Label htmlFor="caption" className="text-xs font-semibold text-muted-foreground">
+                  Legenda dos Reels
+                </Label>
                 <Textarea
                   id="caption"
                   value={caption}
@@ -658,64 +795,180 @@ function BulkSchedulePage() {
 
             {/* Step 4: Dates and Times */}
             <div className="space-y-4 pt-2 border-t border-border/40">
-              <Label className="text-base font-bold text-foreground">4. Cronograma de Postagem</Label>
-              
-              <div className="grid gap-4 md:grid-cols-2">
-                {/* Start Date */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="startDate" className="text-xs font-semibold text-muted-foreground">Data de Início</Label>
-                  <Input
-                    type="date"
-                    id="startDate"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="h-10 bg-card"
-                  />
-                </div>
-
-                {/* Add posting time */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Adicionar Horário</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="time"
-                      value={newTime}
-                      onChange={(e) => setNewTime(e.target.value)}
-                      className="h-10 bg-card"
-                    />
-                    <Button type="button" onClick={handleAddTime} variant="secondary" className="h-10 px-3 cursor-pointer shrink-0">
-                      <Plus className="size-4" /> Adicionar
-                    </Button>
-                  </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <Label className="text-base font-bold text-foreground">
+                  4. Cronograma de Postagem
+                </Label>
+                <div className="flex bg-secondary/30 p-1 rounded-xl border border-border/30 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsRandomTimeMode(false)}
+                    className={`flex-1 sm:flex-initial py-1 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      !isRandomTimeMode
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Horários Fixos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsRandomTimeMode(true)}
+                    className={`flex-1 sm:flex-initial py-1 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      isRandomTimeMode
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Horários Aleatórios
+                  </button>
                 </div>
               </div>
 
-              {/* Added times list */}
-              {postingTimes.length > 0 ? (
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-muted-foreground">Horários de Postagem Diária:</Label>
-                  <div className="flex flex-wrap gap-1.5 p-2 border border-border/30 rounded-xl bg-secondary/10">
-                    {postingTimes.map((time) => (
-                      <span key={time} className="inline-flex items-center gap-1 text-xs font-bold bg-secondary border border-border/40 px-2.5 py-1 rounded-full">
-                        <Clock className="size-3 text-primary shrink-0" />
-                        {time}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveTime(time)}
-                          className="hover:text-destructive ml-1 text-[10px] font-extrabold cursor-pointer border-0 bg-transparent"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
+              {/* Start Date is common to both modes */}
+              <div className="space-y-1.5">
+                <Label htmlFor="startDate" className="text-xs font-semibold text-muted-foreground">
+                  Data de Início
+                </Label>
+                <Input
+                  type="date"
+                  id="startDate"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="h-10 bg-card w-full"
+                />
+              </div>
+
+              {!isRandomTimeMode ? (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">
+                      Adicionar Horário
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="time"
+                        value={newTime}
+                        onChange={(e) => setNewTime(e.target.value)}
+                        className="h-10 bg-card"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleAddTime}
+                        variant="secondary"
+                        className="h-10 px-3 cursor-pointer shrink-0"
+                      >
+                        <Plus className="size-4" /> Adicionar
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground italic leading-relaxed">
-                    Serão postados até {postingTimes.length} Reels por dia em cada conta, repetindo esses horários nos dias seguintes até postar todos os vídeos.
-                  </p>
+
+                  {/* Added times list */}
+                  {postingTimes.length > 0 ? (
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold text-muted-foreground">
+                        Horários de Postagem Diária:
+                      </Label>
+                      <div className="flex flex-wrap gap-1.5 p-2 border border-border/30 rounded-xl bg-secondary/10">
+                        {postingTimes.map((time) => (
+                          <span
+                            key={time}
+                            className="inline-flex items-center gap-1 text-xs font-bold bg-secondary border border-border/40 px-2.5 py-1 rounded-full"
+                          >
+                            <Clock className="size-3 text-primary shrink-0" />
+                            {time}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTime(time)}
+                              className="hover:text-destructive ml-1 text-[10px] font-extrabold cursor-pointer border-0 bg-transparent"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground italic leading-relaxed">
+                        Serão postados até {postingTimes.length} Reels por dia em cada conta,
+                        repetindo esses horários nos dias seguintes até postar todos os vídeos.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-destructive flex items-center gap-1.5">
+                      <Info className="size-4 shrink-0" /> Adicione pelo menos um horário de
+                      postagem.
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="text-xs text-destructive flex items-center gap-1.5">
-                  <Info className="size-4 shrink-0" /> Adicione pelo menos um horário de postagem.
+                <div className="space-y-4">
+                  <div className="grid gap-4 grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="randomStartHour"
+                        className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider"
+                      >
+                        Início Janela
+                      </Label>
+                      <Input
+                        type="time"
+                        id="randomStartHour"
+                        value={randomStartHour}
+                        onChange={(e) => setRandomStartHour(e.target.value)}
+                        className="h-10 bg-card"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="randomEndHour"
+                        className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider"
+                      >
+                        Fim Janela
+                      </Label>
+                      <Input
+                        type="time"
+                        id="randomEndHour"
+                        value={randomEndHour}
+                        onChange={(e) => setRandomEndHour(e.target.value)}
+                        className="h-10 bg-card"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="randomCountPerDay"
+                        className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider"
+                      >
+                        Posts / Dia
+                      </Label>
+                      <Input
+                        type="number"
+                        id="randomCountPerDay"
+                        min={1}
+                        max={24}
+                        value={randomCountPerDay}
+                        onChange={(e) =>
+                          setRandomCountPerDay(Math.max(1, parseInt(e.target.value) || 1))
+                        }
+                        className="h-10 bg-card"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 border border-border/30 rounded-xl bg-secondary/10">
+                    <p className="text-[10px] text-muted-foreground italic leading-relaxed max-w-md">
+                      Vídeos serão distribuídos aleatoriamente entre{" "}
+                      <strong>{randomStartHour}</strong> e <strong>{randomEndHour}</strong>,
+                      garantindo horários diferentes por conta/dia.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRandomTrigger((prev) => prev + 1)}
+                      className="text-xs h-8 gap-1.5 font-bold shrink-0 cursor-pointer w-full sm:w-auto"
+                    >
+                      <Shuffle className="size-3 text-primary" /> Recalcular
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -727,12 +980,19 @@ function BulkSchedulePage() {
                   <Shuffle className="size-4 text-primary" /> Randomizar ordem dos vídeos por conta
                 </Label>
                 <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
-                  Embaralha os vídeos de forma independente para cada conta. Evita postar o mesmo vídeo no mesmo instante em perfis diferentes.
+                  Embaralha os vídeos de forma independente para cada conta. Evita postar o mesmo
+                  vídeo no mesmo instante em perfis diferentes.
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 {randomize && videoFiles.length > 1 && (
-                  <Button type="button" size="sm" variant="outline" onClick={handleReshuffle} className="text-xs h-9 cursor-pointer">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleReshuffle}
+                    className="text-xs h-9 cursor-pointer"
+                  >
                     Misturar de Novo
                   </Button>
                 )}
@@ -743,7 +1003,12 @@ function BulkSchedulePage() {
             {/* Submit Button */}
             <Button
               type="submit"
-              disabled={submitting || selectedAccounts.length === 0 || videoFiles.length === 0 || postingTimes.length === 0}
+              disabled={
+                submitting ||
+                selectedAccounts.length === 0 ||
+                videoFiles.length === 0 ||
+                (!isRandomTimeMode && postingTimes.length === 0)
+              }
               className="w-full bg-gradient-brand text-primary-foreground border-0 hover:opacity-90 h-12 shadow-glow text-sm font-extrabold cursor-pointer"
             >
               {submitting ? (
@@ -767,7 +1032,8 @@ function BulkSchedulePage() {
                 <div className="text-center py-12 border border-dashed border-border/40 rounded-xl bg-card/20">
                   <CalendarIcon className="size-8 text-muted-foreground mx-auto mb-2" />
                   <p className="text-xs text-muted-foreground max-w-[200px] mx-auto leading-relaxed">
-                    Selecione as contas, carregue vídeos e configure os horários para visualizar a prévia do calendário.
+                    Selecione as contas, carregue vídeos e configure os horários para visualizar a
+                    prévia do calendário.
                   </p>
                 </div>
               ) : (
@@ -775,12 +1041,20 @@ function BulkSchedulePage() {
                   {/* Summary Indicators */}
                   <div className="grid grid-cols-2 gap-2 text-center">
                     <div className="p-2 border border-border/30 rounded-xl bg-secondary/15">
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Total de Posts</span>
-                      <p className="text-xl font-black text-gradient-brand mt-0.5">{slots.length}</p>
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                        Total de Posts
+                      </span>
+                      <p className="text-xl font-black text-gradient-brand mt-0.5">
+                        {slots.length}
+                      </p>
                     </div>
                     <div className="p-2 border border-border/30 rounded-xl bg-secondary/15">
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Período Estimado</span>
-                      <p className="text-xl font-black text-primary mt-0.5">{totalCalculatedDays} {totalCalculatedDays === 1 ? "dia" : "dias"}</p>
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                        Período Estimado
+                      </span>
+                      <p className="text-xl font-black text-primary mt-0.5">
+                        {totalCalculatedDays} {totalCalculatedDays === 1 ? "dia" : "dias"}
+                      </p>
                     </div>
                   </div>
 
@@ -793,11 +1067,19 @@ function BulkSchedulePage() {
                         </h4>
                         <div className="space-y-1.5 pl-2">
                           {dateSlots.map((slot, index) => (
-                            <div key={index} className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-secondary/35 border border-border/25 gap-3 hover:bg-secondary/50 transition-colors">
+                            <div
+                              key={index}
+                              className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-secondary/35 border border-border/25 gap-3 hover:bg-secondary/50 transition-colors"
+                            >
                               <div className="flex items-center gap-2 min-w-0">
-                                <span className="font-extrabold text-muted-foreground shrink-0">{slot.timeStr}</span>
+                                <span className="font-extrabold text-muted-foreground shrink-0">
+                                  {slot.timeStr}
+                                </span>
                                 <span className="text-muted-foreground/50">•</span>
-                                <span className="flex items-center gap-1.5 min-w-0 font-extrabold truncate" style={{ color: slot.accountColor }}>
+                                <span
+                                  className="flex items-center gap-1.5 min-w-0 font-extrabold truncate"
+                                  style={{ color: slot.accountColor }}
+                                >
                                   {slot.accountColor && (
                                     <span
                                       className="size-1.5 rounded-full shrink-0 ring-1 ring-white/10"
@@ -807,7 +1089,10 @@ function BulkSchedulePage() {
                                   @{slot.accountUsername}
                                 </span>
                               </div>
-                              <span className="truncate max-w-[160px] text-muted-foreground/80 font-mono text-[10px]" title={slot.videoFileName}>
+                              <span
+                                className="truncate max-w-[160px] text-muted-foreground/80 font-mono text-[10px]"
+                                title={slot.videoFileName}
+                              >
                                 {slot.videoFileName}
                               </span>
                             </div>
@@ -832,7 +1117,9 @@ function BulkSchedulePage() {
             </div>
             <div className="space-y-2">
               <h3 className="font-extrabold text-lg">Enviando Publicações em Massa</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed animate-pulse">{uploadStatus}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed animate-pulse">
+                {uploadStatus}
+              </p>
             </div>
             <div className="space-y-1">
               <Progress value={uploadProgress} className="h-2.5" />

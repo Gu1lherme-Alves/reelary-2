@@ -53,21 +53,21 @@ Deno.serve(async (req: Request) => {
     const action = urlObj.searchParams.get("action");
     if (action === "delete_today") {
       console.log("Delete today action triggered!");
-      
+
       const startOfDay = "2026-07-06T00:00:00.000Z";
       const endOfDay = "2026-07-07T00:00:00.000Z";
-      
+
       const { data: posts, error: fetchErr } = await supabase
         .from("scheduled_posts")
         .select("video_url, cover_url")
         .gte("scheduled_at", startOfDay)
         .lt("scheduled_at", endOfDay);
-        
+
       if (fetchErr) {
         console.error("Failed to fetch today's posts:", fetchErr);
         return Response.json({ error: fetchErr.message }, { status: 500 });
       }
-      
+
       const r2PublicDomain = Deno.env.get("R2_PUBLIC_DOMAIN") ?? null;
       const r2BucketName = Deno.env.get("R2_BUCKET_NAME") ?? "reels";
       const s3 = getS3Client();
@@ -81,7 +81,7 @@ Deno.serve(async (req: Request) => {
           if (coverKey) keysToDelete.push(coverKey);
         }
       }
-      
+
       let storageResult: any = null;
       if (keysToDelete.length > 0 && s3) {
         console.log("Deleting R2 files:", keysToDelete);
@@ -96,28 +96,36 @@ Deno.serve(async (req: Request) => {
             deleteErrors.push(err.message);
           }
         }
-        storageResult = { success: true, deletedCount, errors: deleteErrors.length > 0 ? deleteErrors : undefined };
+        storageResult = {
+          success: true,
+          deletedCount,
+          errors: deleteErrors.length > 0 ? deleteErrors : undefined,
+        };
       } else {
         storageResult = { deletedCount: 0 };
       }
-      
+
       const { error: dbErr } = await supabase
         .from("scheduled_posts")
         .delete()
         .gte("scheduled_at", startOfDay)
         .lt("scheduled_at", endOfDay);
-        
+
       if (dbErr) {
         console.error("Database delete error:", dbErr);
         return Response.json({ error: dbErr.message, storageResult }, { status: 500 });
       }
-      
-      return Response.json({ success: true, storageResult, message: "Deleted today's posts and storage files successfully" });
+
+      return Response.json({
+        success: true,
+        storageResult,
+        message: "Deleted today's posts and storage files successfully",
+      });
     }
 
     if (action === "cleanup_orphans") {
       console.log("Cleanup orphans action triggered!");
-      
+
       const r2PublicDomain = Deno.env.get("R2_PUBLIC_DOMAIN") ?? null;
       const r2BucketName = Deno.env.get("R2_BUCKET_NAME") ?? "reels";
       const s3 = getS3Client();
@@ -130,11 +138,13 @@ Deno.serve(async (req: Request) => {
       const r2Files: string[] = [];
       let continuationToken: string | undefined;
       do {
-        const listResult = await s3.send(new ListObjectsV2Command({
-          Bucket: r2BucketName,
-          ContinuationToken: continuationToken,
-          MaxKeys: 1000,
-        }));
+        const listResult = await s3.send(
+          new ListObjectsV2Command({
+            Bucket: r2BucketName,
+            ContinuationToken: continuationToken,
+            MaxKeys: 1000,
+          }),
+        );
         if (listResult.Contents) {
           for (const obj of listResult.Contents) {
             if (obj.Key) r2Files.push(obj.Key);
@@ -142,17 +152,17 @@ Deno.serve(async (req: Request) => {
         }
         continuationToken = listResult.IsTruncated ? listResult.NextContinuationToken : undefined;
       } while (continuationToken);
-      
+
       // 2. Get all referenced files from DB
       const { data: posts, error: postsErr } = await supabase
         .from("scheduled_posts")
         .select("video_url, cover_url");
-        
+
       if (postsErr) {
         console.error("Failed to fetch posts:", postsErr);
         return Response.json({ error: postsErr.message }, { status: 500 });
       }
-      
+
       const activeKeys = new Set<string>();
       if (posts) {
         for (const post of posts) {
@@ -162,13 +172,13 @@ Deno.serve(async (req: Request) => {
           if (coverKey) activeKeys.add(coverKey);
         }
       }
-      
+
       const orphanedFiles = r2Files.filter((key) => key && !activeKeys.has(key));
       console.log(`Found ${orphanedFiles.length} orphaned R2 files to delete.`);
-      
+
       const deleted: string[] = [];
       const errors: string[] = [];
-      
+
       for (const key of orphanedFiles) {
         try {
           await s3.send(new DeleteObjectCommand({ Bucket: r2BucketName, Key: key }));
@@ -178,19 +188,15 @@ Deno.serve(async (req: Request) => {
           errors.push(`${key}: ${err.message}`);
         }
       }
-      
+
       return Response.json({
         success: true,
         totalOrphaned: orphanedFiles.length,
         deletedCount: deleted.length,
         deletedFiles: deleted,
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
       });
     }
-
-
-
-
 
     const results = {
       processed: 0,
@@ -201,8 +207,9 @@ Deno.serve(async (req: Request) => {
     };
 
     // Fetch pending posts that are due using the atomic grab and lock function
-    const { data: posts, error: fetchErr } = await supabase
-      .rpc("grab_pending_posts_to_publish", { limit_count: 50 });
+    const { data: posts, error: fetchErr } = await supabase.rpc("grab_pending_posts_to_publish", {
+      limit_count: 50,
+    });
 
     if (fetchErr) {
       console.error("DB fetch error:", fetchErr);
@@ -320,10 +327,7 @@ Deno.serve(async (req: Request) => {
         if (isProcessing) {
           console.log(`[${post.id}] Still processing (reported by API), will retry next run.`);
           // Unlock the post so the next run can check it again
-          await supabase
-            .from("scheduled_posts")
-            .update({ locked_at: null })
-            .eq("id", post.id);
+          await supabase.from("scheduled_posts").update({ locked_at: null }).eq("id", post.id);
 
           results.skipped++;
           continue;
@@ -363,10 +367,7 @@ Deno.serve(async (req: Request) => {
             ) {
               console.log(`[${post.id}] Video is still processing on Meta. Retrying on next run.`);
               // Unlock the post so the next run can check it again
-              await supabase
-                .from("scheduled_posts")
-                .update({ locked_at: null })
-                .eq("id", post.id);
+              await supabase.from("scheduled_posts").update({ locked_at: null }).eq("id", post.id);
 
               results.skipped++;
               continue;
@@ -407,12 +408,16 @@ Deno.serve(async (req: Request) => {
                   .select("id")
                   .eq("video_url", post.video_url)
                   .neq("id", post.id);
-                  
+
                 if (videoRefs && videoRefs.length === 0) {
-                  console.log(`[${post.id}] Deleting video from R2 (no other references): ${videoKey}`);
+                  console.log(
+                    `[${post.id}] Deleting video from R2 (no other references): ${videoKey}`,
+                  );
                   await s3.send(new DeleteObjectCommand({ Bucket: r2BucketName, Key: videoKey }));
                 } else {
-                  console.log(`[${post.id}] Skipping video deletion, still referenced by ${videoRefs?.length ?? 0} other post(s).`);
+                  console.log(
+                    `[${post.id}] Skipping video deletion, still referenced by ${videoRefs?.length ?? 0} other post(s).`,
+                  );
                 }
               }
 
@@ -423,12 +428,16 @@ Deno.serve(async (req: Request) => {
                   .select("id")
                   .eq("cover_url", post.cover_url)
                   .neq("id", post.id);
-                  
+
                 if (coverRefs && coverRefs.length === 0) {
-                  console.log(`[${post.id}] Deleting cover from R2 (no other references): ${coverKey}`);
+                  console.log(
+                    `[${post.id}] Deleting cover from R2 (no other references): ${coverKey}`,
+                  );
                   await s3.send(new DeleteObjectCommand({ Bucket: r2BucketName, Key: coverKey }));
                 } else {
-                  console.log(`[${post.id}] Skipping cover deletion, still referenced by ${coverRefs?.length ?? 0} other post(s).`);
+                  console.log(
+                    `[${post.id}] Skipping cover deletion, still referenced by ${coverRefs?.length ?? 0} other post(s).`,
+                  );
                 }
               }
             } else {

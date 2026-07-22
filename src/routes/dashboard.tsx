@@ -101,7 +101,11 @@ function DashboardPage() {
     }
   }
 
-  async function loadMetricsAndUpcoming(accountIds: string[], filter: string, range: DateRange | undefined) {
+  async function loadMetricsAndUpcoming(
+    accountIds: string[],
+    filter: string,
+    range: DateRange | undefined,
+  ) {
     setLoading(true);
     try {
       const nowStr = new Date().toISOString();
@@ -181,7 +185,6 @@ function DashboardPage() {
       const { data: upcomingData, error: upcomingErr } = await upcomingQuery;
       if (upcomingErr) throw upcomingErr;
       setUpcomingPosts((upcomingData as any) || []);
-
     } catch (err: any) {
       console.error("Metrics load error:", err);
       toast.error("Erro ao atualizar métricas do painel");
@@ -547,19 +550,21 @@ function DashboardPage() {
                         className="flex gap-4 p-3 rounded-xl bg-card/65 border border-border/40 hover:bg-card/90 transition shadow-sm"
                       >
                         {p.video_url ? (
-                        <video
-                          src={p.video_url}
-                          className="size-16 rounded-lg object-cover bg-background shrink-0"
-                          muted
-                          preload="metadata"
-                        />
+                          <video
+                            src={p.video_url}
+                            className="size-16 rounded-lg object-cover bg-background shrink-0"
+                            muted
+                            preload="metadata"
+                          />
                         ) : (
-                        <div
-                          className="size-16 rounded-lg bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1"
-                          title="Vídeo removido para economizar espaço"
-                        >
-                          <span className="text-[8px] text-muted-foreground/80 font-bold">Limpo</span>
-                        </div>
+                          <div
+                            className="size-16 rounded-lg bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1"
+                            title="Vídeo removido para economizar espaço"
+                          >
+                            <span className="text-[8px] text-muted-foreground/80 font-bold">
+                              Limpo
+                            </span>
+                          </div>
                         )}
                         <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
                           <div>
@@ -599,8 +604,7 @@ function DashboardPage() {
                       size="sm"
                       className="text-muted-foreground hover:text-foreground text-xs font-semibold"
                     >
-                      Gerenciar Agendamentos (
-                      {scheduledPending}) →
+                      Gerenciar Agendamentos ({scheduledPending}) →
                     </Button>
                   </Link>
                 </div>
