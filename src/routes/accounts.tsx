@@ -14,6 +14,7 @@ import {
   X,
   Palette,
   Check,
+  Search,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -119,6 +120,7 @@ function AccountsPage() {
   const [connectingFacebook, setConnectingFacebook] = useState(false);
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
   const [showHiddenList, setShowHiddenList] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Category modal state
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -470,6 +472,26 @@ function AccountsPage() {
   const visibleAccounts = accounts.filter((a) => !a.hidden);
   const hiddenAccounts = accounts.filter((a) => a.hidden);
 
+  const filteredVisibleAccounts = visibleAccounts.filter((a) => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    return (
+      a.username.toLowerCase().includes(term) ||
+      a.instagram_user_id.toLowerCase().includes(term) ||
+      (a.account_categories?.name.toLowerCase().includes(term) ?? false)
+    );
+  });
+
+  const filteredHiddenAccounts = hiddenAccounts.filter((a) => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    return (
+      a.username.toLowerCase().includes(term) ||
+      a.instagram_user_id.toLowerCase().includes(term) ||
+      (a.account_categories?.name.toLowerCase().includes(term) ?? false)
+    );
+  });
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -535,6 +557,28 @@ function AccountsPage() {
               </span>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Search Input */}
+      {accounts.length > 0 && (
+        <div className="max-w-md w-full relative animate-in fade-in duration-300">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Pesquisar contas por nome, ID ou categoria..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-10 h-11 bg-card border-border/60 rounded-xl"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <X className="size-4" />
+            </button>
+          )}
         </div>
       )}
 
@@ -606,9 +650,19 @@ function AccountsPage() {
                 ou reexibi-las na seção de contas ocultas abaixo.
               </p>
             </div>
+          ) : filteredVisibleAccounts.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-border/80 p-12 text-center bg-card/25 backdrop-blur-sm max-w-2xl mx-auto">
+              <div className="size-16 rounded-2xl bg-secondary grid place-items-center mx-auto mb-6 shadow-sm">
+                <Search className="size-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-bold text-xl">Nenhuma conta ativa encontrada</h3>
+              <p className="text-muted-foreground text-sm mt-2.5 max-w-md mx-auto leading-relaxed">
+                Não encontramos nenhuma conta ativa correspondente a "<strong>{searchTerm}</strong>".
+              </p>
+            </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {visibleAccounts.map((a) => {
+              {filteredVisibleAccounts.map((a) => {
                 const isActive = activeAccountId === a.id;
                 return (
                   <div
@@ -783,52 +837,58 @@ function AccountsPage() {
                 {showHiddenList ? (
                   <>
                     <Eye className="size-4 text-primary" />
-                    <span>Ocultar contas ocultas ({hiddenAccounts.length})</span>
+                    <span>Ocultar contas ocultas ({filteredHiddenAccounts.length})</span>
                   </>
                 ) : (
                   <>
                     <EyeOff className="size-4 text-muted-foreground" />
-                    <span>Mostrar contas ocultas ({hiddenAccounts.length})</span>
+                    <span>Mostrar contas ocultas ({filteredHiddenAccounts.length})</span>
                   </>
                 )}
               </Button>
 
               {showHiddenList && (
-                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-in slide-in-from-top-2 fade-in duration-300">
-                  {hiddenAccounts.map((a) => (
-                    <div
-                      key={a.id}
-                      className="rounded-2xl border border-border/50 bg-card/30 p-4 flex items-center justify-between gap-3 shadow-sm hover:border-border transition"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="size-9 rounded-xl bg-secondary grid place-items-center shrink-0">
-                          <Instagram className="size-5 text-muted-foreground" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm truncate">@{a.username}</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-[10px] text-muted-foreground truncate">
-                              ID: {a.instagram_user_id}
-                            </p>
-                            {a.account_categories && (
-                              <CategoryBadge category={a.account_categories} />
-                            )}
+                filteredHiddenAccounts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground mt-4 italic pl-4">
+                    Nenhuma conta oculta corresponde à pesquisa.
+                  </p>
+                ) : (
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-in slide-in-from-top-2 fade-in duration-300">
+                    {filteredHiddenAccounts.map((a) => (
+                      <div
+                        key={a.id}
+                        className="rounded-2xl border border-border/50 bg-card/30 p-4 flex items-center justify-between gap-3 shadow-sm hover:border-border transition"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="size-9 rounded-xl bg-secondary grid place-items-center shrink-0">
+                            <Instagram className="size-5 text-muted-foreground" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-sm truncate">@{a.username}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                ID: {a.instagram_user_id}
+                              </p>
+                              {a.account_categories && (
+                                <CategoryBadge category={a.account_categories} />
+                              )}
+                            </div>
                           </div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => unhideAccount(a.id, a.username)}
+                          className="h-8 text-xs font-semibold px-3 rounded-xl border border-border/80 hover:border-primary/50 text-muted-foreground hover:text-foreground transition flex items-center gap-1.5 shrink-0"
+                          title="Tornar conta visível no painel"
+                        >
+                          <Eye className="size-3.5 text-primary" />
+                          <span>Reexibir</span>
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => unhideAccount(a.id, a.username)}
-                        className="h-8 text-xs font-semibold px-3 rounded-xl border border-border/80 hover:border-primary/50 text-muted-foreground hover:text-foreground transition flex items-center gap-1.5 shrink-0"
-                        title="Tornar conta visível no painel"
-                      >
-                        <Eye className="size-3.5 text-primary" />
-                        <span>Reexibir</span>
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )
               )}
             </div>
           )}
