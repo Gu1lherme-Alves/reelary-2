@@ -14,6 +14,7 @@ import {
   FileVideo,
   Sparkles,
   Info,
+  Layers,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,7 @@ function BulkSchedulePage() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [batchSize, setBatchSize] = useState(1);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -177,7 +179,8 @@ function BulkSchedulePage() {
 
     selectedAccounts.forEach((accId) => {
       const accountTimes: string[][] = [];
-      const totalDays = Math.ceil(videoFiles.length / randomCountPerDay);
+      const totalSlots = Math.ceil(videoFiles.length / batchSize);
+      const totalDays = Math.ceil(totalSlots / randomCountPerDay);
 
       for (let d = 0; d < totalDays; d++) {
         const dayTimes: number[] = [];
@@ -208,6 +211,7 @@ function BulkSchedulePage() {
     randomEndHour,
     randomCountPerDay,
     randomTrigger,
+    batchSize,
   ]);
 
   const handleReshuffle = () => {
@@ -286,13 +290,15 @@ function BulkSchedulePage() {
         let timeStr = "";
         let dayIndex = 0;
 
+        const slotIndex = Math.floor(i / batchSize);
+
         if (isRandomTimeMode) {
-          dayIndex = Math.floor(i / randomCountPerDay);
-          const timeIndex = i % randomCountPerDay;
+          dayIndex = Math.floor(slotIndex / randomCountPerDay);
+          const timeIndex = slotIndex % randomCountPerDay;
           timeStr = stableRandomTimes[accId]?.[dayIndex]?.[timeIndex] || "12:00";
         } else {
-          dayIndex = Math.floor(i / sortedTimes.length);
-          const timeIndex = i % sortedTimes.length;
+          dayIndex = Math.floor(slotIndex / sortedTimes.length);
+          const timeIndex = slotIndex % sortedTimes.length;
           timeStr = sortedTimes[timeIndex];
         }
 
@@ -326,6 +332,9 @@ function BulkSchedulePage() {
       }
       if (a.timeStr !== b.timeStr) {
         return a.timeStr.localeCompare(b.timeStr);
+      }
+      if (a.videoIndex !== b.videoIndex) {
+        return a.videoIndex - b.videoIndex;
       }
       return a.accountUsername.localeCompare(b.accountUsername);
     });
@@ -446,16 +455,18 @@ function BulkSchedulePage() {
           let hours = 12;
           let minutes = 0;
 
+          const slotIndex = Math.floor(i / batchSize);
+
           if (isRandomTimeMode) {
-            dayIndex = Math.floor(i / randomCountPerDay);
-            const timeIndex = i % randomCountPerDay;
+            dayIndex = Math.floor(slotIndex / randomCountPerDay);
+            const timeIndex = slotIndex % randomCountPerDay;
             const timeStr = stableRandomTimes[accId]?.[dayIndex]?.[timeIndex] || "12:00";
             const [h, m] = timeStr.split(":").map(Number);
             hours = h;
             minutes = m;
           } else {
-            dayIndex = Math.floor(i / sortedTimes.length);
-            const timeIndex = i % sortedTimes.length;
+            dayIndex = Math.floor(slotIndex / sortedTimes.length);
+            const timeIndex = slotIndex % sortedTimes.length;
             const [h, m] = sortedTimes[timeIndex].split(":").map(Number);
             hours = h;
             minutes = m;
@@ -825,18 +836,34 @@ function BulkSchedulePage() {
                 </div>
               </div>
 
-              {/* Start Date is common to both modes */}
-              <div className="space-y-1.5">
-                <Label htmlFor="startDate" className="text-xs font-semibold text-muted-foreground">
-                  Data de Início
-                </Label>
-                <Input
-                  type="date"
-                  id="startDate"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="h-10 bg-card w-full"
-                />
+              {/* Start Date & Batch Size is common to both modes */}
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="startDate" className="text-xs font-semibold text-muted-foreground">
+                    Data de Início
+                  </Label>
+                  <Input
+                    type="date"
+                    id="startDate"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-10 bg-card w-full"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="batchSize" className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <Layers className="size-3.5 text-primary shrink-0" /> Lote de Reels Simultâneos
+                  </Label>
+                  <Input
+                    type="number"
+                    id="batchSize"
+                    min={1}
+                    max={20}
+                    value={batchSize}
+                    onChange={(e) => setBatchSize(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="h-10 bg-card w-full font-semibold"
+                  />
+                </div>
               </div>
 
               {!isRandomTimeMode ? (
