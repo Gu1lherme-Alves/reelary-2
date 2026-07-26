@@ -68,6 +68,7 @@ type IgAccount = {
   hidden: boolean;
   category_id: string | null;
   account_categories: { id: string; name: string; color: string } | null;
+  token_invalid?: boolean;
 };
 
 // ─── Color Palette ──────────────────────────────────────────────────────────────
@@ -154,7 +155,7 @@ function AccountsPage() {
       const { data, error } = await supabase
         .from("instagram_accounts")
         .select(
-          "id, username, instagram_user_id, token_expires_at, created_at, hidden, category_id, account_categories(id, name, color)",
+          "id, username, instagram_user_id, token_expires_at, created_at, hidden, category_id, token_invalid, account_categories(id, name, color)",
         )
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -326,6 +327,7 @@ function AccountsPage() {
             username: manualUsername.trim(),
             access_token: manualAccessToken.trim(),
             token_expires_at: tokenExpiresAt,
+            token_invalid: false,
           },
           { onConflict: "user_id,instagram_user_id" } as any,
         )
@@ -341,6 +343,7 @@ function AccountsPage() {
             username: manualUsername.trim(),
             access_token: manualAccessToken.trim(),
             token_expires_at: tokenExpiresAt,
+            token_invalid: false,
           })
           .select("id");
 
@@ -697,6 +700,11 @@ function AccountsPage() {
                             <div className="text-xs text-muted-foreground mt-0.5 truncate">
                               ID: {a.instagram_user_id}
                             </div>
+                            {(a.token_invalid || (a.token_expires_at && new Date(a.token_expires_at) <= new Date())) && (
+                              <div className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-destructive/30 bg-destructive/10 text-destructive mt-1.5 animate-pulse">
+                                <AlertCircle className="size-3 shrink-0" /> Token Expirado
+                              </div>
+                            )}
                             {a.account_categories && (
                               <div className="mt-1.5">
                                 <CategoryBadge category={a.account_categories} />
@@ -785,7 +793,11 @@ function AccountsPage() {
                         <span>
                           Vinculada em {new Date(a.created_at).toLocaleDateString("pt-BR")}
                         </span>
-                        {a.token_expires_at && (
+                        {a.token_invalid || (a.token_expires_at && new Date(a.token_expires_at) <= new Date()) ? (
+                          <span className="text-destructive font-bold flex items-center gap-1">
+                            <AlertCircle className="size-3.5" /> Reconectar
+                          </span>
+                        ) : a.token_expires_at && (
                           <span className="text-warning">
                             Expira em {new Date(a.token_expires_at).toLocaleDateString("pt-BR")}
                           </span>

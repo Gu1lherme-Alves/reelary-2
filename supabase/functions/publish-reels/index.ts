@@ -13,9 +13,10 @@ function getS3Client() {
   }
 
   return new S3Client({
-    region: "auto",
+    region: "us-east-1",
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
     forcePathStyle: true,
+    s3ForcePathStyle: true,
     credentials: {
       accessKeyId,
       secretAccessKey,
@@ -233,10 +234,20 @@ Deno.serve(async (req: Request) => {
 
       if (!ig.access_token || !ig.instagram_user_id) {
         const msg = "Conta Instagram desconectada ou sem token.";
-        await supabase
+        const { data: updatedPost } = await supabase
           .from("scheduled_posts")
           .update({ status: "failed", error_message: msg, locked_at: null })
-          .eq("id", post.id);
+          .eq("id", post.id)
+          .select("instagram_account_id")
+          .single();
+
+        if (updatedPost?.instagram_account_id) {
+          await supabase
+            .from("instagram_accounts")
+            .update({ token_invalid: true })
+            .eq("id", updatedPost.instagram_account_id);
+        }
+
         results.errors.push(`Post ${post.id}: ${msg}`);
         continue;
       }
@@ -312,8 +323,33 @@ Deno.serve(async (req: Request) => {
             throw new Error(`Instagram rejected the video: ${JSON.stringify(statusData)}`);
           } else if (statusData.status_code === "FINISHED") {
             shouldPublish = true;
+          } else if (statusData.status_code === "PUBLISHED") {
+            console.log(`[${post.id}] Reel already published on Instagram. Updating DB status...`);
+            await supabase
+              .from("scheduled_posts")
+              .update({
+                status: "published",
+                published_at: new Date().toISOString(),
+                error_message: null,
+                video_url: "",
+                cover_url: null,
+                locked_at: null,
+              })
+              .eq("id", post.id);
+
+            results.published++;
+            continue;
+          } else if (statusData.status_code === "EXPIRED") {
+            console.log(`[${post.id}] Container expired. Resetting ig_container_id to retry.`);
+            await supabase
+              .from("scheduled_posts")
+              .update({ ig_container_id: null, locked_at: null })
+              .eq("id", post.id);
+
+            results.skipped++;
+            continue;
           } else {
-            // Still processing
+            // Still processing (IN_PROGRESS)
             isProcessing = true;
           }
         } catch (statusErr: any) {
@@ -451,10 +487,30 @@ Deno.serve(async (req: Request) => {
         const msg = (err?.message ?? String(err)).slice(0, 500);
         console.error(`[${post.id}] ❌ Error: ${msg}`);
 
-        await supabase
+        const { data: updatedPost } = await supabase
           .from("scheduled_posts")
           .update({ status: "failed", error_message: msg, locked_at: null })
-          .eq("id", post.id);
+          .eq("id", post.id)
+          .select("instagram_account_id")
+          .single();
+
+        const errorLower = msg.toLowerCase();
+        const isTokenExpired =
+          errorLower.includes("access token") ||
+          errorLower.includes("oauth") ||
+          errorLower.includes("session has expired") ||
+          errorLower.includes("checkpoint") ||
+          errorLower.includes("login to www.instagram.com") ||
+          errorLower.includes("190") ||
+          errorLower.includes("102");
+
+        if (isTokenExpired && updatedPost?.instagram_account_id) {
+          console.log(`[${post.id}] Token is expired or invalid. Marking account as token_invalid.`);
+          await supabase
+            .from("instagram_accounts")
+            .update({ token_invalid: true })
+            .eq("id", updatedPost.instagram_account_id);
+        }
 
         results.errors.push(`Post ${post.id}: ${msg}`);
       }

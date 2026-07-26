@@ -147,6 +147,7 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
         username: username,
         access_token: accessToken,
         token_expires_at: expiresAt,
+        token_invalid: false,
       },
       { onConflict: "user_id,instagram_user_id" } as never,
     );
@@ -158,6 +159,7 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
         username: username,
         access_token: accessToken,
         token_expires_at: expiresAt,
+        token_invalid: false,
       });
       if (insErr) throw new Error(insErr.message);
     }
@@ -290,6 +292,7 @@ export const connectFacebookAccount = createServerFn({ method: "POST" })
         username: username,
         access_token: pageAccessToken,
         token_expires_at: expiresAt,
+        token_invalid: false,
       },
       { onConflict: "user_id,instagram_user_id" } as never,
     );
@@ -301,6 +304,7 @@ export const connectFacebookAccount = createServerFn({ method: "POST" })
         username: username,
         access_token: pageAccessToken,
         token_expires_at: expiresAt,
+        token_invalid: false,
       });
       if (insErr) throw new Error(insErr.message);
     }
