@@ -108,16 +108,48 @@ function FailedPostsPage() {
     }
   }
 
+  async function deleteAllFailedPosts() {
+    if (
+      !confirm(
+        `Tem certeza que deseja excluir TODOS os ${posts.length} vídeos com falha? Essa ação é permanente.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("scheduled_posts").delete().eq("status", "failed");
+      if (error) throw error;
+
+      toast.success("Todas as falhas foram excluídas com sucesso!");
+      load();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao excluir falhas");
+    }
+  }
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-          <AlertTriangle className="size-8 text-destructive animate-pulse" />
-          Análise de Falhas
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Gerencie e resolva problemas de vídeos que falharam ao publicar no Instagram.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+            <AlertTriangle className="size-8 text-destructive animate-pulse" />
+            Análise de Falhas
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Gerencie e resolva problemas de vídeos que falharam ao publicar no Instagram.
+          </p>
+        </div>
+        {posts.length > 0 && (
+          <Button
+            variant="destructive"
+            onClick={deleteAllFailedPosts}
+            className="font-semibold gap-1.5 hover:opacity-90 transition rounded-xl cursor-pointer sm:self-center"
+          >
+            <Trash2 className="size-4" />
+            Excluir Todas as Falhas
+          </Button>
+        )}
       </div>
 
       {loading ? (
