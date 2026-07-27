@@ -494,15 +494,58 @@ Deno.serve(async (req: Request) => {
           .select("instagram_account_id")
           .single();
 
-        const errorLower = msg.toLowerCase();
-        const isTokenExpired =
-          errorLower.includes("access token") ||
-          errorLower.includes("oauth") ||
-          errorLower.includes("session has expired") ||
-          errorLower.includes("checkpoint") ||
-          errorLower.includes("login to www.instagram.com") ||
-          errorLower.includes("190") ||
-          errorLower.includes("102");
+        let isTokenExpired = false;
+
+        try {
+          // Meta errors are thrown with a JSON string inside the message.
+          // Example: "Publish failed (500): {\"error\":...}"
+          const jsonStart = msg.indexOf("{");
+          if (jsonStart !== -1) {
+            const jsonStr = msg.slice(jsonStart);
+            const errorObj = JSON.parse(jsonStr);
+            const metaError = errorObj?.error;
+
+            if (metaError) {
+              const code = metaError.code;
+              const subcode = metaError.error_subcode;
+              const message = (metaError.message ?? "").toLowerCase();
+              const isTransient = metaError.is_transient ?? false;
+
+              if (isTransient) {
+                // If it is explicitly marked transient, it is NOT an expired token issue.
+                isTokenExpired = false;
+              } else {
+                // Meta Graph API error codes:
+                // 190: Access token error (expired, revoked, invalid)
+                // 102: Session key invalid or expired
+                // Common token invalidation subcodes:
+                // 458: App deauthorized
+                // 460: Password changed
+                // 463: Token expired
+                // 467: User logged out / invalid access token
+                // 490: User is checkpointed
+                isTokenExpired =
+                  code === 190 ||
+                  code === 102 ||
+                  [458, 460, 463, 467, 490].includes(subcode) ||
+                  message.includes("access token") ||
+                  message.includes("session has expired") ||
+                  message.includes("checkpoint") ||
+                  message.includes("login to www.instagram.com");
+              }
+            }
+          }
+        } catch (_) {
+          // Fallback to substring matching if parsing fails, but be more selective (exclude generic 'oauth' / 'oauthexception')
+          const errorLower = msg.toLowerCase();
+          isTokenExpired =
+            errorLower.includes("session has expired") ||
+            errorLower.includes("checkpoint") ||
+            errorLower.includes("login to www.instagram.com") ||
+            errorLower.includes("invalid access token") ||
+            errorLower.includes("token has expired") ||
+            (errorLower.includes("190") && !errorLower.includes("is_transient\":true"));
+        }
 
         if (isTokenExpired && updatedPost?.instagram_account_id) {
           console.log(`[${post.id}] Token is expired or invalid. Marking account as token_invalid.`);
