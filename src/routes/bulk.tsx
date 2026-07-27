@@ -60,12 +60,40 @@ function parseTimeToMinutes(timeStr: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = 3,
+  delay = 2000,
+): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok) {
+        return response;
+      }
+      console.warn(`Upload attempt ${i + 1} failed with status ${response.status}. Retrying...`);
+    } catch (error) {
+      console.warn(`Upload attempt ${i + 1} encountered network error:`, error);
+      if (i === retries - 1) throw error;
+    }
+    if (i < retries - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)));
+    }
+  }
+  throw new Error(`Falha no upload após ${retries} tentativas.`);
+}
+
 function BulkSchedulePage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [videoFiles, setVideoFiles] = useState<File[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
+  const [uploadedVideoUrls, setUploadedVideoUrls] = useState<Record<string, string>>({});
+  const [uploadedCoverState, setUploadedCoverState] = useState<{ key: string; url: string } | null>(
+    null,
+  );
   const [caption, setCaption] = useState("");
 
   // Start date default to today in local timezone YYYY-MM-DD
@@ -246,11 +274,21 @@ function BulkSchedulePage() {
   };
 
   const handleRemoveVideo = (index: number) => {
+    const fileObj = videoFiles[index];
+    if (fileObj) {
+      const fileKey = `${fileObj.name}-${fileObj.size}-${fileObj.lastModified}`;
+      setUploadedVideoUrls((prev) => {
+        const next = { ...prev };
+        delete next[fileKey];
+        return next;
+      });
+    }
     setVideoFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleClearVideos = () => {
     setVideoFiles([]);
+    setUploadedVideoUrls({});
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -387,6 +425,19 @@ function BulkSchedulePage() {
       // 1. Upload Video Files sequentially to prevent network congestion
       for (let i = 0; i < totalVideos; i++) {
         const fileObj = videoFiles[i];
+        const fileKey = `${fileObj.name}-${fileObj.size}-${fileObj.lastModified}`;
+
+        let publicUrl = uploadedVideoUrls[fileKey];
+
+        if (publicUrl) {
+          setUploadStatus(
+            `Vídeo ${i + 1} de ${totalVideos} já enviado (usando cache): ${fileObj.name}...`,
+          );
+          uploadedUrls.push(publicUrl);
+          setUploadProgress(Math.round(((i + 1) / totalVideos) * 90));
+          continue;
+        }
+
         setUploadStatus(`Enviando vídeo ${i + 1} de ${totalVideos}: ${fileObj.name}...`);
 
         const videoUpload = await getUploadPresignedUrl({
@@ -396,7 +447,7 @@ function BulkSchedulePage() {
           },
         });
 
-        const videoPutRes = await fetch(videoUpload.uploadUrl, {
+        await fetchWithRetry(videoUpload.uploadUrl, {
           method: "PUT",
           body: fileObj,
           headers: {
@@ -404,38 +455,41 @@ function BulkSchedulePage() {
           },
         });
 
-        if (!videoPutRes.ok) {
-          throw new Error(`Falha no upload do vídeo: ${fileObj.name} (${videoPutRes.status})`);
-        }
+        publicUrl = videoUpload.publicUrl;
 
-        uploadedUrls.push(videoUpload.publicUrl);
+        // Save to cache state
+        setUploadedVideoUrls((prev) => ({ ...prev, [fileKey]: publicUrl }));
+        uploadedUrls.push(publicUrl);
         setUploadProgress(Math.round(((i + 1) / totalVideos) * 90)); // 90% allocated for videos
       }
 
       // 2. Upload Cover File (if selected)
       let coverUrl = null;
       if (coverFile) {
-        setUploadStatus("Enviando foto de capa comum...");
-        const coverUpload = await getUploadPresignedUrl({
-          data: {
-            fileName: coverFile.name,
-            contentType: coverFile.type || "image/jpeg",
-          },
-        });
+        const coverKey = `${coverFile.name}-${coverFile.size}-${coverFile.lastModified}`;
+        if (uploadedCoverState && uploadedCoverState.key === coverKey) {
+          coverUrl = uploadedCoverState.url;
+          setUploadStatus("Foto de capa comum já enviada (usando cache)...");
+        } else {
+          setUploadStatus("Enviando foto de capa comum...");
+          const coverUpload = await getUploadPresignedUrl({
+            data: {
+              fileName: coverFile.name,
+              contentType: coverFile.type || "image/jpeg",
+            },
+          });
 
-        const coverPutRes = await fetch(coverUpload.uploadUrl, {
-          method: "PUT",
-          body: coverFile,
-          headers: {
-            "Content-Type": coverFile.type || "image/jpeg",
-          },
-        });
+          await fetchWithRetry(coverUpload.uploadUrl, {
+            method: "PUT",
+            body: coverFile,
+            headers: {
+              "Content-Type": coverFile.type || "image/jpeg",
+            },
+          });
 
-        if (!coverPutRes.ok) {
-          throw new Error(`Falha no upload da imagem de capa (${coverPutRes.status})`);
+          coverUrl = coverUpload.publicUrl;
+          setUploadedCoverState({ key: coverKey, url: coverUrl });
         }
-
-        coverUrl = coverUpload.publicUrl;
       }
 
       setUploadProgress(95);
@@ -757,6 +811,7 @@ function BulkSchedulePage() {
                         setCoverPreviewUrl(url);
                       } else {
                         setCoverPreviewUrl(null);
+                        setUploadedCoverState(null);
                       }
                     }}
                   />
@@ -839,7 +894,10 @@ function BulkSchedulePage() {
               {/* Start Date & Batch Size is common to both modes */}
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="startDate" className="text-xs font-semibold text-muted-foreground">
+                  <Label
+                    htmlFor="startDate"
+                    className="text-xs font-semibold text-muted-foreground"
+                  >
                     Data de Início
                   </Label>
                   <Input
@@ -851,7 +909,10 @@ function BulkSchedulePage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="batchSize" className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Label
+                    htmlFor="batchSize"
+                    className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"
+                  >
                     <Layers className="size-3.5 text-primary shrink-0" /> Lote de Reels Simultâneos
                   </Label>
                   <Input
