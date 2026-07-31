@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { parseErrorMessage } from "@/lib/error-messages";
 import { useEffect, useState } from "react";
 import {
   AlertTriangle,
@@ -227,19 +228,23 @@ function FailedPostsPage() {
                     </p>
 
                     {/* Error Callout */}
-                    {p.error_message && (
-                      <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 mt-3 flex items-start gap-2.5">
-                        <AlertTriangle className="size-4.5 text-destructive shrink-0 mt-0.5" />
-                        <div className="space-y-1 min-w-0">
-                          <span className="text-xs font-bold text-destructive uppercase tracking-wider">
-                            Mensagem de Erro
-                          </span>
-                          <p className="text-xs text-foreground/90 break-words font-mono">
-                            {p.error_message}
-                          </p>
+                    {(() => {
+                      const parsed = parseErrorMessage(p.error_message);
+                      if (!parsed) return null;
+                      return (
+                        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 mt-3 flex items-start gap-3">
+                          <span className="text-lg leading-none mt-0.5 shrink-0">{parsed.icon}</span>
+                          <div className="space-y-1.5 min-w-0">
+                            <span className="text-xs font-bold text-destructive uppercase tracking-wider">
+                              {parsed.label}
+                            </span>
+                            <p className="text-xs text-foreground/80 leading-relaxed">
+                              {parsed.description}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
 
                   {/* Actions Row */}

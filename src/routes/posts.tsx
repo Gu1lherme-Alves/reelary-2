@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { parseErrorMessage } from "@/lib/error-messages";
 import { useEffect, useState } from "react";
 import {
   CalendarClock,
@@ -490,9 +491,19 @@ function PostsPage() {
                             <span className="text-muted-foreground italic">Sem legenda</span>
                           )}
                         </p>
-                        {p.error_message && (
-                          <p className="mt-1 text-xs text-destructive">{p.error_message}</p>
-                        )}
+                        {(() => {
+                          const parsed = parseErrorMessage(p.error_message);
+                          if (!parsed) return null;
+                          return (
+                            <div className="mt-2 flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/8 px-2.5 py-1.5">
+                              <span className="text-sm leading-none mt-0.5 shrink-0">{parsed.icon}</span>
+                              <div className="min-w-0">
+                                <span className="text-xs font-bold text-destructive">{parsed.label}</span>
+                                <p className="text-[11px] text-foreground/70 leading-snug mt-0.5">{parsed.description}</p>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span
