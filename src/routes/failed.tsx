@@ -41,12 +41,13 @@ type FailedPost = {
 
 function FailedPostsPage() {
   const [posts, setPosts] = useState<FailedPost[]>([]);
+  const [bannedAccounts, setBannedAccounts] = useState<{ id: string; username: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: postsData, error: postsError } = await supabase
         .from("scheduled_posts")
         .select(
           "id, caption, video_url, cover_url, scheduled_at, status, error_message, instagram_account_id, instagram_accounts(id, username)",
@@ -54,10 +55,18 @@ function FailedPostsPage() {
         .eq("status", "failed")
         .order("scheduled_at", { ascending: false });
 
-      if (error) throw error;
-      setPosts((data as any) ?? []);
+      if (postsError) throw postsError;
+      setPosts((postsData as any) ?? []);
+
+      const { data: bannedData, error: bannedError } = await supabase
+        .from("instagram_accounts")
+        .select("id, username")
+        .eq("token_invalid", true);
+
+      if (bannedError) throw bannedError;
+      setBannedAccounts(bannedData ?? []);
     } catch (err: any) {
-      toast.error(err.message || "Erro ao carregar vídeos com falha");
+      toast.error(err.message || "Erro ao carregar dados de falhas");
     } finally {
       setLoading(false);
     }
@@ -129,6 +138,45 @@ function FailedPostsPage() {
     }
   }
 
+  async function deleteAllBannedAccounts() {
+    if (bannedAccounts.length === 0) {
+      toast.info("Nenhuma conta banida para excluir.");
+      return;
+    }
+
+    const usernames = bannedAccounts.map((a) => `@${a.username}`).join(", ");
+    if (
+      !confirm(
+        `Tem certeza que deseja EXCLUIR permanentemente as seguintes ${bannedAccounts.length} contas banidas: ${usernames}? Todos os agendamentos delas serão removidos.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const accountIds = bannedAccounts.map((a) => a.id);
+      const { error } = await supabase
+        .from("instagram_accounts")
+        .delete()
+        .in("id", accountIds);
+
+      if (error) throw error;
+
+      toast.success("Todas as contas banidas foram excluídas com sucesso!");
+
+      // If any of the deleted accounts was the active one, clear it
+      const storedActiveId = localStorage.getItem("active_ig_account_id");
+      if (storedActiveId && accountIds.includes(storedActiveId)) {
+        localStorage.removeItem("active_ig_account_id");
+        window.dispatchEvent(new Event("active-account-changed"));
+      }
+
+      load();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao excluir contas banidas");
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -141,16 +189,28 @@ function FailedPostsPage() {
             Gerencie e resolva problemas de vídeos que falharam ao publicar no Instagram.
           </p>
         </div>
-        {posts.length > 0 && (
-          <Button
-            variant="destructive"
-            onClick={deleteAllFailedPosts}
-            className="font-semibold gap-1.5 hover:opacity-90 transition rounded-xl cursor-pointer sm:self-center"
-          >
-            <Trash2 className="size-4" />
-            Excluir Todas as Falhas
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-3 sm:self-center">
+          {bannedAccounts.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={deleteAllBannedAccounts}
+              className="font-semibold gap-1.5 hover:opacity-90 transition rounded-xl cursor-pointer"
+            >
+              <UserMinus className="size-4" />
+              Excluir Contas Banidas ({bannedAccounts.length})
+            </Button>
+          )}
+          {posts.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={deleteAllFailedPosts}
+              className="font-semibold gap-1.5 text-muted-foreground hover:text-foreground border-border hover:bg-secondary rounded-xl cursor-pointer"
+            >
+              <Trash2 className="size-4" />
+              Excluir Todas as Falhas
+            </Button>
+          )}
+        </div>
       </div>
 
       {loading ? (
