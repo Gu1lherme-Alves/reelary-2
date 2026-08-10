@@ -28,6 +28,9 @@ export async function getMetaCredentialsForUser(supabase: any, userId: string) {
   } else if (profile === "antonio") {
     appId = process.env.META_APP_ID_ANTONIO || "";
     appSecret = process.env.META_APP_SECRET_ANTONIO || "";
+  } else if (profile === "greg") {
+    appId = process.env.META_APP_ID_GREG || "";
+    appSecret = process.env.META_APP_SECRET_GREG || "";
   } else {
     // default/guilherme
     appId =
@@ -323,15 +326,18 @@ export const getAvailableMetaAppIds = createServerFn({ method: "GET" })
     const rawMatheus = process.env.META_APP_ID_MATHEUS || "";
     const rawPedro = process.env.META_APP_ID_PEDRO || "";
     const rawAntonio = process.env.META_APP_ID_ANTONIO || "";
+    const rawGreg = process.env.META_APP_ID_GREG || "";
     const guilhermeAppId = rawGuilherme.match(/\d+/)?.[0] ?? null;
     const matheusAppId = rawMatheus.match(/\d+/)?.[0] ?? null;
     const pedroAppId = rawPedro.match(/\d+/)?.[0] ?? null;
     const antonioAppId = rawAntonio.match(/\d+/)?.[0] ?? null;
+    const gregAppId = rawGreg.match(/\d+/)?.[0] ?? null;
 
     return {
       guilherme: guilhermeAppId,
       matheus: matheusAppId,
       pedro: pedroAppId,
       antonio: antonioAppId,
+      greg: gregAppId,
     };
   });

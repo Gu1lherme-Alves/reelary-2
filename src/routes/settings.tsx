@@ -18,7 +18,7 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const [profile, setProfile] = useState<"guilherme" | "matheus" | "pedro" | "antonio">(
+  const [profile, setProfile] = useState<"guilherme" | "matheus" | "pedro" | "antonio" | "greg">(
     "guilherme",
   );
   const [loading, setLoading] = useState(true);
@@ -28,11 +28,13 @@ function SettingsPage() {
     matheus: string | null;
     pedro: string | null;
     antonio: string | null;
+    greg: string | null;
   }>({
     guilherme: null,
     matheus: null,
     pedro: null,
     antonio: null,
+    greg: null,
   });
 
   const fetchAppIds = useServerFn(getAvailableMetaAppIds);
@@ -52,7 +54,7 @@ function SettingsPage() {
 
       if (error) throw error;
       if (data) {
-        setProfile(data.meta_credential_profile as "guilherme" | "matheus" | "pedro" | "antonio");
+        setProfile(data.meta_credential_profile as "guilherme" | "matheus" | "pedro" | "antonio" | "greg");
       }
 
       const ids = await fetchAppIds();
@@ -69,7 +71,7 @@ function SettingsPage() {
     loadSettings();
   }, []);
 
-  async function handleSave(selectedProfile: "guilherme" | "matheus" | "pedro" | "antonio") {
+  async function handleSave(selectedProfile: "guilherme" | "matheus" | "pedro" | "antonio" | "greg") {
     setSaving(true);
     try {
       const {
@@ -93,6 +95,7 @@ function SettingsPage() {
         matheus: "Matheus",
         pedro: "Pedro",
         antonio: "Antonio",
+        greg: "Greg",
       };
       toast.success(`Perfil de credenciais "${profileNames[selectedProfile]}" selecionado!`);
     } catch (err: any) {
@@ -131,7 +134,7 @@ function SettingsPage() {
             conexão do Instagram.
           </p>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
             {/* Card Guilherme */}
             <button
               onClick={() => handleSave("guilherme")}
@@ -272,6 +275,42 @@ function SettingsPage() {
                   className={`text-[10px] font-mono block truncate ${!appIds.antonio ? "text-warning" : "text-muted-foreground"}`}
                 >
                   App ID: {appIds.antonio || "Configuração pendente no .env"}
+                </span>
+              </div>
+            </button>
+
+            {/* Card Greg */}
+            <button
+              onClick={() => handleSave("greg")}
+              disabled={saving}
+              className={`text-left rounded-2xl border p-5 transition-all duration-300 relative overflow-hidden group cursor-pointer flex flex-col justify-between ${
+                profile === "greg"
+                  ? "border-primary bg-primary/5 shadow-glow"
+                  : "border-border/60 bg-secondary/10 hover:bg-secondary/40 hover:border-border-hover"
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="size-10 rounded-xl bg-emerald-500/10 grid place-items-center group-hover:scale-105 transition-transform">
+                    <User className="size-5 text-emerald-500" />
+                  </div>
+                  {profile === "greg" && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-success/20 text-success border border-success/30">
+                      <Check className="size-3" /> ATIVO
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-bold text-base text-foreground mb-1">Painel: Greg</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                  Configuração utilizando as credenciais da Meta do Greg.
+                </p>
+              </div>
+
+              <div className="border-t border-border/40 pt-3 mt-auto">
+                <span
+                  className={`text-[10px] font-mono block truncate ${!appIds.greg ? "text-warning" : "text-muted-foreground"}`}
+                >
+                  App ID: {appIds.greg || "Configuração pendente no .env"}
                 </span>
               </div>
             </button>
