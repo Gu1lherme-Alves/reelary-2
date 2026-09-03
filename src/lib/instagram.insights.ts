@@ -409,20 +409,43 @@ export const getCachedInsightsFn = createServerFn({ method: "GET" })
 
     if (mediaErr) throw mediaErr;
 
+    // 4. Fetch pending scheduled posts count per account
+    const { data: pendingPosts } = await supabase
+      .from("scheduled_posts")
+      .select("instagram_account_id")
+      .eq("user_id", userId)
+      .eq("status", "pending");
+
+    const pendingCountMap = new Map<string, number>();
+    (pendingPosts || []).forEach((p) => {
+      pendingCountMap.set(
+        p.instagram_account_id,
+        (pendingCountMap.get(p.instagram_account_id) || 0) + 1,
+      );
+    });
+
     const insightsMap = new Map((insightsData || []).map((ins) => [ins.instagram_account_id, ins]));
 
     const accountsWithInsights = accounts.map((acc) => {
       const ins = insightsMap.get(acc.id);
+      const totalLikes = Number(ins?.total_likes) || 0;
+      const totalComments = Number(ins?.total_comments) || 0;
+      const totalShares = Number(ins?.total_shares) || 0;
+      const totalSaved = Number(ins?.total_saved) || 0;
+      const totalInteractions = totalLikes + totalComments + totalShares + totalSaved;
+
       return {
         ...acc,
         insights: ins || null,
         followersCount: ins?.followers_count ?? 0,
         totalViews: ins?.total_views ?? 0,
         totalReach: ins?.total_reach ?? 0,
-        totalLikes: ins?.total_likes ?? 0,
-        totalComments: ins?.total_comments ?? 0,
-        totalShares: ins?.total_shares ?? 0,
-        totalSaved: ins?.total_saved ?? 0,
+        totalLikes,
+        totalComments,
+        totalShares,
+        totalSaved,
+        totalInteractions,
+        pendingCount: pendingCountMap.get(acc.id) || 0,
         engagementRate: ins?.engagement_rate ?? 0,
         mediaCount: ins?.media_count ?? 0,
         lastSyncedAt: ins?.last_synced_at ?? null,

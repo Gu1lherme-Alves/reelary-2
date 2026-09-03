@@ -1,27 +1,18 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import {
   TrendingUp,
   Award,
   Flame,
-  Eye,
-  Heart,
-  MessageCircle,
   Users,
   RefreshCw,
-  Sparkles,
-  ArrowUpDown,
   Search,
   Instagram,
   Filter,
   ExternalLink,
-  Info,
-  Calendar,
-  Layers,
-  ChevronDown,
-  CheckCircle2,
-  AlertCircle,
   Play,
+  Heart,
+  Calendar,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -33,14 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import {
   getCachedInsightsFn,
@@ -49,7 +32,7 @@ import {
 } from "@/lib/instagram.insights";
 
 export const Route = createFileRoute("/performance")({
-  head: () => ({ meta: [{ title: "Performance e Ranking de Contas — Reelary" }] }),
+  head: () => ({ meta: [{ title: "Ranking de Performance de Contas — Reelary" }] }),
   component: () => (
     <AppShell>
       <PerformancePage />
@@ -60,14 +43,16 @@ export const Route = createFileRoute("/performance")({
 type SortField =
   | "engagementRate"
   | "totalViews"
+  | "totalReach"
   | "followersCount"
-  | "totalLikes"
-  | "totalComments"
-  | "mediaCount";
-
-type SortOrder = "asc" | "desc";
+  | "pendingCount";
 
 function formatNumber(num: number | null | undefined): string {
+  if (!num) return "0";
+  return num.toLocaleString("pt-BR");
+}
+
+function formatCompactNumber(num: number | null | undefined): string {
   if (!num) return "0";
   if (num >= 1_000_000) {
     return (num / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
@@ -76,21 +61,6 @@ function formatNumber(num: number | null | undefined): string {
     return (num / 1_000).toFixed(1).replace(/\.0$/, "") + "k";
   }
   return num.toLocaleString("pt-BR");
-}
-
-function formatRelativeTime(isoString: string | null | undefined): string {
-  if (!isoString) return "Nunca sincronizado";
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diffSec < 60) return "Agora mesmo";
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `Há ${diffMin} min`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `Há ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `Há ${diffDays} ${diffDays === 1 ? "dia" : "dias"}`;
 }
 
 function PerformancePage() {
@@ -106,18 +76,14 @@ function PerformancePage() {
   // Filters and search
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [sortField, setSortField] = useState<SortField>("engagementRate");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [sortField, setSortField] = useState<SortField>("totalViews");
 
   const navigate = useNavigate();
 
-  async function loadData(showToast = false) {
+  async function loadData() {
     try {
       const res = await getCachedInsightsFn();
       setData(res as any);
-      if (showToast) {
-        toast.success("Métricas atualizadas com sucesso!");
-      }
     } catch (err: any) {
       console.error("Error loading insights:", err);
       toast.error(err.message || "Erro ao carregar métricas de performance.");
@@ -132,7 +98,7 @@ function PerformancePage() {
 
   async function handleSyncAll() {
     setSyncingAll(true);
-    toast.info("Iniciando sincronização de todas as contas com a Meta...");
+    toast.info("Sincronizando todas as contas com a Meta...");
     try {
       const res = await syncAllAccountsInsightsFn();
       await loadData();
@@ -154,7 +120,7 @@ function PerformancePage() {
     try {
       await syncAccountInsightsFn({ data: { accountId } });
       await loadData();
-      toast.success(`Métricas de @${username} atualizadas com sucesso!`);
+      toast.success(`Métricas de @${username} atualizadas!`);
     } catch (err: any) {
       console.error(`Sync account error for ${username}:`, err);
       toast.error(err.message || `Erro ao sincronizar @${username}.`);
@@ -162,15 +128,6 @@ function PerformancePage() {
       setSyncingAccountId(null);
     }
   }
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortOrder("desc");
-    }
-  };
 
   // Distinct categories from accounts
   const categories = useMemo(() => {
@@ -182,6 +139,13 @@ function PerformancePage() {
       }
     });
     return Array.from(catMap.values());
+  }, [data?.accounts]);
+
+  // Max views across accounts for relative progress bars
+  const maxViews = useMemo(() => {
+    if (!data?.accounts || data.accounts.length === 0) return 1;
+    const max = Math.max(...data.accounts.map((a) => Number(a.totalViews) || 0));
+    return max > 0 ? max : 1;
   }, [data?.accounts]);
 
   // Filtered and sorted accounts list
@@ -197,391 +161,197 @@ function PerformancePage() {
         return matchesSearch && matchesCategory;
       })
       .sort((a, b) => {
-        let valA = Number(a[sortField]) || 0;
-        let valB = Number(b[sortField]) || 0;
-
-        if (sortOrder === "asc") {
-          return valA - valB;
-        } else {
-          return valB - valA;
-        }
+        const valA = Number(a[sortField]) || 0;
+        const valB = Number(b[sortField]) || 0;
+        return valB - valA;
       });
-  }, [data?.accounts, searchQuery, categoryFilter, sortField, sortOrder]);
+  }, [data?.accounts, searchQuery, categoryFilter, sortField]);
 
-  // Leaders / Podium Highlights
-  const bestEngagementAccount = useMemo(() => {
-    if (!data?.accounts || data.accounts.length === 0) return null;
-    const sorted = [...data.accounts].sort(
-      (a, b) => (Number(b.engagementRate) || 0) - (Number(a.engagementRate) || 0),
-    );
-    return sorted[0]?.engagementRate > 0 ? sorted[0] : null;
-  }, [data?.accounts]);
-
-  const mostViewsAccount = useMemo(() => {
-    if (!data?.accounts || data.accounts.length === 0) return null;
-    const sorted = [...data.accounts].sort(
-      (a, b) => (Number(b.totalViews) || 0) - (Number(a.totalViews) || 0),
-    );
-    return sorted[0]?.totalViews > 0 ? sorted[0] : null;
-  }, [data?.accounts]);
-
-  const mostFollowersAccount = useMemo(() => {
-    if (!data?.accounts || data.accounts.length === 0) return null;
-    const sorted = [...data.accounts].sort(
-      (a, b) => (Number(b.followersCount) || 0) - (Number(a.followersCount) || 0),
-    );
-    return sorted[0]?.followersCount > 0 ? sorted[0] : null;
+  // Global average engagement rate
+  const avgEngagementRate = useMemo(() => {
+    if (!data?.accounts || data.accounts.length === 0) return "0.00";
+    const sum = data.accounts.reduce((acc, a) => acc + (Number(a.engagementRate) || 0), 0);
+    return (sum / data.accounts.length).toFixed(1);
   }, [data?.accounts]);
 
   return (
-    <div className="space-y-8 max-w-7xl pb-16">
-      {/* Header com Título e Ação de Sync */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-7xl pb-16">
+      {/* Top Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="size-10 rounded-xl bg-gradient-brand grid place-items-center text-primary-foreground shadow-glow shrink-0">
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white flex items-center gap-2.5">
+            <span className="size-9 rounded-xl bg-gradient-to-tr from-pink-500 to-rose-400 grid place-items-center text-white shadow-glow">
               <TrendingUp className="size-5" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">Performance e Rankings</h1>
-              <p className="text-muted-foreground text-xs md:text-sm mt-0.5">
-                Descubra qual perfil está performando melhor em visualizações, engajamento e alcance.
-              </p>
-            </div>
-          </div>
+            </span>
+            Performance e Rankings
+          </h1>
+          <p className="text-xs md:text-sm text-zinc-400 mt-1">
+            Visão detalhada do desempenho de todas as contas conectadas.
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-3">
           <Button
             onClick={handleSyncAll}
             disabled={syncingAll || loading || data?.accounts?.length === 0}
-            className="bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 shadow-glow font-bold text-xs h-10 px-4 gap-2 cursor-pointer"
+            className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white border-0 shadow-glow font-bold text-xs h-10 px-4 gap-2 cursor-pointer rounded-xl"
           >
             <RefreshCw className={`size-3.5 ${syncingAll ? "animate-spin" : ""}`} />
-            {syncingAll ? "Sincronizando com a Meta..." : "Sincronizar Todas as Contas"}
+            {syncingAll ? "Sincronizando..." : "Sincronizar Todas as Contas"}
           </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="space-y-6">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-32 rounded-2xl bg-card border border-border/50 animate-pulse"
+                className="h-28 rounded-2xl bg-[#120d1c] border border-[#261d36] animate-pulse"
               />
             ))}
           </div>
-          <div className="h-96 rounded-2xl bg-card border border-border/50 animate-pulse" />
+          <div className="h-[500px] rounded-2xl bg-[#120d1c] border border-[#261d36] animate-pulse" />
         </div>
       ) : !data?.accounts || data.accounts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/80 p-12 text-center bg-card/30 space-y-4">
-          <div className="size-16 rounded-2xl bg-secondary/80 grid place-items-center mx-auto text-muted-foreground">
+        <div className="rounded-2xl border border-dashed border-[#2d2242] p-12 text-center bg-[#100b19] space-y-4">
+          <div className="size-16 rounded-2xl bg-[#1a1329] grid place-items-center mx-auto text-zinc-400">
             <Instagram className="size-8" />
           </div>
           <div>
-            <h3 className="text-lg font-bold">Nenhuma conta conectada</h3>
-            <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1">
+            <h3 className="text-lg font-bold text-white">Nenhuma conta conectada</h3>
+            <p className="text-sm text-zinc-400 max-w-md mx-auto mt-1">
               Conecte suas contas do Instagram para acompanhar o ranking de visualizações,
               engajamento e os melhores Reels.
             </p>
           </div>
           <Button
             onClick={() => navigate({ to: "/accounts" })}
-            className="bg-gradient-brand text-primary-foreground border-0 font-bold"
+            className="bg-gradient-to-r from-pink-500 to-rose-500 text-white border-0 font-bold rounded-xl"
           >
             Gerenciar Contas
           </Button>
         </div>
       ) : (
         <>
-          {/* Global Summary Cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Card 1: Visualizações Totais */}
-            <div className="rounded-2xl border border-border/50 bg-card/50 p-5 shadow-card hover:bg-card/80 transition relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition duration-300">
-                <Play className="size-16 text-primary" />
-              </div>
-              <div className="flex items-center gap-2.5 text-muted-foreground text-xs font-semibold mb-2">
-                <div className="size-7 rounded-lg bg-primary/10 grid place-items-center text-primary">
+          {/* Top KPI Cards (3 cards: Views, Engajamento, Seguidores — SEM card de comentários) */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            {/* Card 1: Total de Visualizações */}
+            <div className="rounded-2xl border border-[#261d36] bg-[#120d1c]/80 backdrop-blur-md p-5 shadow-lg relative overflow-hidden group">
+              <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold mb-2">
+                <div className="size-7 rounded-lg bg-pink-500/10 grid place-items-center text-pink-400">
                   <Play className="size-3.5 fill-current" />
                 </div>
-                <span>Total de Visualizações</span>
+                <span className="uppercase tracking-wider text-[11px] font-bold">
+                  Visualizações Totais
+                </span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-gradient-brand">
-                  {formatNumber(data.summary?.globalViews)}
+                <span className="text-3xl font-black text-white">
+                  {formatCompactNumber(data.summary?.globalViews)}
                 </span>
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+                <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
                   plays de reels
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
-                Soma de reproduções em todas as contas conectadas.
+              <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed">
+                Total de reproduções em todas as contas conectadas.
               </p>
             </div>
 
-            {/* Card 2: Curtidas Totais */}
-            <div className="rounded-2xl border border-border/50 bg-card/50 p-5 shadow-card hover:bg-card/80 transition relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition duration-300">
-                <Heart className="size-16 text-rose-500" />
-              </div>
-              <div className="flex items-center gap-2.5 text-muted-foreground text-xs font-semibold mb-2">
-                <div className="size-7 rounded-lg bg-rose-500/10 grid place-items-center text-rose-500">
-                  <Heart className="size-3.5 fill-current" />
+            {/* Card 2: Taxa Média de Engajamento */}
+            <div className="rounded-2xl border border-[#261d36] bg-[#120d1c]/80 backdrop-blur-md p-5 shadow-lg relative overflow-hidden group">
+              <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold mb-2">
+                <div className="size-7 rounded-lg bg-amber-500/10 grid place-items-center text-amber-400">
+                  <Flame className="size-3.5" />
                 </div>
-                <span>Curtidas Totais</span>
+                <span className="uppercase tracking-wider text-[11px] font-bold">
+                  Engajamento Médio
+                </span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-rose-500">
-                  {formatNumber(data.summary?.globalLikes)}
+                <span className="text-3xl font-black text-amber-400">
+                  {avgEngagementRate}%
                 </span>
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
-                  likes
+                <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
+                  taxa média
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
-                Interações diretas nos Reels monitorados.
+              <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed">
+                Média de interações por visualização e alcance.
               </p>
             </div>
 
-            {/* Card 3: Comentários Totais */}
-            <div className="rounded-2xl border border-border/50 bg-card/50 p-5 shadow-card hover:bg-card/80 transition relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition duration-300">
-                <MessageCircle className="size-16 text-blue-500" />
-              </div>
-              <div className="flex items-center gap-2.5 text-muted-foreground text-xs font-semibold mb-2">
-                <div className="size-7 rounded-lg bg-blue-500/10 grid place-items-center text-blue-500">
-                  <MessageCircle className="size-3.5" />
-                </div>
-                <span>Comentários Totais</span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-blue-400">
-                  {formatNumber(data.summary?.globalComments)}
-                </span>
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
-                  respostas
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
-                Engajamento direto e conversas nos posts.
-              </p>
-            </div>
-
-            {/* Card 4: Base de Seguidores */}
-            <div className="rounded-2xl border border-border/50 bg-card/50 p-5 shadow-card hover:bg-card/80 transition relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition duration-300">
-                <Users className="size-16 text-emerald-500" />
-              </div>
-              <div className="flex items-center gap-2.5 text-muted-foreground text-xs font-semibold mb-2">
-                <div className="size-7 rounded-lg bg-emerald-500/10 grid place-items-center text-emerald-500">
+            {/* Card 3: Base de Seguidores */}
+            <div className="rounded-2xl border border-[#261d36] bg-[#120d1c]/80 backdrop-blur-md p-5 shadow-lg relative overflow-hidden group">
+              <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold mb-2">
+                <div className="size-7 rounded-lg bg-emerald-500/10 grid place-items-center text-emerald-400">
                   <Users className="size-3.5" />
                 </div>
-                <span>Base Total de Seguidores</span>
+                <span className="uppercase tracking-wider text-[11px] font-bold">
+                  Base de Seguidores
+                </span>
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-black text-emerald-400">
-                  {formatNumber(data.summary?.globalFollowers)}
+                  {formatCompactNumber(data.summary?.globalFollowers)}
                 </span>
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+                <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
                   seguidores
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
-                Audiência somada de todos os perfis ativos.
+              <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed">
+                Audiência somada de todas as contas ativas.
               </p>
             </div>
           </div>
 
-          {/* Destaques / Pódio das Melhores Contas */}
-          <div className="grid gap-4 md:grid-cols-3">
-            {/* Top 1 Engajamento */}
-            <div className="rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/15 via-card/60 to-card/40 p-5 shadow-glow relative overflow-hidden flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-primary bg-primary/15 px-2.5 py-1 rounded-full border border-primary/30">
-                  <Award className="size-3" /> Campeã em Engajamento
-                </span>
-                <span className="text-2xl">🏆</span>
-              </div>
-              {bestEngagementAccount ? (
-                <div className="space-y-3 mt-4">
-                  <div className="flex items-center gap-3">
-                    <div className="size-11 rounded-full bg-gradient-brand p-0.5 shrink-0 shadow-sm">
-                      <div className="size-full rounded-full bg-card grid place-items-center">
-                        <Instagram className="size-5 text-primary" />
-                      </div>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-extrabold text-base truncate text-foreground flex items-center gap-1.5">
-                        @{bestEngagementAccount.username}
-                        {bestEngagementAccount.account_categories && (
-                          <span
-                            className="size-2 rounded-full shrink-0"
-                            style={{
-                              backgroundColor: bestEngagementAccount.account_categories.color,
-                            }}
-                          />
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatNumber(bestEngagementAccount.followersCount)} seguidores
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-baseline gap-2 pt-2 border-t border-border/30">
-                    <span className="text-3xl font-black text-primary">
-                      {bestEngagementAccount.engagementRate}%
-                    </span>
-                    <span className="text-xs text-muted-foreground font-semibold">
-                      taxa de engajamento média
-                    </span>
-                  </div>
+          {/* Ranking Container (Exatamente como a imagem) */}
+          <div className="rounded-2xl md:rounded-3xl border border-[#231934] bg-[#0e0a16] p-5 md:p-7 shadow-2xl space-y-6">
+            {/* Header da Seção com Ícone Rosa */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#1f162e] pb-5">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-full bg-gradient-to-tr from-pink-500 to-rose-400 grid place-items-center text-white shadow-glow shrink-0">
+                  <span className="text-lg">🏆</span>
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground mt-4 italic">
-                  Sincronize as contas para calcular o engajamento.
-                </p>
-              )}
-            </div>
-
-            {/* Top 1 Mais Visualizada */}
-            <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-card/60 to-card/40 p-5 shadow-card relative overflow-hidden flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-amber-400 bg-amber-500/15 px-2.5 py-1 rounded-full border border-amber-500/30">
-                  <Flame className="size-3" /> Mais Visualizada
-                </span>
-                <span className="text-2xl">🔥</span>
-              </div>
-              {mostViewsAccount ? (
-                <div className="space-y-3 mt-4">
-                  <div className="flex items-center gap-3">
-                    <div className="size-11 rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 p-0.5 shrink-0 shadow-sm">
-                      <div className="size-full rounded-full bg-card grid place-items-center">
-                        <Play className="size-5 text-amber-400 fill-current" />
-                      </div>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-extrabold text-base truncate text-foreground flex items-center gap-1.5">
-                        @{mostViewsAccount.username}
-                        {mostViewsAccount.account_categories && (
-                          <span
-                            className="size-2 rounded-full shrink-0"
-                            style={{
-                              backgroundColor: mostViewsAccount.account_categories.color,
-                            }}
-                          />
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatNumber(mostViewsAccount.followersCount)} seguidores
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-baseline gap-2 pt-2 border-t border-border/30">
-                    <span className="text-3xl font-black text-amber-400">
-                      {formatNumber(mostViewsAccount.totalViews)}
-                    </span>
-                    <span className="text-xs text-muted-foreground font-semibold">
-                      reproduções de reels
-                    </span>
-                  </div>
+                <div>
+                  <h2 className="text-base md:text-lg font-black text-white tracking-tight">
+                    Ranking de Performance de Contas
+                  </h2>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Listagem completa das {data.accounts.length} contas conectadas, ordenadas por
+                    desempenho.
+                  </p>
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground mt-4 italic">
-                  Sincronize as contas para obter visualizações.
-                </p>
-              )}
-            </div>
-
-            {/* Top 1 Maior Audiência */}
-            <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 via-card/60 to-card/40 p-5 shadow-card relative overflow-hidden flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-2.5 py-1 rounded-full border border-emerald-500/30">
-                  <Users className="size-3" /> Maior Audiência
-                </span>
-                <span className="text-2xl">👑</span>
-              </div>
-              {mostFollowersAccount ? (
-                <div className="space-y-3 mt-4">
-                  <div className="flex items-center gap-3">
-                    <div className="size-11 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500 p-0.5 shrink-0 shadow-sm">
-                      <div className="size-full rounded-full bg-card grid place-items-center">
-                        <Users className="size-5 text-emerald-400" />
-                      </div>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-extrabold text-base truncate text-foreground flex items-center gap-1.5">
-                        @{mostFollowersAccount.username}
-                        {mostFollowersAccount.account_categories && (
-                          <span
-                            className="size-2 rounded-full shrink-0"
-                            style={{
-                              backgroundColor: mostFollowersAccount.account_categories.color,
-                            }}
-                          />
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {mostFollowersAccount.mediaCount} mídias publicadas
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-baseline gap-2 pt-2 border-t border-border/30">
-                    <span className="text-3xl font-black text-emerald-400">
-                      {formatNumber(mostFollowersAccount.followersCount)}
-                    </span>
-                    <span className="text-xs text-muted-foreground font-semibold">
-                      seguidores ativos
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground mt-4 italic">
-                  Nenhum dado de seguidores disponível.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Tabela de Ranking das Contas */}
-          <div className="space-y-4 bg-card/40 border border-border/50 p-6 rounded-2xl shadow-card backdrop-blur-sm">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h3 className="font-extrabold text-xl flex items-center gap-2">
-                  <Award className="size-5 text-primary" /> Tabela de Comparação e Rankings
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Clique no cabeçalho de qualquer coluna para reordenar a classificação.
-                </p>
               </div>
 
-              {/* Filtros e Busca */}
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="relative w-full sm:w-56">
-                  <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              {/* Filtros e Busca Rápidos */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* Search */}
+                <div className="relative w-full sm:w-48">
+                  <Search className="size-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <Input
                     type="text"
-                    placeholder="Buscar por @conta..."
+                    placeholder="Buscar conta..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 h-10 bg-card text-xs font-semibold rounded-xl"
+                    className="pl-8 h-9 bg-[#150f22] border-[#291e3d] text-xs text-white placeholder:text-zinc-500 rounded-xl"
                   />
                 </div>
 
-                {/* Filtro de Categoria */}
+                {/* Category Filter */}
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-44 bg-card border-border/60 rounded-xl h-10 text-xs font-semibold">
-                    <Filter className="size-3.5 mr-1 text-muted-foreground" />
-                    <SelectValue placeholder="Todas as categorias" />
+                  <SelectTrigger className="w-36 bg-[#150f22] border-[#291e3d] text-xs text-zinc-300 rounded-xl h-9">
+                    <Filter className="size-3 mr-1 text-zinc-500" />
+                    <SelectValue placeholder="Categoria" />
                   </SelectTrigger>
-                  <SelectContent className="bg-card border-border/60 text-xs">
-                    <SelectItem value="all">Todas as categorias</SelectItem>
+                  <SelectContent className="bg-[#150f22] border-[#291e3d] text-xs text-white">
+                    <SelectItem value="all">Todas</SelectItem>
                     <SelectItem value="none">Sem categoria</SelectItem>
                     {categories.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        <span className="flex items-center gap-2">
+                        <span className="flex items-center gap-1.5">
                           <span
                             className="size-2 rounded-full"
                             style={{ backgroundColor: c.color }}
@@ -592,304 +362,225 @@ function PerformancePage() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* Sort Field */}
+                <Select value={sortField} onValueChange={(val) => setSortField(val as SortField)}>
+                  <SelectTrigger className="w-40 bg-[#150f22] border-[#291e3d] text-xs text-zinc-300 rounded-xl h-9">
+                    <SelectValue placeholder="Ordenar por" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#150f22] border-[#291e3d] text-xs text-white">
+                    <SelectItem value="totalViews">Visualizações</SelectItem>
+                    <SelectItem value="engagementRate">Engajamento</SelectItem>
+                    <SelectItem value="totalReach">Alcance</SelectItem>
+                    <SelectItem value="followersCount">Seguidores</SelectItem>
+                    <SelectItem value="pendingCount">Agendados</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            {/* Tabela Responsiva */}
-            <div className="overflow-x-auto rounded-xl border border-border/40 bg-card/60">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-border/40 bg-secondary/30 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                    <th className="py-3.5 px-4 w-12 text-center">Pos.</th>
-                    <th className="py-3.5 px-4">Conta</th>
-                    <th
-                      onClick={() => handleSort("engagementRate")}
-                      className="py-3.5 px-4 cursor-pointer hover:text-foreground transition select-none"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        Taxa Engajamento
-                        <ArrowUpDown className="size-3 text-primary shrink-0" />
-                      </div>
-                    </th>
-                    <th
-                      onClick={() => handleSort("totalViews")}
-                      className="py-3.5 px-4 cursor-pointer hover:text-foreground transition select-none"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        Visualizações
-                        <ArrowUpDown className="size-3 text-amber-400 shrink-0" />
-                      </div>
-                    </th>
-                    <th
-                      onClick={() => handleSort("followersCount")}
-                      className="py-3.5 px-4 cursor-pointer hover:text-foreground transition select-none"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        Seguidores
-                        <ArrowUpDown className="size-3 text-emerald-400 shrink-0" />
-                      </div>
-                    </th>
-                    <th
-                      onClick={() => handleSort("totalLikes")}
-                      className="py-3.5 px-4 cursor-pointer hover:text-foreground transition select-none"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        Curtidas
-                        <ArrowUpDown className="size-3 text-rose-500 shrink-0" />
-                      </div>
-                    </th>
-                    <th
-                      onClick={() => handleSort("totalComments")}
-                      className="py-3.5 px-4 cursor-pointer hover:text-foreground transition select-none"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        Comentários
-                        <ArrowUpDown className="size-3 text-blue-400 shrink-0" />
-                      </div>
-                    </th>
-                    <th className="py-3.5 px-4">Última Sinc.</th>
-                    <th className="py-3.5 px-4 text-right">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/30 text-xs">
-                  {filteredAndSortedAccounts.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center py-10 text-muted-foreground">
-                        Nenhuma conta encontrada com os filtros selecionados.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredAndSortedAccounts.map((acc, index) => {
-                      const isTop1 = index === 0;
-                      const isTop2 = index === 1;
-                      const isTop3 = index === 2;
-                      const isSyncing = syncingAccountId === acc.id;
+            {/* Lista do Ranking (Estilo Cards Horizontais da Imagem) */}
+            <div className="space-y-2.5">
+              {filteredAndSortedAccounts.length === 0 ? (
+                <div className="text-center py-12 text-zinc-500 text-xs">
+                  Nenhuma conta encontrada para os filtros selecionados.
+                </div>
+              ) : (
+                filteredAndSortedAccounts.map((acc, index) => {
+                  const isTop1 = index === 0;
+                  const isTop2 = index === 1;
+                  const isTop3 = index === 2;
+                  const isSyncing = syncingAccountId === acc.id;
 
-                      return (
-                        <tr
-                          key={acc.id}
-                          className="hover:bg-secondary/40 transition-colors group"
-                        >
-                          {/* Rank */}
-                          <td className="py-3.5 px-4 text-center font-black">
-                            {isTop1 ? (
-                              <span className="inline-grid place-items-center size-6 rounded-full bg-amber-400/20 text-amber-400 font-extrabold text-xs">
-                                🥇
-                              </span>
-                            ) : isTop2 ? (
-                              <span className="inline-grid place-items-center size-6 rounded-full bg-slate-400/20 text-slate-300 font-extrabold text-xs">
-                                🥈
-                              </span>
-                            ) : isTop3 ? (
-                              <span className="inline-grid place-items-center size-6 rounded-full bg-amber-700/20 text-amber-600 font-extrabold text-xs">
-                                🥉
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground/70 font-mono">
-                                #{index + 1}
+                  const viewsPercent = Math.min(
+                    100,
+                    Math.max(6, Math.round(((Number(acc.totalViews) || 0) / maxViews) * 100)),
+                  );
+
+                  return (
+                    <div
+                      key={acc.id}
+                      className={`relative rounded-xl md:rounded-2xl transition-all duration-200 border ${
+                        isTop1
+                          ? "bg-[#140e21] border-[#382756] shadow-glow"
+                          : "bg-[#110c1c] border-[#201633] hover:border-[#332252] hover:bg-[#150e24]"
+                      } p-4 md:py-4.5 md:px-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4`}
+                    >
+                      {/* Borda vertical amarela para o 1º lugar (igual imagem) */}
+                      {isTop1 && (
+                        <div className="hidden xl:block absolute -left-[1px] top-3 bottom-3 w-1 bg-amber-400 rounded-r" />
+                      )}
+
+                      {/* Lado Esquerdo: Posição + Avatar + Nome + Top 1 Badge + Status */}
+                      <div className="flex items-center gap-3.5 min-w-[240px]">
+                        {/* Posição / Medalha */}
+                        <div className="w-7 text-center shrink-0 flex items-center justify-center font-black">
+                          {isTop1 ? (
+                            <span className="text-lg" title="1º Lugar">
+                              🥇
+                            </span>
+                          ) : isTop2 ? (
+                            <span className="text-lg" title="2º Lugar">
+                              🥈
+                            </span>
+                          ) : isTop3 ? (
+                            <span className="text-lg" title="3º Lugar">
+                              🥉
+                            </span>
+                          ) : (
+                            <span className="text-zinc-500 font-mono text-xs font-bold">
+                              #{index + 1}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Avatar */}
+                        <div className="size-11 rounded-full bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-500 p-0.5 shrink-0 shadow-md">
+                          <div className="size-full rounded-full bg-[#181126] grid place-items-center overflow-hidden">
+                            <Instagram className="size-5 text-pink-400" />
+                          </div>
+                        </div>
+
+                        {/* Nome & Badges */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <a
+                              href={`https://instagram.com/${acc.username}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-black text-white hover:text-pink-400 transition text-sm flex items-center gap-1 truncate"
+                            >
+                              @{acc.username}
+                              <ExternalLink className="size-3 opacity-40 hover:opacity-100" />
+                            </a>
+
+                            {/* Badge Top 1 (igual imagem) */}
+                            {isTop1 && (
+                              <span className="bg-amber-500/15 text-amber-300 border border-amber-500/40 text-[10px] font-extrabold px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-sm shrink-0">
+                                <span>🏆</span> Top 1
                               </span>
                             )}
-                          </td>
+                          </div>
 
-                          {/* Account */}
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-2.5">
-                              <div className="size-8 rounded-full bg-secondary/80 border border-border/50 grid place-items-center shrink-0">
-                                <Instagram className="size-4 text-primary" />
-                              </div>
-                              <div className="min-w-0">
-                                <a
-                                  href={`https://instagram.com/${acc.username}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="font-bold text-foreground hover:text-primary transition flex items-center gap-1 truncate"
-                                >
-                                  @{acc.username}
-                                  <ExternalLink className="size-2.5 opacity-40 group-hover:opacity-100" />
-                                </a>
-                                {acc.account_categories ? (
-                                  <span
-                                    className="inline-flex items-center gap-1 text-[10px] font-semibold"
-                                    style={{ color: acc.account_categories.color }}
-                                  >
-                                    <span
-                                      className="size-1.5 rounded-full shrink-0"
-                                      style={{ backgroundColor: acc.account_categories.color }}
-                                    />
-                                    {acc.account_categories.name}
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] text-muted-foreground/70">
-                                    Sem categoria
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Engagement Rate */}
-                          <td className="py-3.5 px-4">
-                            <div className="space-y-1">
-                              <span className="font-extrabold text-primary text-sm">
-                                {acc.engagementRate}%
-                              </span>
-                              <div className="w-20 bg-secondary rounded-full h-1.5 overflow-hidden">
-                                <div
-                                  className="bg-primary h-full rounded-full transition-all duration-500"
-                                  style={{
-                                    width: `${Math.min(100, Number(acc.engagementRate) * 10)}%`,
-                                  }}
+                          {/* Status / Categoria */}
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {acc.account_categories ? (
+                              <span
+                                className="inline-flex items-center gap-1.5 text-[10px] font-bold"
+                                style={{ color: acc.account_categories.color }}
+                              >
+                                <span
+                                  className="size-1.5 rounded-full shrink-0"
+                                  style={{ backgroundColor: acc.account_categories.color }}
                                 />
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Views */}
-                          <td className="py-3.5 px-4 font-bold text-foreground">
-                            {formatNumber(acc.totalViews)}
-                          </td>
-
-                          {/* Followers */}
-                          <td className="py-3.5 px-4 font-semibold text-foreground/90">
-                            {formatNumber(acc.followersCount)}
-                          </td>
-
-                          {/* Likes */}
-                          <td className="py-3.5 px-4 font-semibold text-foreground/90">
-                            {formatNumber(acc.totalLikes)}
-                          </td>
-
-                          {/* Comments */}
-                          <td className="py-3.5 px-4 font-semibold text-foreground/90">
-                            {formatNumber(acc.totalComments)}
-                          </td>
-
-                          {/* Last Synced */}
-                          <td className="py-3.5 px-4 text-[11px] text-muted-foreground whitespace-nowrap">
-                            {formatRelativeTime(acc.lastSyncedAt)}
-                          </td>
-
-                          {/* Single Sync Button */}
-                          <td className="py-3.5 px-4 text-right">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={isSyncing || syncingAll}
-                              onClick={() => handleSyncSingle(acc.id, acc.username)}
-                              className="h-8 px-2.5 text-xs text-muted-foreground hover:text-primary gap-1 font-semibold cursor-pointer"
-                              title="Sincronizar esta conta"
-                            >
-                              <RefreshCw className={`size-3 ${isSyncing ? "animate-spin" : ""}`} />
-                              {isSyncing ? "Sync..." : "Atualizar"}
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Galeria dos Top Reels Mais Visualizados */}
-          {data.topMedia && data.topMedia.length > 0 && (
-            <div className="space-y-4 bg-card/40 border border-border/50 p-6 rounded-2xl shadow-card backdrop-blur-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-extrabold text-xl flex items-center gap-2">
-                    <Sparkles className="size-5 text-amber-400" /> Melhores Reels em Destaque
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Vídeos com melhor tração e engajamento capturados recentemente.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {data.topMedia.map((media: any) => (
-                  <a
-                    key={media.id}
-                    href={media.permalink || "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-xl border border-border/40 bg-card/70 hover:bg-card hover:border-primary/50 transition duration-200 overflow-hidden group shadow-sm flex flex-col justify-between"
-                  >
-                    <div className="aspect-[9/16] max-h-56 relative bg-secondary/50 overflow-hidden flex items-center justify-center">
-                      {media.thumbnail_url ? (
-                        <img
-                          src={media.thumbnail_url}
-                          alt="Reel thumbnail"
-                          className="size-full object-cover group-hover:scale-105 transition duration-300"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <Play className="size-8 text-muted-foreground opacity-50" />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
-
-                      {/* Views Badge Overlay */}
-                      <div className="absolute top-2 left-2 flex items-center gap-1 bg-background/80 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] font-extrabold text-foreground border border-white/10">
-                        <Play className="size-2.5 text-primary fill-current" />
-                        {formatNumber(media.views_count)} views
-                      </div>
-
-                      {/* Engagement Rate Badge */}
-                      {media.engagement_rate > 0 && (
-                        <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary/90 text-primary-foreground backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] font-extrabold">
-                          {media.engagement_rate}%
+                                {acc.account_categories.name}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+                                <span className="size-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                Saudável
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      )}
+                      </div>
 
-                      {/* Account Name */}
-                      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-xs">
-                        <span className="font-extrabold text-foreground drop-shadow truncate">
-                          @{media.instagram_accounts?.username}
-                        </span>
-                        <ExternalLink className="size-3 text-muted-foreground opacity-70 shrink-0" />
+                      {/* Lado Direito: As 5 Colunas de Métricas da Imagem */}
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 xl:gap-8 items-center flex-1 justify-between pt-3 xl:pt-0 border-t xl:border-t-0 border-[#1f162e]">
+                        {/* 1. VISUALIZAÇÕES */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+                            Visualizações
+                          </span>
+                          <div className="text-sm md:text-base font-black text-white">
+                            {formatNumber(acc.totalViews)}
+                          </div>
+                          {/* Barra de Progresso Rosa */}
+                          <div className="w-20 md:w-24 h-1.5 bg-[#231738] rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-500"
+                              style={{ width: `${viewsPercent}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* 2. AGENDADOS */}
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider block">
+                            Agendados
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm md:text-base font-black text-rose-400">
+                              {acc.pendingCount}
+                            </span>
+                            <span className="bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] font-bold px-1.5 py-0.2 rounded-full">
+                              Fila
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-zinc-400 block truncate">
+                            {acc.pendingCount} {acc.pendingCount === 1 ? "reel na fila" : "reels na fila"}
+                          </span>
+                        </div>
+
+                        {/* 3. ALCANCE */}
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+                            Alcance
+                          </span>
+                          <div className="text-sm md:text-base font-black text-white">
+                            {formatNumber(acc.totalReach)}
+                          </div>
+                          <span className="text-[10px] text-zinc-400 block truncate">
+                            contas únicas
+                          </span>
+                        </div>
+
+                        {/* 4. SEGUIDORES */}
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+                            Seguidores
+                          </span>
+                          <div className="text-sm md:text-base font-black text-white">
+                            {formatNumber(acc.followersCount)}
+                          </div>
+                          <span className="text-[10px] text-zinc-400 block truncate">
+                            {acc.mediaCount || 0} posts
+                          </span>
+                        </div>
+
+                        {/* 5. ENGAJAMENTO */}
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+                            Engajamento
+                          </span>
+                          <div className="text-sm md:text-base font-black text-white flex items-center gap-1">
+                            {acc.engagementRate}%{" "}
+                            {Number(acc.engagementRate) > 0 && <span>🔥</span>}
+                          </div>
+                          <span className="text-[10px] text-zinc-400 block truncate">
+                            {formatNumber(acc.totalInteractions)} interações
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Botão de sincronização individual */}
+                      <div className="flex justify-end xl:justify-center shrink-0">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={isSyncing || syncingAll}
+                          onClick={() => handleSyncSingle(acc.id, acc.username)}
+                          className="h-8 px-2.5 text-[11px] text-zinc-400 hover:text-pink-400 hover:bg-[#201534] gap-1 font-semibold rounded-lg cursor-pointer"
+                          title="Sincronizar esta conta"
+                        >
+                          <RefreshCw className={`size-3 ${isSyncing ? "animate-spin" : ""}`} />
+                          {isSyncing ? "Sync..." : "Atualizar"}
+                        </Button>
                       </div>
                     </div>
-
-                    <div className="p-3 space-y-2">
-                      <p className="text-xs text-foreground/90 font-medium line-clamp-2 leading-snug">
-                        {media.caption || (
-                          <span className="text-muted-foreground italic">Sem legenda</span>
-                        )}
-                      </p>
-
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border/30">
-                        <span className="flex items-center gap-1 text-rose-500 font-bold">
-                          <Heart className="size-3 fill-current" />
-                          {formatNumber(media.like_count)}
-                        </span>
-                        <span className="flex items-center gap-1 text-blue-400 font-bold">
-                          <MessageCircle className="size-3" />
-                          {formatNumber(media.comments_count)}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground/70">
-                          {formatRelativeTime(media.published_at)}
-                        </span>
-                      </div>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Info Card / Dicas sobre a API da Meta */}
-          <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 flex items-start gap-3 text-xs text-muted-foreground">
-            <Info className="size-4 text-primary shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <span className="font-bold text-foreground block">
-                Sobre a frequência de atualização da Meta
-              </span>
-              <p className="leading-relaxed">
-                As métricas de seguidores, curtidas e comentários são obtidas em tempo real a cada
-                sincronização. As métricas agregadas de visualizações e alcance de Reels são
-                processadas pela Meta em intervalos de 1 a 4 horas. Para manter a navegação no site
-                instantânea, todos os dados são cacheados e atualizados sob demanda.
-              </p>
+                  );
+                })
+              )}
             </div>
           </div>
         </>
