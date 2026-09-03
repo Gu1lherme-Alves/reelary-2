@@ -24,7 +24,7 @@ async function safeGraphFetch(url: string) {
     const res = await fetch(url);
     if (!res.ok) {
       const errText = await res.text();
-      console.warn(`Graph API fetch failed (${res.status}) for ${url.split("?")[0]}:`, errText);
+      console.warn(`Graph API fetch returned ${res.status} for ${url.split("?")[0]}:`, errText);
       return null;
     }
     return await res.json();
@@ -32,6 +32,92 @@ async function safeGraphFetch(url: string) {
     console.warn(`Graph API network error for ${url.split("?")[0]}:`, e);
     return null;
   }
+}
+
+// Helper to fetch insights for a specific media item trying multiple compatible metric sets
+async function fetchMediaInsights(baseUrl: string, mediaId: string, accessToken: string) {
+  let plays = 0;
+  let reach = 0;
+  let shares = 0;
+  let saved = 0;
+
+  const metricQueries = [
+    "plays,reach,saved,shares",
+    "views,reach,saved,shares",
+    "plays,reach",
+    "views,reach",
+    "reach,impressions,saved,shares",
+    "reach,impressions",
+    "plays",
+    "views",
+    "reach",
+    "impressions",
+  ];
+
+  for (const metricStr of metricQueries) {
+    const url = `${baseUrl}/${mediaId}/insights?metric=${metricStr}&access_token=${encodeURIComponent(accessToken)}`;
+    const json = await safeGraphFetch(url);
+    if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+      json.data.forEach((metricObj: any) => {
+        const val = Number(metricObj?.values?.[0]?.value ?? 0) || 0;
+        if (
+          metricObj.name === "plays" ||
+          metricObj.name === "views" ||
+          metricObj.name === "ig_reels_aggregated_all_plays_count" ||
+          metricObj.name === "clips_replays_count"
+        ) {
+          plays = Math.max(plays, val);
+        }
+        if (metricObj.name === "reach") {
+          reach = Math.max(reach, val);
+        }
+        if (metricObj.name === "impressions" && plays === 0) {
+          plays = Math.max(plays, val);
+        }
+        if (metricObj.name === "saved") {
+          saved = Math.max(saved, val);
+        }
+        if (metricObj.name === "shares") {
+          shares = Math.max(shares, val);
+        }
+      });
+
+      if (plays > 0 || reach > 0) break;
+    }
+  }
+
+  return { plays, reach, shares, saved };
+}
+
+// Helper to fetch account level insights from Meta Graph API
+async function fetchAccountLevelInsights(baseUrl: string, instagramUserId: string, accessToken: string) {
+  let accountReach = 0;
+  let accountImpressions = 0;
+
+  const periods = ["days_28", "day"];
+  const metrics = ["reach,impressions", "reach", "impressions", "views"];
+
+  for (const period of periods) {
+    for (const metric of metrics) {
+      const url = `${baseUrl}/${instagramUserId}/insights?metric=${metric}&period=${period}&access_token=${encodeURIComponent(accessToken)}`;
+      const json = await safeGraphFetch(url);
+      if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+        json.data.forEach((metricObj: any) => {
+          const val = Number(metricObj?.values?.[0]?.value ?? metricObj?.total_value?.value ?? 0) || 0;
+          if (metricObj.name === "reach") {
+            accountReach = Math.max(accountReach, val);
+          }
+          if (metricObj.name === "impressions" || metricObj.name === "views") {
+            accountImpressions = Math.max(accountImpressions, val);
+          }
+        });
+        if (accountReach > 0 || accountImpressions > 0) break;
+      }
+    }
+    if (accountReach > 0 || accountImpressions > 0) break;
+  }
+
+  return { accountReach, accountImpressions };
 }
 
 // Server Function to Sync a Single Account Insights
@@ -74,52 +160,45 @@ export const syncAccountInsightsFn = createServerFn({ method: "POST" })
     const followsCount = Number(profileData?.follows_count) || 0;
     const mediaCount = Number(profileData?.media_count) || 0;
 
-    // 3. Fetch Recent Media Items (up to 30 most recent posts/reels)
+    // 3. Fetch Account-level Insights if available
+    const { accountReach, accountImpressions } = await fetchAccountLevelInsights(
+      baseUrl,
+      instagram_user_id,
+      access_token,
+    );
+
+    // 4. Fetch Recent Media Items (up to 30 most recent posts/reels)
     const mediaFields =
       "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count";
     const mediaListUrl = `${baseUrl}/${instagram_user_id}/media?fields=${mediaFields}&limit=30&access_token=${encodeURIComponent(access_token)}`;
     const mediaJson = await safeGraphFetch(mediaListUrl);
     const rawMediaList: any[] = mediaJson?.data || [];
 
-    // 4. Fetch Insights for each media item (Views/Plays, Reach, Shares, Saved)
+    // 5. Fetch Insights for each media item
     const mediaItems: MediaItem[] = [];
-    let totalViews = 0n;
-    let totalReach = 0n;
-    let totalLikes = 0n;
-    let totalComments = 0n;
-    let totalShares = 0n;
-    let totalSaved = 0n;
+    let sumMediaViews = 0n;
+    let sumMediaReach = 0n;
+    let sumMediaLikes = 0n;
+    let sumMediaComments = 0n;
+    let sumMediaShares = 0n;
+    let sumMediaSaved = 0n;
 
     for (const m of rawMediaList) {
       const likeCount = Number(m.like_count) || 0;
       const commentsCount = Number(m.comments_count) || 0;
-      let plays = 0;
-      let reach = 0;
-      let shares = 0;
-      let saved = 0;
 
-      // Only attempt insight fetching if it's a video/reel
-      if (m.media_type === "VIDEO" || m.media_type === "REELS") {
-        const insightsUrl = `${baseUrl}/${m.id}/insights?metric=plays,reach,saved,shares,total_interactions&access_token=${encodeURIComponent(access_token)}`;
-        const insightsJson = await safeGraphFetch(insightsUrl);
+      const { plays, reach, shares, saved } = await fetchMediaInsights(
+        baseUrl,
+        m.id,
+        access_token,
+      );
 
-        if (insightsJson?.data && Array.isArray(insightsJson.data)) {
-          insightsJson.data.forEach((metricObj: any) => {
-            const val = metricObj?.values?.[0]?.value ?? 0;
-            if (metricObj.name === "plays") plays = Number(val) || 0;
-            if (metricObj.name === "reach") reach = Number(val) || 0;
-            if (metricObj.name === "saved") saved = Number(val) || 0;
-            if (metricObj.name === "shares") shares = Number(val) || 0;
-          });
-        }
-      }
-
-      totalViews += BigInt(plays);
-      totalReach += BigInt(reach);
-      totalLikes += BigInt(likeCount);
-      totalComments += BigInt(commentsCount);
-      totalShares += BigInt(shares);
-      totalSaved += BigInt(saved);
+      sumMediaViews += BigInt(plays);
+      sumMediaReach += BigInt(reach);
+      sumMediaLikes += BigInt(likeCount);
+      sumMediaComments += BigInt(commentsCount);
+      sumMediaShares += BigInt(shares);
+      sumMediaSaved += BigInt(saved);
 
       const totalInteractions = likeCount + commentsCount + shares + saved;
       const divisor = plays > 0 ? plays : reach > 0 ? reach : 1;
@@ -167,18 +246,28 @@ export const syncAccountInsightsFn = createServerFn({ method: "POST" })
       );
     }
 
-    // 5. Calculate Overall Account Engagement Rate
-    const sumAllInteractions = Number(totalLikes + totalComments + totalShares + totalSaved);
+    // Determine total views and total reach (using media sum or account level aggregates)
+    const finalTotalViews = Math.max(Number(sumMediaViews), accountImpressions);
+    const finalTotalReach = Math.max(Number(sumMediaReach), accountReach);
+    const finalTotalLikes = Number(sumMediaLikes);
+    const finalTotalComments = Number(sumMediaComments);
+    const finalTotalShares = Number(sumMediaShares);
+    const finalTotalSaved = Number(sumMediaSaved);
+
+    // 6. Calculate Overall Account Engagement Rate
+    const sumAllInteractions = finalTotalLikes + finalTotalComments + finalTotalShares + finalTotalSaved;
     let overallEngagementRate = 0;
 
-    if (totalViews > 0n) {
-      overallEngagementRate = (sumAllInteractions / Number(totalViews)) * 100;
+    if (finalTotalViews > 0) {
+      overallEngagementRate = (sumAllInteractions / finalTotalViews) * 100;
+    } else if (finalTotalReach > 0) {
+      overallEngagementRate = (sumAllInteractions / finalTotalReach) * 100;
     } else if (followersCount > 0 && rawMediaList.length > 0) {
       overallEngagementRate =
         (sumAllInteractions / (followersCount * rawMediaList.length)) * 100;
     }
 
-    // 6. Upsert Account Insights in Supabase
+    // 7. Upsert Account Insights in Supabase
     const nowIso = new Date().toISOString();
     const { error: upsertErr } = await supabase.from("instagram_account_insights").upsert(
       {
@@ -187,16 +276,18 @@ export const syncAccountInsightsFn = createServerFn({ method: "POST" })
         followers_count: followersCount,
         follows_count: followsCount,
         media_count: mediaCount,
-        total_views: Number(totalViews),
-        total_reach: Number(totalReach),
-        total_likes: Number(totalLikes),
-        total_comments: Number(totalComments),
-        total_shares: Number(totalShares),
-        total_saved: Number(totalSaved),
+        total_views: finalTotalViews,
+        total_reach: finalTotalReach,
+        total_likes: finalTotalLikes,
+        total_comments: finalTotalComments,
+        total_shares: finalTotalShares,
+        total_saved: finalTotalSaved,
         engagement_rate: parseFloat(overallEngagementRate.toFixed(2)),
         last_synced_at: nowIso,
         raw_insights: {
           syncedMediaCount: rawMediaList.length,
+          accountReach,
+          accountImpressions,
           lastSyncStatus: "success",
         },
         updated_at: nowIso,
@@ -213,7 +304,8 @@ export const syncAccountInsightsFn = createServerFn({ method: "POST" })
       success: true,
       username,
       followersCount,
-      totalViews: Number(totalViews),
+      totalViews: finalTotalViews,
+      totalReach: finalTotalReach,
       engagementRate: parseFloat(overallEngagementRate.toFixed(2)),
       syncedMediaCount: rawMediaList.length,
       lastSyncedAt: nowIso,
