@@ -15,6 +15,7 @@ import {
   Sparkles,
   Info,
   Layers,
+  Timer,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -127,6 +128,9 @@ function BulkSchedulePage() {
   const [uploadStatus, setUploadStatus] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [batchSize, setBatchSize] = useState(1);
+  const [batchMinDelaySeconds, setBatchMinDelaySeconds] = useState(5);
+  const [batchMaxDelaySeconds, setBatchMaxDelaySeconds] = useState(30);
+  const [stableBatchDelays, setStableBatchDelays] = useState<Record<string, number[]>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -192,6 +196,48 @@ function BulkSchedulePage() {
     setAccountVideoOrders(newOrders);
   }, [videoFiles.length, selectedAccounts, randomize]);
 
+  // Generate random delay offsets per account and video within each batch reactively
+  useEffect(() => {
+    if (selectedAccounts.length === 0 || videoFiles.length === 0) {
+      setStableBatchDelays({});
+      return;
+    }
+
+    const minSec = Math.max(0, Math.min(batchMinDelaySeconds, batchMaxDelaySeconds));
+    const maxSec = Math.max(0, Math.max(batchMinDelaySeconds, batchMaxDelaySeconds));
+
+    const newDelays: Record<string, number[]> = {};
+
+    selectedAccounts.forEach((accId) => {
+      const delays: number[] = [];
+      let currentBatchCumulative = 0;
+
+      for (let i = 0; i < videoFiles.length; i++) {
+        const posInBatch = i % batchSize;
+        if (posInBatch === 0 || batchSize <= 1) {
+          currentBatchCumulative = 0;
+        } else {
+          const delta =
+            minSec === maxSec
+              ? minSec
+              : Math.floor(Math.random() * (maxSec - minSec + 1)) + minSec;
+          currentBatchCumulative += delta;
+        }
+        delays.push(currentBatchCumulative);
+      }
+      newDelays[accId] = delays;
+    });
+
+    setStableBatchDelays(newDelays);
+  }, [
+    selectedAccounts,
+    videoFiles.length,
+    batchSize,
+    batchMinDelaySeconds,
+    batchMaxDelaySeconds,
+    randomTrigger,
+  ]);
+
   // Generate random posting times per account and day reactively in random mode
   useEffect(() => {
     if (!isRandomTimeMode || selectedAccounts.length === 0 || videoFiles.length === 0) {
@@ -249,6 +295,7 @@ function BulkSchedulePage() {
       newOrders[accId] = shuffleArray(seq);
     });
     setAccountVideoOrders(newOrders);
+    setRandomTrigger((prev) => prev + 1);
     toast.success("Ordem dos vídeos misturada novamente!");
   };
 
@@ -296,11 +343,14 @@ function BulkSchedulePage() {
   interface ScheduleSlot {
     dateStr: string;
     timeStr: string;
+    delaySeconds?: number;
+    posInBatch?: number;
     accountId: string;
     accountUsername: string;
     accountColor?: string;
     videoIndex: number;
     videoFileName: string;
+    scheduledTimestamp: number;
   }
 
   const getScheduleSlots = (): ScheduleSlot[] => {
@@ -325,7 +375,8 @@ function BulkSchedulePage() {
       order.forEach((videoIdx, i) => {
         if (videoIdx >= videoFiles.length) return;
 
-        let timeStr = "";
+        let baseHours = 12;
+        let baseMinutes = 0;
         let dayIndex = 0;
 
         const slotIndex = Math.floor(i / batchSize);
@@ -333,43 +384,55 @@ function BulkSchedulePage() {
         if (isRandomTimeMode) {
           dayIndex = Math.floor(slotIndex / randomCountPerDay);
           const timeIndex = slotIndex % randomCountPerDay;
-          timeStr = stableRandomTimes[accId]?.[dayIndex]?.[timeIndex] || "12:00";
+          const timeStr = stableRandomTimes[accId]?.[dayIndex]?.[timeIndex] || "12:00";
+          const [h, m] = timeStr.split(":").map(Number);
+          baseHours = h || 0;
+          baseMinutes = m || 0;
         } else {
           dayIndex = Math.floor(slotIndex / sortedTimes.length);
           const timeIndex = slotIndex % sortedTimes.length;
-          timeStr = sortedTimes[timeIndex];
+          const [h, m] = (sortedTimes[timeIndex] || "12:00").split(":").map(Number);
+          baseHours = h || 0;
+          baseMinutes = m || 0;
         }
 
-        const slotDate = new Date(year, month - 1, day + dayIndex);
+        const delaySec = stableBatchDelays[accId]?.[i] ?? 0;
+        const slotDate = new Date(year, month - 1, day + dayIndex, baseHours, baseMinutes, 0, 0);
+        if (delaySec > 0) {
+          slotDate.setSeconds(slotDate.getSeconds() + delaySec);
+        }
+
         const formattedDate = slotDate.toLocaleDateString("pt-BR", {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
         });
 
+        const hStr = String(slotDate.getHours()).padStart(2, "0");
+        const mStr = String(slotDate.getMinutes()).padStart(2, "0");
+        const sStr = String(slotDate.getSeconds()).padStart(2, "0");
+
+        const formattedTime =
+          batchSize > 1 || delaySec > 0 ? `${hStr}:${mStr}:${sStr}` : `${hStr}:${mStr}`;
+
         slots.push({
           dateStr: formattedDate,
-          timeStr,
+          timeStr: formattedTime,
+          delaySeconds: delaySec,
+          posInBatch: i % batchSize,
           accountId: accId,
           accountUsername: account.username,
           accountColor: account.account_categories?.color,
           videoIndex: videoIdx,
           videoFileName: videoFiles[videoIdx].name,
+          scheduledTimestamp: slotDate.getTime(),
         });
       });
     });
 
     return slots.sort((a, b) => {
-      const [dA, mA, yA] = a.dateStr.split("/").map(Number);
-      const [dB, mB, yB] = b.dateStr.split("/").map(Number);
-      const dateA = new Date(yA, mA - 1, dA);
-      const dateB = new Date(yB, mB - 1, dB);
-
-      if (dateA.getTime() !== dateB.getTime()) {
-        return dateA.getTime() - dateB.getTime();
-      }
-      if (a.timeStr !== b.timeStr) {
-        return a.timeStr.localeCompare(b.timeStr);
+      if (a.scheduledTimestamp !== b.scheduledTimestamp) {
+        return a.scheduledTimestamp - b.scheduledTimestamp;
       }
       if (a.videoIndex !== b.videoIndex) {
         return a.videoIndex - b.videoIndex;
@@ -526,8 +589,13 @@ function BulkSchedulePage() {
             minutes = m;
           }
 
-          // Construct date time slot in local time representation
+          const delaySec = stableBatchDelays[accId]?.[i] ?? 0;
+
+          // Construct date time slot in local time representation with batch delay seconds
           const scheduledDate = new Date(year, month - 1, day + dayIndex, hours, minutes, 0, 0);
+          if (delaySec > 0) {
+            scheduledDate.setSeconds(scheduledDate.getSeconds() + delaySec);
+          }
 
           postsToInsert.push({
             user_id: uid,
@@ -927,6 +995,127 @@ function BulkSchedulePage() {
                 </div>
               </div>
 
+              {/* Batch Delay Variation Section (shown when batchSize > 1) */}
+              {batchSize > 1 && (
+                <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <Timer className="size-4 text-primary shrink-0" />
+                      Variação de Intervalo do Lote (segundos)
+                    </Label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-muted-foreground font-semibold">Presets:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBatchMinDelaySeconds(5);
+                          setBatchMaxDelaySeconds(30);
+                          setRandomTrigger((p) => p + 1);
+                        }}
+                        className={`text-[10px] px-2 py-0.5 rounded-md font-semibold transition border cursor-pointer ${
+                          batchMinDelaySeconds === 5 && batchMaxDelaySeconds === 30
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-secondary/60 text-foreground border-border/40 hover:bg-secondary"
+                        }`}
+                      >
+                        5-30s
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBatchMinDelaySeconds(10);
+                          setBatchMaxDelaySeconds(60);
+                          setRandomTrigger((p) => p + 1);
+                        }}
+                        className={`text-[10px] px-2 py-0.5 rounded-md font-semibold transition border cursor-pointer ${
+                          batchMinDelaySeconds === 10 && batchMaxDelaySeconds === 60
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-secondary/60 text-foreground border-border/40 hover:bg-secondary"
+                        }`}
+                      >
+                        10-60s
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBatchMinDelaySeconds(30);
+                          setBatchMaxDelaySeconds(120);
+                          setRandomTrigger((p) => p + 1);
+                        }}
+                        className={`text-[10px] px-2 py-0.5 rounded-md font-semibold transition border cursor-pointer ${
+                          batchMinDelaySeconds === 30 && batchMaxDelaySeconds === 120
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-secondary/60 text-foreground border-border/40 hover:bg-secondary"
+                        }`}
+                      >
+                        30-120s
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="batchMinDelay"
+                        className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider"
+                      >
+                        Mínimo (segundos)
+                      </Label>
+                      <Input
+                        type="number"
+                        id="batchMinDelay"
+                        min={0}
+                        max={600}
+                        value={batchMinDelaySeconds}
+                        onChange={(e) =>
+                          setBatchMinDelaySeconds(Math.max(0, parseInt(e.target.value) || 0))
+                        }
+                        className="h-9 bg-card text-xs font-semibold"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="batchMaxDelay"
+                        className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider"
+                      >
+                        Máximo (segundos)
+                      </Label>
+                      <Input
+                        type="number"
+                        id="batchMaxDelay"
+                        min={0}
+                        max={600}
+                        value={batchMaxDelaySeconds}
+                        onChange={(e) =>
+                          setBatchMaxDelaySeconds(Math.max(0, parseInt(e.target.value) || 0))
+                        }
+                        className="h-9 bg-card text-xs font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/20">
+                    <p className="text-[10px] text-muted-foreground italic leading-relaxed">
+                      O 1º Reels do lote posta no horário base. Cada Reels seguinte aguardará um intervalo aleatório de{" "}
+                      <strong className="text-foreground">
+                        {Math.min(batchMinDelaySeconds, batchMaxDelaySeconds)}s a{" "}
+                        {Math.max(batchMinDelaySeconds, batchMaxDelaySeconds)}s
+                      </strong>{" "}
+                      após o anterior.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setRandomTrigger((prev) => prev + 1)}
+                      className="text-[10px] h-6 px-2 gap-1 text-primary hover:text-primary hover:bg-primary/10 shrink-0 font-bold cursor-pointer"
+                    >
+                      <Shuffle className="size-2.5" /> Re-sortear
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {!isRandomTimeMode ? (
                 <div className="space-y-4">
                   <div className="space-y-1.5">
@@ -1160,9 +1349,14 @@ function BulkSchedulePage() {
                               className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-secondary/35 border border-border/25 gap-3 hover:bg-secondary/50 transition-colors"
                             >
                               <div className="flex items-center gap-2 min-w-0">
-                                <span className="font-extrabold text-muted-foreground shrink-0">
+                                <span className="font-extrabold text-foreground shrink-0 font-mono text-[11px]">
                                   {slot.timeStr}
                                 </span>
+                                {slot.delaySeconds !== undefined && slot.delaySeconds > 0 && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/25 shrink-0">
+                                    +{slot.delaySeconds}s
+                                  </span>
+                                )}
                                 <span className="text-muted-foreground/50">•</span>
                                 <span
                                   className="flex items-center gap-1.5 min-w-0 font-extrabold truncate"

@@ -252,7 +252,7 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      const graphApiUrl = ig.access_token.startsWith("IGAA")
+      const graphApiUrl = ig.access_token.startsWith("IG")
         ? "https://graph.instagram.com/v21.0"
         : "https://graph.facebook.com/v21.0";
 
