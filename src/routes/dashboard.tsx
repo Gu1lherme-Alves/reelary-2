@@ -276,12 +276,12 @@ function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Header com Filtro */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Painel Geral</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">Painel Geral</h1>
+          <p className="text-xs text-zinc-400 mt-1">
             Acompanhe as métricas de postagem dos seus Reels.
           </p>
         </div>
@@ -294,7 +294,7 @@ function DashboardPage() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="border-border/60 bg-card hover:bg-secondary rounded-xl text-xs font-semibold h-10 gap-2 cursor-pointer w-48 justify-between"
+                  className="border-[#26262b] bg-[#141417] hover:bg-[#1c1c20] rounded-md text-xs font-medium h-8 gap-2 cursor-pointer w-48 justify-between text-zinc-300"
                 >
                   <span className="truncate">
                     {selectedAccountIds.length === accounts.length
@@ -306,8 +306,8 @@ function DashboardPage() {
                   <ChevronDown className="size-3 text-muted-foreground shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-card border border-border/60">
-                <DropdownMenuLabel className="text-xs text-muted-foreground font-semibold flex items-center justify-between">
+              <DropdownMenuContent align="end" className="w-56 bg-[#121215] border border-[#26262b]">
+                <DropdownMenuLabel className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider flex items-center justify-between">
                   <span>Selecionar Contas</span>
                   <div className="flex gap-2">
                     <button
@@ -315,7 +315,7 @@ function DashboardPage() {
                         e.stopPropagation();
                         setSelectedAccountIds(accounts.map((a) => a.id));
                       }}
-                      className="text-[10px] text-primary hover:underline font-bold cursor-pointer"
+                      className="text-[10px] text-amber-400 hover:underline font-bold cursor-pointer"
                     >
                       Todas
                     </button>
@@ -324,7 +324,7 @@ function DashboardPage() {
                         e.stopPropagation();
                         setSelectedAccountIds([]);
                       }}
-                      className="text-[10px] text-destructive hover:underline font-bold cursor-pointer"
+                      className="text-[10px] text-rose-400 hover:underline font-bold cursor-pointer"
                     >
                       Limpar
                     </button>
@@ -367,10 +367,10 @@ function DashboardPage() {
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground font-medium shrink-0">Período:</span>
             <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-48 bg-card border-border/60 rounded-xl h-10 font-medium">
+              <SelectTrigger className="w-44 bg-[#141417] border-[#26262b] rounded-md h-8 text-xs text-zinc-300">
                 <SelectValue placeholder="Qualquer período" />
               </SelectTrigger>
-              <SelectContent className="bg-card border-border/60">
+              <SelectContent className="bg-[#141417] border-[#26262b] text-xs">
                 <SelectItem value="all" className="cursor-pointer">
                   Qualquer período
                 </SelectItem>
@@ -397,19 +397,19 @@ function DashboardPage() {
 
       {/* Calendário para Período Personalizado */}
       {dateFilter === "custom" && (
-        <div className="flex flex-col md:flex-row items-start gap-6 p-5 rounded-2xl border border-border/40 bg-card/25 backdrop-blur-sm shadow-card animate-in slide-in-from-top-2 duration-300">
+        <div className="flex flex-col md:flex-row items-start gap-6 p-4 rounded-lg border border-[#232328] bg-[#121215]">
           <div className="space-y-3 shrink-0">
-            <h3 className="text-sm font-bold text-foreground">Intervalo de datas</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed max-w-[200px]">
+            <h3 className="text-sm font-bold text-white">Intervalo de datas</h3>
+            <p className="text-xs text-zinc-400 leading-relaxed max-w-[200px]">
               Selecione o dia inicial e o dia final clicando diretamente no calendário para filtrar
               as métricas do painel.
             </p>
             {dateRange?.from && (
-              <div className="p-3 rounded-xl bg-secondary/40 border border-border/40 space-y-1">
+              <div className="p-3 rounded-md bg-[#18181c] border border-[#26262b] space-y-1">
                 <span className="text-[10px] uppercase tracking-wider font-extrabold text-muted-foreground block">
                   Período selecionado:
                 </span>
-                <span className="text-xs font-bold text-primary">
+                <span className="text-xs font-bold text-amber-400">
                   {dateRange.from.toLocaleDateString("pt-BR")}
                   {dateRange.to
                     ? ` — ${dateRange.to.toLocaleDateString("pt-BR")}`
@@ -423,120 +423,111 @@ function DashboardPage() {
             mode="range"
             selected={dateRange}
             onSelect={setDateRange}
-            className="rounded-xl border border-border/40 bg-card p-3"
+            className="rounded-lg border border-[#232328] bg-[#141417] p-3"
           />
         </div>
       )}
 
       {loading ? (
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-32 rounded-2xl bg-card border border-border/50 animate-pulse"
+              className="h-24 rounded-lg bg-[#121215] border border-[#232328] animate-pulse"
             />
           ))}
         </div>
       ) : (
         <>
           {/* Métricas */}
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-3">
             {/* Card 1: Agendados pro Dia/Período */}
-            <div className="rounded-2xl border border-border/50 bg-card/45 p-6 shadow-card hover:bg-card/75 transition relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-300">
-                <CalendarIcon className="size-20 text-primary" />
-              </div>
-              <div className="flex items-center gap-3 text-muted-foreground text-sm font-semibold mb-3">
-                <div className="size-8 rounded-lg bg-primary/10 grid place-items-center text-primary">
-                  <CalendarIcon className="size-4" />
+            <div className="rounded-lg border border-[#232328] bg-[#121215] p-4 hover:bg-[#151519] transition relative overflow-hidden">
+              <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold mb-1.5">
+                <div className="size-6 rounded bg-amber-500/10 grid place-items-center text-amber-400">
+                  <CalendarIcon className="size-3" />
                 </div>
-                {getScheduledCardTitle()}
+                <span className="text-[10px] uppercase tracking-wider font-bold">{getScheduledCardTitle()}</span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-extrabold text-gradient-brand">
+                <span className="text-2xl font-black text-amber-400">
                   {scheduledPending}
                 </span>
-                <span className="text-xs text-muted-foreground">{getScheduledLabel()}</span>
+                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">{getScheduledLabel()}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-                Prontos para postagem automática nas próximas horas.
+              <p className="text-[11px] text-zinc-400 mt-1">
+                Prontos para postagem automática.
               </p>
             </div>
 
             {/* Card 2: Já Postados */}
-            <div className="rounded-2xl border border-border/50 bg-card/45 p-6 shadow-card hover:bg-card/75 transition relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-300">
-                <CheckCircle2 className="size-20 text-success" />
-              </div>
-              <div className="flex items-center gap-3 text-muted-foreground text-sm font-semibold mb-3">
-                <div className="size-8 rounded-lg bg-success/10 grid place-items-center text-success">
-                  <CheckCircle2 className="size-4" />
+            <div className="rounded-lg border border-[#232328] bg-[#121215] p-4 hover:bg-[#151519] transition relative overflow-hidden">
+              <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold mb-1.5">
+                <div className="size-6 rounded bg-emerald-500/10 grid place-items-center text-emerald-400">
+                  <CheckCircle2 className="size-3" />
                 </div>
-                {getPublishedCardTitle()}
+                <span className="text-[10px] uppercase tracking-wider font-bold">{getPublishedCardTitle()}</span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-extrabold text-success">{totalPublished}</span>
-                <span className="text-xs text-muted-foreground">publicados com sucesso</span>
+                <span className="text-2xl font-black text-emerald-400">{totalPublished}</span>
+                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">publicados</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-4 leading-relaxed flex items-center gap-1">
+              <p className="text-[11px] text-zinc-400 mt-1 flex items-center gap-1">
                 {totalFailed > 0 ? (
-                  <span className="text-destructive font-semibold flex items-center gap-1">
-                    <AlertCircle className="size-3.5 inline text-destructive shrink-0" />{" "}
-                    {totalFailed} falhas registradas
+                  <span className="text-rose-400 font-semibold flex items-center gap-1">
+                    <AlertCircle className="size-3 inline shrink-0" />
+                    {totalFailed} falhas
                   </span>
                 ) : (
-                  <span>Sem falhas de publicação.</span>
+                  <span>Sem falhas registradas.</span>
                 )}
               </p>
             </div>
 
             {/* Card 3: Contas Conectadas */}
-            <div className="rounded-2xl border border-border/50 bg-card/45 p-6 shadow-card hover:bg-card/75 transition relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition duration-300">
-                <Instagram className="size-20 text-accent" />
-              </div>
-              <div className="flex items-center gap-3 text-muted-foreground text-sm font-semibold mb-3">
-                <div className="size-8 rounded-lg bg-accent/10 grid place-items-center text-accent">
-                  <Instagram className="size-4" />
+            <div className="rounded-lg border border-[#232328] bg-[#121215] p-4 hover:bg-[#151519] transition relative overflow-hidden">
+              <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold mb-1.5">
+                <div className="size-6 rounded bg-amber-500/10 grid place-items-center text-amber-400">
+                  <Instagram className="size-3" />
                 </div>
-                Contas Conectadas
+                <span className="text-[10px] uppercase tracking-wider font-bold">Contas Conectadas</span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-extrabold text-accent">{totalAccounts}</span>
-                <span className="text-xs text-muted-foreground">perfis ativos</span>
+                <span className="text-2xl font-black text-white">{totalAccounts}</span>
+                <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">perfis ativos</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-                Todas gerenciadas a partir de um único painel.
+              <p className="text-[11px] text-zinc-400 mt-1">
+                Gerenciadas a partir de um único painel.
               </p>
             </div>
           </div>
 
           {/* Seção Inferior: Próximas Postagens e Ações */}
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-3 lg:grid-cols-3">
             {/* Próximos Reels */}
-            <div className="lg:col-span-2 rounded-2xl border border-border/50 bg-card/30 p-6 flex flex-col justify-between">
+            <div className="lg:col-span-2 rounded-lg border border-[#232328] bg-[#101013] p-4 flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-bold text-lg flex items-center gap-2">
-                    <Clock className="size-5 text-primary" /> Próximas Publicações
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-sm flex items-center gap-2 text-white">
+                    <Clock className="size-4 text-amber-400" /> Próximas Publicações
                   </h3>
                   <Link
                     to="/calendar"
-                    className="text-xs text-primary hover:underline font-semibold flex items-center gap-0.5"
+                    className="text-[11px] text-amber-400 hover:underline font-semibold flex items-center gap-0.5"
                   >
-                    Ver calendário completo <ChevronRight className="size-3" />
+                    Ver calendário <ChevronRight className="size-3" />
                   </Link>
                 </div>
 
                 {upcomingPosts.length === 0 ? (
-                  <div className="text-center py-10 border border-dashed border-border/60 rounded-xl bg-card/10">
-                    <p className="text-muted-foreground text-sm">
+                  <div className="text-center py-8 border border-dashed border-[#26262b] rounded-md bg-[#0e0e11]">
+                    <p className="text-zinc-500 text-xs">
                       Nenhum Reel agendado para o futuro.
                     </p>
-                    <Link to="/calendar" className="inline-block mt-4">
+                    <Link to="/calendar" className="inline-block mt-3">
                       <Button
                         size="sm"
-                        className="bg-gradient-brand text-primary-foreground border-0"
+                        className="bg-amber-600 hover:bg-amber-700 text-zinc-950 font-bold text-xs rounded-md"
                       >
                         Agendar Primeiro Reel
                       </Button>
@@ -547,18 +538,18 @@ function DashboardPage() {
                     {upcomingPosts.map((p) => (
                       <div
                         key={p.id}
-                        className="flex gap-4 p-3 rounded-xl bg-card/65 border border-border/40 hover:bg-card/90 transition shadow-sm"
+                        className="flex gap-3 p-3 rounded-md bg-[#121215] border border-[#202024] hover:border-[#2a2a30] transition"
                       >
                         {p.video_url ? (
                           <video
                             src={p.video_url}
-                            className="size-16 rounded-lg object-cover bg-background shrink-0"
+                            className="size-14 rounded-md object-cover bg-[#09090b] shrink-0"
                             muted
                             preload="metadata"
                           />
                         ) : (
                           <div
-                            className="size-16 rounded-lg bg-secondary/60 flex flex-col items-center justify-center shrink-0 border border-border/40 shadow-inner gap-1"
+                            className="size-14 rounded-md bg-[#18181c] flex flex-col items-center justify-center shrink-0 border border-[#26262b] gap-1"
                             title="Vídeo removido para economizar espaço"
                           >
                             <span className="text-[8px] text-muted-foreground/80 font-bold">
@@ -569,7 +560,7 @@ function DashboardPage() {
                         <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
                           <div>
                             <div className="flex items-center gap-2 text-xs">
-                              <span className="font-bold text-primary flex items-center gap-1.5">
+                              <span className="font-bold text-amber-400 flex items-center gap-1.5">
                                 @{p.instagram_accounts?.username || "instagram"}
                               </span>
                               <span className="text-muted-foreground">•</span>
@@ -586,8 +577,8 @@ function DashboardPage() {
                               )}
                             </p>
                           </div>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-warning bg-warning/10 border border-warning/20 px-2 py-0.5 rounded-full max-w-max">
-                            <Clock className="size-2.5 animate-pulse" /> Agendado
+                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded max-w-max">
+                            <Clock className="size-2.5" /> Agendado
                           </span>
                         </div>
                       </div>
@@ -597,7 +588,7 @@ function DashboardPage() {
               </div>
 
               {upcomingPosts.length > 0 && (
-                <div className="pt-4 border-t border-border/40 mt-4 flex justify-end">
+                <div className="pt-3 border-t border-[#1c1c20] mt-3 flex justify-end">
                   <Link to="/calendar">
                     <Button
                       variant="ghost"
@@ -612,29 +603,28 @@ function DashboardPage() {
             </div>
 
             {/* Ações Rápidas */}
-            <div className="rounded-2xl border border-border/50 bg-gradient-brand/5 p-6 flex flex-col justify-between shadow-card">
-              <div className="space-y-4">
-                <div className="size-12 rounded-xl bg-gradient-brand grid place-items-center">
-                  <Sparkles className="size-6 text-primary-foreground" />
+            <div className="rounded-lg border border-[#232328] bg-[#101013] p-4 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="size-9 rounded-md bg-amber-500/15 border border-amber-500/30 grid place-items-center">
+                  <Sparkles className="size-4 text-amber-400" />
                 </div>
-                <h3 className="font-extrabold text-xl">Agendamento Automático</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Agende novos Reels adicionando arquivos de vídeo locais, legendas personalizadas e
-                  escolhendo o dia e hora exatos de postagem.
+                <h3 className="font-bold text-base text-white">Agendamento Automático</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Agende Reels com vídeos, legendas e horários personalizados de postagem.
                 </p>
               </div>
 
-              <div className="space-y-3 mt-8">
+              <div className="space-y-2 mt-6">
                 {totalAccounts > 0 ? (
                   <Link to="/calendar" className="block w-full">
-                    <Button className="w-full bg-gradient-brand text-primary-foreground border-0 shadow-glow font-bold h-11 hover:opacity-95">
-                      <Plus className="size-4 mr-2" /> Agendar Novo Reel
+                    <Button className="w-full bg-amber-600 hover:bg-amber-700 text-zinc-950 font-bold h-9 text-xs rounded-md">
+                      <Plus className="size-3.5 mr-1.5" /> Agendar Novo Reel
                     </Button>
                   </Link>
                 ) : (
                   <Link to="/accounts" className="block w-full">
-                    <Button className="w-full bg-gradient-brand text-primary-foreground border-0 shadow-glow font-bold h-11 hover:opacity-95">
-                      <Instagram className="size-4 mr-2" /> Conectar Conta
+                    <Button className="w-full bg-amber-600 hover:bg-amber-700 text-zinc-950 font-bold h-9 text-xs rounded-md">
+                      <Instagram className="size-3.5 mr-1.5" /> Conectar Conta
                     </Button>
                   </Link>
                 )}
@@ -642,7 +632,7 @@ function DashboardPage() {
                 <Link to="/accounts" className="block w-full">
                   <Button
                     variant="outline"
-                    className="w-full border-border hover:bg-secondary h-11 font-semibold text-sm rounded-xl"
+                    className="w-full border-[#26262b] hover:bg-[#18181c] h-9 font-medium text-xs rounded-md text-zinc-300"
                   >
                     Ver Contas Vinculadas
                   </Button>
