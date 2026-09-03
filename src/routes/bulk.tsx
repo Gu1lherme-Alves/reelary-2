@@ -85,6 +85,87 @@ async function fetchWithRetry(
   throw new Error(`Falha no upload após ${retries} tentativas.`);
 }
 
+interface ComputeBatchSlotsParams {
+  startDate: string;
+  totalBatchSlots: number;
+  isRandomTimeMode: boolean;
+  sortedTimes: string[];
+  randomTimesForAccount?: string[][];
+  randomStartHour: string;
+  randomEndHour: string;
+  randomCountPerDay: number;
+}
+
+function computeAccountBatchSlots(params: ComputeBatchSlotsParams): Date[] {
+  const {
+    startDate,
+    totalBatchSlots,
+    isRandomTimeMode,
+    sortedTimes,
+    randomTimesForAccount,
+    randomStartHour,
+    randomEndHour,
+    randomCountPerDay,
+  } = params;
+
+  if (totalBatchSlots <= 0 || !startDate) return [];
+
+  const [year, month, day] = startDate.split("-").map(Number);
+  const now = Date.now();
+  const slots: Date[] = [];
+
+  let dayOffset = 0;
+  const maxDaySafety = 3650; // Safety limit (up to 10 years)
+
+  while (slots.length < totalBatchSlots && dayOffset < maxDaySafety) {
+    if (isRandomTimeMode) {
+      let dayTimeStrings = randomTimesForAccount?.[dayOffset];
+      if (!dayTimeStrings || dayTimeStrings.length === 0) {
+        const startMin = parseTimeToMinutes(randomStartHour);
+        const endMin = parseTimeToMinutes(randomEndHour);
+        const actualStartMin = Math.min(startMin, endMin);
+        const actualEndMin = Math.max(startMin, endMin);
+        const dayMinutes: number[] = [];
+        for (let k = 0; k < randomCountPerDay; k++) {
+          const rand =
+            Math.floor(Math.random() * (actualEndMin - actualStartMin + 1)) + actualStartMin;
+          dayMinutes.push(rand);
+        }
+        dayMinutes.sort((a, b) => a - b);
+        dayTimeStrings = dayMinutes.map((t) => {
+          const h = Math.floor(t / 60);
+          const m = t % 60;
+          return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        });
+      }
+
+      for (const timeStr of dayTimeStrings) {
+        const [h, m] = timeStr.split(":").map(Number);
+        const candidateDate = new Date(year, month - 1, day + dayOffset, h || 0, m || 0, 0, 0);
+        // Only pick future time slots (skip slots that already passed today)
+        if (candidateDate.getTime() > now) {
+          slots.push(candidateDate);
+          if (slots.length === totalBatchSlots) break;
+        }
+      }
+    } else {
+      for (const timeStr of sortedTimes) {
+        const [h, m] = timeStr.split(":").map(Number);
+        const candidateDate = new Date(year, month - 1, day + dayOffset, h || 0, m || 0, 0, 0);
+        // Only pick future time slots (skip slots that already passed today)
+        if (candidateDate.getTime() > now) {
+          slots.push(candidateDate);
+          if (slots.length === totalBatchSlots) break;
+        }
+      }
+    }
+
+    dayOffset++;
+  }
+
+  return slots;
+}
+
 function BulkSchedulePage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
@@ -254,7 +335,7 @@ function BulkSchedulePage() {
     selectedAccounts.forEach((accId) => {
       const accountTimes: string[][] = [];
       const totalSlots = Math.ceil(videoFiles.length / batchSize);
-      const totalDays = Math.ceil(totalSlots / randomCountPerDay);
+      const totalDays = Math.ceil(totalSlots / randomCountPerDay) + 15;
 
       for (let d = 0; d < totalDays; d++) {
         const dayTimes: number[] = [];
@@ -363,11 +444,22 @@ function BulkSchedulePage() {
 
     const slots: ScheduleSlot[] = [];
     const sortedTimes = [...postingTimes].sort();
-    const [year, month, day] = startDate.split("-").map(Number);
+    const totalBatchSlots = Math.ceil(videoFiles.length / batchSize);
 
     selectedAccounts.forEach((accId) => {
       const account = accounts.find((a) => a.id === accId);
       if (!account) return;
+
+      const batchSlots = computeAccountBatchSlots({
+        startDate,
+        totalBatchSlots,
+        isRandomTimeMode,
+        sortedTimes,
+        randomTimesForAccount: stableRandomTimes[accId],
+        randomStartHour,
+        randomEndHour,
+        randomCountPerDay,
+      });
 
       const order =
         accountVideoOrders[accId] || Array.from({ length: videoFiles.length }, (_, i) => i);
@@ -375,32 +467,12 @@ function BulkSchedulePage() {
       order.forEach((videoIdx, i) => {
         if (videoIdx >= videoFiles.length) return;
 
-        let baseHours = 12;
-        let baseMinutes = 0;
-        let dayIndex = 0;
-
         const slotIndex = Math.floor(i / batchSize);
-
-        if (isRandomTimeMode) {
-          dayIndex = Math.floor(slotIndex / randomCountPerDay);
-          const timeIndex = slotIndex % randomCountPerDay;
-          const timeStr = stableRandomTimes[accId]?.[dayIndex]?.[timeIndex] || "12:00";
-          const [h, m] = timeStr.split(":").map(Number);
-          baseHours = h || 0;
-          baseMinutes = m || 0;
-        } else {
-          dayIndex = Math.floor(slotIndex / sortedTimes.length);
-          const timeIndex = slotIndex % sortedTimes.length;
-          const [h, m] = (sortedTimes[timeIndex] || "12:00").split(":").map(Number);
-          baseHours = h || 0;
-          baseMinutes = m || 0;
-        }
+        const baseSlotDate = batchSlots[slotIndex];
+        if (!baseSlotDate) return;
 
         const delaySec = stableBatchDelays[accId]?.[i] ?? 0;
-        const slotDate = new Date(year, month - 1, day + dayIndex, baseHours, baseMinutes, 0, 0);
-        if (delaySec > 0) {
-          slotDate.setSeconds(slotDate.getSeconds() + delaySec);
-        }
+        const slotDate = new Date(baseSlotDate.getTime() + delaySec * 1000);
 
         const formattedDate = slotDate.toLocaleDateString("pt-BR", {
           day: "2-digit",
@@ -561,41 +633,30 @@ function BulkSchedulePage() {
       // 3. Prepare DB records
       const postsToInsert: any[] = [];
       const sortedTimes = [...postingTimes].sort();
-      const [year, month, day] = startDate.split("-").map(Number);
+      const totalBatchSlots = Math.ceil(totalVideos / batchSize);
 
       selectedAccounts.forEach((accId) => {
+        const batchSlots = computeAccountBatchSlots({
+          startDate,
+          totalBatchSlots,
+          isRandomTimeMode,
+          sortedTimes,
+          randomTimesForAccount: stableRandomTimes[accId],
+          randomStartHour,
+          randomEndHour,
+          randomCountPerDay,
+        });
+
         const order =
           accountVideoOrders[accId] || Array.from({ length: totalVideos }, (_, idx) => idx);
 
         order.forEach((videoIdx, i) => {
-          let dayIndex = 0;
-          let hours = 12;
-          let minutes = 0;
-
           const slotIndex = Math.floor(i / batchSize);
-
-          if (isRandomTimeMode) {
-            dayIndex = Math.floor(slotIndex / randomCountPerDay);
-            const timeIndex = slotIndex % randomCountPerDay;
-            const timeStr = stableRandomTimes[accId]?.[dayIndex]?.[timeIndex] || "12:00";
-            const [h, m] = timeStr.split(":").map(Number);
-            hours = h;
-            minutes = m;
-          } else {
-            dayIndex = Math.floor(slotIndex / sortedTimes.length);
-            const timeIndex = slotIndex % sortedTimes.length;
-            const [h, m] = sortedTimes[timeIndex].split(":").map(Number);
-            hours = h;
-            minutes = m;
-          }
+          const baseSlotDate = batchSlots[slotIndex];
+          if (!baseSlotDate) return;
 
           const delaySec = stableBatchDelays[accId]?.[i] ?? 0;
-
-          // Construct date time slot in local time representation with batch delay seconds
-          const scheduledDate = new Date(year, month - 1, day + dayIndex, hours, minutes, 0, 0);
-          if (delaySec > 0) {
-            scheduledDate.setSeconds(scheduledDate.getSeconds() + delaySec);
-          }
+          const scheduledDate = new Date(baseSlotDate.getTime() + delaySec * 1000);
 
           postsToInsert.push({
             user_id: uid,
@@ -1167,6 +1228,7 @@ function BulkSchedulePage() {
                       <p className="text-[10px] text-muted-foreground italic leading-relaxed">
                         Serão postados até {postingTimes.length} Reels por dia em cada conta,
                         repetindo esses horários nos dias seguintes até postar todos os vídeos.
+                        Horários que já passaram hoje são automaticamente pulados para os próximos dias.
                       </p>
                     </div>
                   ) : (

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as PostsRouteImport } from './routes/posts'
+import { Route as PerformanceRouteImport } from './routes/performance'
 import { Route as FailedRouteImport } from './routes/failed'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CalendarRouteImport } from './routes/calendar'
@@ -35,6 +36,11 @@ const ScheduleRoute = ScheduleRouteImport.update({
 const PostsRoute = PostsRouteImport.update({
   id: '/posts',
   path: '/posts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerformanceRoute = PerformanceRouteImport.update({
+  id: '/performance',
+  path: '/performance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FailedRoute = FailedRouteImport.update({
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
   '/failed': typeof FailedRoute
+  '/performance': typeof PerformanceRoute
   '/posts': typeof PostsRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
   '/failed': typeof FailedRoute
+  '/performance': typeof PerformanceRoute
   '/posts': typeof PostsRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
   '/failed': typeof FailedRoute
+  '/performance': typeof PerformanceRoute
   '/posts': typeof PostsRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/failed'
+    | '/performance'
     | '/posts'
     | '/schedule'
     | '/settings'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/failed'
+    | '/performance'
     | '/posts'
     | '/schedule'
     | '/settings'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/failed'
+    | '/performance'
     | '/posts'
     | '/schedule'
     | '/settings'
@@ -178,6 +190,7 @@ export interface RootRouteChildren {
   CalendarRoute: typeof CalendarRoute
   DashboardRoute: typeof DashboardRoute
   FailedRoute: typeof FailedRoute
+  PerformanceRoute: typeof PerformanceRoute
   PostsRoute: typeof PostsRoute
   ScheduleRoute: typeof ScheduleRoute
   SettingsRoute: typeof SettingsRoute
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/posts'
       fullPath: '/posts'
       preLoaderRoute: typeof PostsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/performance': {
+      id: '/performance'
+      path: '/performance'
+      fullPath: '/performance'
+      preLoaderRoute: typeof PerformanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/failed': {
@@ -282,6 +302,7 @@ const rootRouteChildren: RootRouteChildren = {
   CalendarRoute: CalendarRoute,
   DashboardRoute: DashboardRoute,
   FailedRoute: FailedRoute,
+  PerformanceRoute: PerformanceRoute,
   PostsRoute: PostsRoute,
   ScheduleRoute: ScheduleRoute,
   SettingsRoute: SettingsRoute,
