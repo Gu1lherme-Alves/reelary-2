@@ -151,14 +151,22 @@ export const syncAccountInsightsFn = createServerFn({ method: "POST" })
       ? "https://graph.facebook.com/v21.0"
       : "https://graph.instagram.com/v21.0";
 
-    // 2. Fetch Account Profile (Followers, Follows, Media Count)
-    const profileFields = "id,username,followers_count,follows_count,media_count";
+    // 2. Fetch Account Profile (Followers, Follows, Media Count, Profile Picture)
+    const profileFields = "id,username,profile_picture_url,followers_count,follows_count,media_count";
     const profileUrl = `${baseUrl}/${instagram_user_id}?fields=${profileFields}&access_token=${encodeURIComponent(access_token)}`;
     const profileData = await safeGraphFetch(profileUrl);
 
     const followersCount = Number(profileData?.followers_count) || 0;
     const followsCount = Number(profileData?.follows_count) || 0;
     const mediaCount = Number(profileData?.media_count) || 0;
+    const profilePictureUrl = profileData?.profile_picture_url || null;
+
+    if (profilePictureUrl) {
+      await supabase
+        .from("instagram_accounts")
+        .update({ profile_picture_url: profilePictureUrl })
+        .eq("id", account.id);
+    }
 
     // 3. Fetch Account-level Insights if available
     const { accountReach, accountImpressions } = await fetchAccountLevelInsights(
@@ -276,6 +284,7 @@ export const syncAccountInsightsFn = createServerFn({ method: "POST" })
         followers_count: followersCount,
         follows_count: followsCount,
         media_count: mediaCount,
+        profile_picture_url: profilePictureUrl,
         total_views: finalTotalViews,
         total_reach: finalTotalReach,
         total_likes: finalTotalLikes,
@@ -303,6 +312,7 @@ export const syncAccountInsightsFn = createServerFn({ method: "POST" })
     return {
       success: true,
       username,
+      profilePictureUrl,
       followersCount,
       totalViews: finalTotalViews,
       totalReach: finalTotalReach,
@@ -351,12 +361,13 @@ export const getCachedInsightsFn = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
-    // 1. Fetch Accounts with Categories
+    // 1. Fetch Accounts with Categories and Profile Picture
     const { data: accounts, error: accErr } = await supabase
       .from("instagram_accounts")
       .select(`
         id,
         username,
+        profile_picture_url,
         category_id,
         hidden,
         created_at,
@@ -401,7 +412,7 @@ export const getCachedInsightsFn = createServerFn({ method: "GET" })
         engagement_rate,
         published_at,
         last_synced_at,
-        instagram_accounts(username, account_categories(name, color))
+        instagram_accounts(username, profile_picture_url, account_categories(name, color))
       `)
       .in("instagram_account_id", accountIds)
       .order("views_count", { ascending: false })
@@ -436,6 +447,7 @@ export const getCachedInsightsFn = createServerFn({ method: "GET" })
 
       return {
         ...acc,
+        profile_picture_url: acc.profile_picture_url || ins?.profile_picture_url || null,
         insights: ins || null,
         followersCount: ins?.followers_count ?? 0,
         totalViews: ins?.total_views ?? 0,

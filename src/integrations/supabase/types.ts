@@ -48,6 +48,7 @@ export type Database = {
           instagram_account_id: string
           last_synced_at: string | null
           media_count: number | null
+          profile_picture_url: string | null
           raw_insights: Json | null
           total_comments: number | null
           total_likes: number | null
@@ -67,6 +68,7 @@ export type Database = {
           instagram_account_id: string
           last_synced_at?: string | null
           media_count?: number | null
+          profile_picture_url?: string | null
           raw_insights?: Json | null
           total_comments?: number | null
           total_likes?: number | null
@@ -86,6 +88,7 @@ export type Database = {
           instagram_account_id?: string
           last_synced_at?: string | null
           media_count?: number | null
+          profile_picture_url?: string | null
           raw_insights?: Json | null
           total_comments?: number | null
           total_likes?: number | null
@@ -114,6 +117,7 @@ export type Database = {
           hidden: boolean
           id: string
           instagram_user_id: string
+          profile_picture_url: string | null
           token_expires_at: string | null
           token_invalid: boolean | null
           updated_at: string
@@ -127,6 +131,7 @@ export type Database = {
           hidden?: boolean
           id?: string
           instagram_user_id: string
+          profile_picture_url?: string | null
           token_expires_at?: string | null
           token_invalid?: boolean | null
           updated_at?: string
@@ -140,6 +145,7 @@ export type Database = {
           hidden?: boolean
           id?: string
           instagram_user_id?: string
+          profile_picture_url?: string | null
           token_expires_at?: string | null
           token_invalid?: boolean | null
           updated_at?: string

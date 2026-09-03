@@ -62,6 +62,7 @@ type Category = {
 type IgAccount = {
   id: string;
   username: string;
+  profile_picture_url?: string | null;
   instagram_user_id: string;
   token_expires_at: string | null;
   created_at: string;
@@ -155,7 +156,7 @@ function AccountsPage() {
       const { data, error } = await supabase
         .from("instagram_accounts")
         .select(
-          "id, username, instagram_user_id, token_expires_at, created_at, hidden, category_id, token_invalid, account_categories(id, name, color)",
+          "id, username, profile_picture_url, instagram_user_id, token_expires_at, created_at, hidden, category_id, token_invalid, account_categories(id, name, color)",
         )
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -684,8 +685,16 @@ function AccountsPage() {
                     <div>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="size-12 rounded-2xl bg-gradient-brand grid place-items-center shrink-0">
-                            <Instagram className="size-6 text-primary-foreground" />
+                          <div className="size-11 rounded-lg bg-[#18181c] border border-zinc-700/50 p-0.5 shrink-0 flex items-center justify-center overflow-hidden">
+                            {a.profile_picture_url ? (
+                              <img
+                                src={a.profile_picture_url}
+                                alt={a.username}
+                                className="size-full rounded-md object-cover"
+                              />
+                            ) : (
+                              <Instagram className="size-5 text-amber-400" />
+                            )}
                           </div>
                           <div className="min-w-0">
                             <div className="font-bold text-base truncate flex items-center gap-1.5">

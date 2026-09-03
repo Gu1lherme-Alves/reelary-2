@@ -33,6 +33,7 @@ import { toast } from "sonner";
 interface Account {
   id: string;
   username: string;
+  profile_picture_url?: string | null;
   category_id: string | null;
   account_categories: { id: string; name: string; color: string } | null;
 }
@@ -73,7 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("instagram_accounts")
-        .select("id, username, category_id, account_categories(id, name, color)")
+        .select("id, username, profile_picture_url, category_id, account_categories(id, name, color)")
         .eq("hidden", false)
         .order("created_at", { ascending: false });
 
@@ -321,7 +322,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                     size="sm"
                     className="border-[#26262b] bg-[#141417] hover:bg-[#1c1c20] hover:border-amber-500/40 text-xs font-semibold rounded-md px-3 h-8.5 gap-2 text-zinc-200 cursor-pointer flex items-center"
                   >
-                    {activeAccount?.account_categories ? (
+                    {activeAccount?.profile_picture_url ? (
+                      <img
+                        src={activeAccount.profile_picture_url}
+                        alt={activeAccount.username}
+                        className="size-4 rounded-full object-cover shrink-0"
+                      />
+                    ) : activeAccount?.account_categories ? (
                       <span
                         className="size-2 rounded-full shrink-0"
                         style={{ backgroundColor: activeAccount.account_categories.color }}
@@ -348,7 +355,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                       className="flex items-center justify-between py-2 cursor-pointer text-xs hover:bg-[#1a1a1f] rounded"
                     >
                       <span className="flex items-center gap-2 font-medium">
-                        {acc.account_categories ? (
+                        {acc.profile_picture_url ? (
+                          <img
+                            src={acc.profile_picture_url}
+                            alt={acc.username}
+                            className="size-4 rounded-full object-cover shrink-0"
+                          />
+                        ) : acc.account_categories ? (
                           <span
                             className="size-2 rounded-full shrink-0"
                             style={{ backgroundColor: acc.account_categories.color }}

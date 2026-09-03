@@ -220,7 +220,7 @@ function BulkSchedulePage() {
   useEffect(() => {
     supabase
       .from("instagram_accounts")
-      .select("id, username, category_id, account_categories(id, name, color)")
+      .select("id, username, profile_picture_url, category_id, account_categories(id, name, color)")
       .eq("hidden", false)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
@@ -741,12 +741,18 @@ function BulkSchedulePage() {
                             const acc = accounts.find((a) => a.id === selectedAccounts[0]);
                             return (
                               <>
-                                {acc?.account_categories?.color && (
+                                {acc?.profile_picture_url ? (
+                                  <img
+                                    src={acc.profile_picture_url}
+                                    alt={acc.username}
+                                    className="size-3.5 rounded-full object-cover shrink-0"
+                                  />
+                                ) : acc?.account_categories?.color ? (
                                   <span
                                     className="size-2 rounded-full shrink-0 ring-1 ring-white/10"
                                     style={{ backgroundColor: acc.account_categories.color }}
                                   />
-                                )}
+                                ) : null}
                                 @{acc?.username || "usuario"}
                               </>
                             );
@@ -810,15 +816,19 @@ function BulkSchedulePage() {
                                 }
                               }}
                             />
-                            <span className="flex items-center gap-2 truncate">
-                              {a.account_categories && (
-                                <span
-                                  className="size-2.5 rounded-full shrink-0 ring-1 ring-white/10"
-                                  style={{ backgroundColor: a.account_categories.color }}
-                                />
-                              )}
-                              <span className="text-foreground">@{a.username}</span>
-                            </span>
+                            {a.profile_picture_url ? (
+                              <img
+                                src={a.profile_picture_url}
+                                alt={a.username}
+                                className="size-4 rounded-full object-cover shrink-0"
+                              />
+                            ) : a.account_categories ? (
+                              <span
+                                className="size-2 rounded-full shrink-0 ring-1 ring-white/10"
+                                style={{ backgroundColor: a.account_categories.color }}
+                              />
+                            ) : null}
+                            <span className="truncate">@{a.username}</span>
                           </div>
                           {lastDate ? (
                             <span

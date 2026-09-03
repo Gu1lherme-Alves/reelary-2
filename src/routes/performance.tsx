@@ -430,8 +430,16 @@ function PerformancePage() {
                         </div>
 
                         {/* Avatar */}
-                        <div className="size-9 rounded-full bg-[#18181c] border border-zinc-700/50 p-0.5 shrink-0 flex items-center justify-center">
-                          <Instagram className="size-4 text-amber-400" />
+                        <div className="size-9 rounded-full bg-[#18181c] border border-zinc-700/50 p-0.5 shrink-0 flex items-center justify-center overflow-hidden">
+                          {acc.profile_picture_url ? (
+                            <img
+                              src={acc.profile_picture_url}
+                              alt={acc.username}
+                              className="size-full rounded-full object-cover"
+                            />
+                          ) : (
+                            <Instagram className="size-4 text-amber-400" />
+                          )}
                         </div>
 
                         {/* Nome & Badges */}

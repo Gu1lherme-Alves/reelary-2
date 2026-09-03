@@ -125,9 +125,9 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
       throw new Error("Falha ao obter token de longa duração: " + (e?.message ?? e));
     }
 
-    // 3. Buscar profile do usuário para obter o username e instagram_user_id
+    // 3. Buscar profile do usuário para obter o username, instagram_user_id e foto de perfil
     const meRes = await fetch(
-      `https://graph.instagram.com/me?fields=id,username&access_token=${encodeURIComponent(accessToken)}`,
+      `https://graph.instagram.com/me?fields=id,username,profile_picture_url&access_token=${encodeURIComponent(accessToken)}`,
     );
     if (!meRes.ok) {
       const err = await meRes.text();
@@ -137,10 +137,12 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
     const meJson = (await meRes.json()) as {
       id: string;
       username: string;
+      profile_picture_url?: string;
     };
 
     const instagramUserId = meJson.id;
     const username = meJson.username;
+    const profilePictureUrl = meJson.profile_picture_url || null;
     const expiresAt = expiresIn > 0 ? new Date(Date.now() + expiresIn * 1000).toISOString() : null;
 
     const { error } = await supabase.from("instagram_accounts").upsert(
@@ -148,6 +150,7 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
         user_id: userId,
         instagram_user_id: instagramUserId,
         username: username,
+        profile_picture_url: profilePictureUrl,
         access_token: accessToken,
         token_expires_at: expiresAt,
         token_invalid: false,
@@ -160,6 +163,7 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
         user_id: userId,
         instagram_user_id: instagramUserId,
         username: username,
+        profile_picture_url: profilePictureUrl,
         access_token: accessToken,
         token_expires_at: expiresAt,
         token_invalid: false,
@@ -269,19 +273,24 @@ export const connectFacebookAccount = createServerFn({ method: "POST" })
     const pageAccessToken = pageWithIg.access_token; // Page token (EAA...), never expires while page exists
     const igBusinessId = pageWithIg.instagram_business_account.id;
 
-    // 5. Buscar username da conta IG Business
+    // 5. Buscar username e foto de perfil da conta IG Business
     const igRes = await fetch(
-      `https://graph.facebook.com/v21.0/${igBusinessId}?fields=id,username&access_token=${encodeURIComponent(pageAccessToken)}`,
+      `https://graph.facebook.com/v21.0/${igBusinessId}?fields=id,username,profile_picture_url&access_token=${encodeURIComponent(pageAccessToken)}`,
     );
     if (!igRes.ok) {
       const err = await igRes.text();
       console.error("IG Business account fetch failed:", err);
       throw new Error("Não foi possível buscar as informações da conta Instagram Business.");
     }
-    const igJson = (await igRes.json()) as { id: string; username: string };
+    const igJson = (await igRes.json()) as {
+      id: string;
+      username: string;
+      profile_picture_url?: string;
+    };
 
     const instagramUserId = igJson.id;
     const username = igJson.username;
+    const profilePictureUrl = igJson.profile_picture_url || null;
     const expiresAt =
       longLivedExpiresIn > 0
         ? new Date(Date.now() + longLivedExpiresIn * 1000).toISOString()
@@ -293,6 +302,7 @@ export const connectFacebookAccount = createServerFn({ method: "POST" })
         user_id: userId,
         instagram_user_id: instagramUserId,
         username: username,
+        profile_picture_url: profilePictureUrl,
         access_token: pageAccessToken,
         token_expires_at: expiresAt,
         token_invalid: false,
@@ -305,6 +315,7 @@ export const connectFacebookAccount = createServerFn({ method: "POST" })
         user_id: userId,
         instagram_user_id: instagramUserId,
         username: username,
+        profile_picture_url: profilePictureUrl,
         access_token: pageAccessToken,
         token_expires_at: expiresAt,
         token_invalid: false,
