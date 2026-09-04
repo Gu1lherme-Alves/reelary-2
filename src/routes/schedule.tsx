@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Upload, Loader2, Video, ChevronDown, Instagram } from "lucide-react";
+import { Upload, Loader2, Video, ChevronDown, Instagram, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { getUploadPresignedUrl } from "@/lib/r2.functions";
+import { sanitizeAndMutateMp4, sanitizeImageCover } from "@/lib/media-sanitizer";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -126,81 +127,99 @@ function SchedulePage() {
       const uid = userData.user?.id;
       if (!uid) throw new Error("Sessão expirada");
 
-      // 1. Upload Video to Cloudflare R2
-      const videoUpload = await getUploadPresignedUrl({
-        data: {
-          fileName: file.name,
-          contentType: file.type || "video/mp4",
-        },
-      });
+      // 1. Process and upload unique sanitized versions for each selected account
+      const totalAccounts = accountIds.length;
+      const postsToInsert = [];
 
-      let videoPutRes;
-      try {
-        videoPutRes = await fetch(videoUpload.uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: {
-            "Content-Type": file.type || "video/mp4",
-          },
+      for (let i = 0; i < totalAccounts; i++) {
+        const accId = accountIds[i];
+        
+        // 1.1 Sanitize MP4 metadata and mutate cryptographic hash with random entropy
+        const sanitizedVideo = await sanitizeAndMutateMp4(file, {
+          seed: `${accId}-${i}-${Date.now()}`,
+          customFileName: `reel_${accId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`,
         });
-      } catch (fetchErr: any) {
-        console.error("Erro de rede ao fazer upload para o Cloudflare R2:", fetchErr);
-        throw new Error(
-          "Falha de rede ao enviar o vídeo para o Cloudflare R2. Se você está em ambiente de desenvolvimento (localhost), por favor verifique se a política de CORS do seu bucket R2 está configurada para aceitar requisições de origem local (PUT de localhost).",
-        );
-      }
 
-      if (!videoPutRes.ok) {
-        throw new Error(`Falha ao fazer upload do vídeo no Cloudflare R2 (${videoPutRes.status})`);
-      }
-
-      const videoUrl = videoUpload.publicUrl;
-
-      // 2. Upload Cover to Cloudflare R2 (if exists)
-      let coverUrl = null;
-      if (coverFile) {
-        const coverUpload = await getUploadPresignedUrl({
+        // 1.2 Upload Video to Cloudflare R2
+        const videoUpload = await getUploadPresignedUrl({
           data: {
-            fileName: coverFile.name,
-            contentType: coverFile.type || "image/jpeg",
+            fileName: sanitizedVideo.name,
+            contentType: sanitizedVideo.type || "video/mp4",
           },
         });
 
-        let coverPutRes;
+        let videoPutRes;
         try {
-          coverPutRes = await fetch(coverUpload.uploadUrl, {
+          videoPutRes = await fetch(videoUpload.uploadUrl, {
             method: "PUT",
-            body: coverFile,
+            body: sanitizedVideo,
             headers: {
-              "Content-Type": coverFile.type || "image/jpeg",
+              "Content-Type": sanitizedVideo.type || "video/mp4",
             },
           });
         } catch (fetchErr: any) {
-          console.error("Erro de rede ao fazer upload da capa para o Cloudflare R2:", fetchErr);
+          console.error("Erro de rede ao fazer upload para o Cloudflare R2:", fetchErr);
           throw new Error(
-            "Falha de rede ao enviar a capa do Reel para o Cloudflare R2. Verifique as configurações de CORS do seu bucket R2.",
+            "Falha de rede ao enviar o vídeo para o Cloudflare R2. Verifique sua conexão ou as configurações de CORS do bucket R2.",
           );
         }
 
-        if (!coverPutRes.ok) {
-          throw new Error(`Falha ao fazer upload da capa no Cloudflare R2 (${coverPutRes.status})`);
+        if (!videoPutRes.ok) {
+          throw new Error(`Falha ao fazer upload do vídeo no Cloudflare R2 (${videoPutRes.status})`);
         }
 
-        coverUrl = coverUpload.publicUrl;
+        const videoUrl = videoUpload.publicUrl;
+
+        // 1.3 Upload Cover to Cloudflare R2 (if exists, with EXIF stripped)
+        let coverUrl = null;
+        if (coverFile) {
+          const sanitizedCover = await sanitizeImageCover(
+            coverFile,
+            `cover_${accId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`,
+          );
+          const coverUpload = await getUploadPresignedUrl({
+            data: {
+              fileName: sanitizedCover.name,
+              contentType: sanitizedCover.type || "image/jpeg",
+            },
+          });
+
+          let coverPutRes;
+          try {
+            coverPutRes = await fetch(coverUpload.uploadUrl, {
+              method: "PUT",
+              body: sanitizedCover,
+              headers: {
+                "Content-Type": sanitizedCover.type || "image/jpeg",
+              },
+            });
+          } catch (fetchErr: any) {
+            console.error("Erro de rede ao fazer upload da capa para o Cloudflare R2:", fetchErr);
+            throw new Error(
+              "Falha de rede ao enviar a capa do Reel para o Cloudflare R2. Verifique as configurações de CORS do seu bucket R2.",
+            );
+          }
+
+          if (!coverPutRes.ok) {
+            throw new Error(`Falha ao fazer upload da capa no Cloudflare R2 (${coverPutRes.status})`);
+          }
+
+          coverUrl = coverUpload.publicUrl;
+        }
+
+        const scheduledDate =
+          publishMode === "now" ? new Date().toISOString() : new Date(scheduledAt).toISOString();
+
+        postsToInsert.push({
+          user_id: uid,
+          instagram_account_id: accId,
+          video_url: videoUrl,
+          cover_url: coverUrl,
+          caption,
+          scheduled_at: scheduledDate,
+          status: "pending" as const,
+        });
       }
-
-      const scheduledDate =
-        publishMode === "now" ? new Date().toISOString() : new Date(scheduledAt).toISOString();
-
-      const postsToInsert = accountIds.map((accId) => ({
-        user_id: uid,
-        instagram_account_id: accId,
-        video_url: videoUrl,
-        cover_url: coverUrl,
-        caption,
-        scheduled_at: scheduledDate,
-        status: "pending" as const,
-      }));
 
       const { error } = await supabase.from("scheduled_posts").insert(postsToInsert);
       if (error) throw error;
@@ -225,7 +244,7 @@ function SchedulePage() {
           toast.success("Reel enviado para processamento!");
         }
       } else {
-        toast.success(`Reel agendado para ${accountIds.length} conta(s)!`);
+        toast.success(`Reel agendado com metadados únicos para ${accountIds.length} conta(s)!`);
       }
       navigate({ to: "/posts" });
     } catch (err: any) {
@@ -489,14 +508,21 @@ function SchedulePage() {
             </div>
           )}
 
+          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
+            <ShieldCheck className="size-4 shrink-0 text-emerald-500" />
+            <span>
+              <strong>Proteção Anti-Duplicação:</strong> Limpeza automática de metadados, EXIF e geração de hash criptográfico único para cada publicação.
+            </span>
+          </div>
+
           <Button
             type="submit"
             disabled={submitting}
-            className="w-full bg-gradient-brand text-primary-foreground border-0 hover:opacity-90 h-11"
+            className="w-full bg-gradient-brand text-primary-foreground border-0 hover:opacity-90 h-11 cursor-pointer"
           >
             {submitting ? (
               <>
-                <Loader2 className="size-4 animate-spin" /> Enviando…
+                <Loader2 className="size-4 animate-spin" /> Enviando com metadados únicos…
               </>
             ) : publishMode === "now" ? (
               "Publicar agora"

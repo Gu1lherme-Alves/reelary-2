@@ -17,6 +17,7 @@ import {
   Play,
   Pause,
   AlertCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { getUploadPresignedUrl, deleteR2File } from "@/lib/r2.functions";
+import { sanitizeAndMutateMp4, sanitizeImageCover } from "@/lib/media-sanitizer";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -285,82 +287,99 @@ function CalendarPage() {
       const uid = userData.user?.id;
       if (!uid) throw new Error("Sessão expirada. Faça login novamente.");
 
-      // 1. Upload Video to Cloudflare R2
-      const videoUpload = await getUploadPresignedUrl({
-        data: {
-          fileName: videoFile.name,
-          contentType: videoFile.type || "video/mp4",
-        },
-      });
+      // Process and upload unique sanitized versions for each selected account
+      const totalAccounts = accountIds.length;
+      const postsToInsert = [];
 
-      let videoPutRes;
-      try {
-        videoPutRes = await fetch(videoUpload.uploadUrl, {
-          method: "PUT",
-          body: videoFile,
-          headers: {
-            "Content-Type": videoFile.type || "video/mp4",
-          },
+      for (let i = 0; i < totalAccounts; i++) {
+        const accId = accountIds[i];
+
+        // 1.1 Sanitize MP4 metadata and mutate cryptographic hash with random entropy
+        const sanitizedVideo = await sanitizeAndMutateMp4(videoFile, {
+          seed: `${accId}-${i}-${Date.now()}`,
+          customFileName: `reel_${accId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`,
         });
-      } catch (fetchErr: any) {
-        console.error("Erro de rede ao fazer upload para o Cloudflare R2:", fetchErr);
-        throw new Error(
-          "Falha de rede ao enviar o vídeo para o Cloudflare R2. Se você está em ambiente de desenvolvimento (localhost), por favor verifique se a política de CORS do seu bucket R2 está configurada para aceitar requisições de origem local (PUT de localhost).",
-        );
-      }
 
-      if (!videoPutRes.ok) {
-        throw new Error(`Falha ao fazer upload do vídeo no Cloudflare R2 (${videoPutRes.status})`);
-      }
-
-      const videoUrl = videoUpload.publicUrl;
-
-      // 2. Upload Cover to Cloudflare R2 (if exists)
-      let coverUrl = null;
-      if (coverFile) {
-        const coverUpload = await getUploadPresignedUrl({
+        // 1.2 Upload Video to Cloudflare R2
+        const videoUpload = await getUploadPresignedUrl({
           data: {
-            fileName: coverFile.name,
-            contentType: coverFile.type || "image/jpeg",
+            fileName: sanitizedVideo.name,
+            contentType: sanitizedVideo.type || "video/mp4",
           },
         });
 
-        let coverPutRes;
+        let videoPutRes;
         try {
-          coverPutRes = await fetch(coverUpload.uploadUrl, {
+          videoPutRes = await fetch(videoUpload.uploadUrl, {
             method: "PUT",
-            body: coverFile,
+            body: sanitizedVideo,
             headers: {
-              "Content-Type": coverFile.type || "image/jpeg",
+              "Content-Type": sanitizedVideo.type || "video/mp4",
             },
           });
         } catch (fetchErr: any) {
-          console.error("Erro de rede ao fazer upload da capa para o Cloudflare R2:", fetchErr);
+          console.error("Erro de rede ao fazer upload para o Cloudflare R2:", fetchErr);
           throw new Error(
-            "Falha de rede ao enviar a capa do Reel para o Cloudflare R2. Verifique as configurações de CORS do seu bucket R2.",
+            "Falha de rede ao enviar o vídeo para o Cloudflare R2. Verifique sua conexão ou as configurações de CORS do bucket R2.",
           );
         }
 
-        if (!coverPutRes.ok) {
-          throw new Error(`Falha ao fazer upload da capa no Cloudflare R2 (${coverPutRes.status})`);
+        if (!videoPutRes.ok) {
+          throw new Error(`Falha ao fazer upload do vídeo no Cloudflare R2 (${videoPutRes.status})`);
         }
 
-        coverUrl = coverUpload.publicUrl;
+        const videoUrl = videoUpload.publicUrl;
+
+        // 1.3 Upload Cover to Cloudflare R2 (if exists, with EXIF stripped)
+        let coverUrl = null;
+        if (coverFile) {
+          const sanitizedCover = await sanitizeImageCover(
+            coverFile,
+            `cover_${accId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`,
+          );
+          const coverUpload = await getUploadPresignedUrl({
+            data: {
+              fileName: sanitizedCover.name,
+              contentType: sanitizedCover.type || "image/jpeg",
+            },
+          });
+
+          let coverPutRes;
+          try {
+            coverPutRes = await fetch(coverUpload.uploadUrl, {
+              method: "PUT",
+              body: sanitizedCover,
+              headers: {
+                "Content-Type": sanitizedCover.type || "image/jpeg",
+              },
+            });
+          } catch (fetchErr: any) {
+            console.error("Erro de rede ao fazer upload da capa para o Cloudflare R2:", fetchErr);
+            throw new Error(
+              "Falha de rede ao enviar a capa do Reel para o Cloudflare R2. Verifique as configurações de CORS do seu bucket R2.",
+            );
+          }
+
+          if (!coverPutRes.ok) {
+            throw new Error(`Falha ao fazer upload da capa no Cloudflare R2 (${coverPutRes.status})`);
+          }
+
+          coverUrl = coverUpload.publicUrl;
+        }
+
+        const scheduledDate =
+          publishMode === "now" ? new Date().toISOString() : new Date(scheduledAt).toISOString();
+
+        postsToInsert.push({
+          user_id: uid,
+          instagram_account_id: accId,
+          video_url: videoUrl,
+          cover_url: coverUrl,
+          caption,
+          scheduled_at: scheduledDate,
+          status: "pending" as const,
+        });
       }
-
-      const scheduledDate =
-        publishMode === "now" ? new Date().toISOString() : new Date(scheduledAt).toISOString();
-
-      // Insert scheduled post record
-      const postsToInsert = accountIds.map((accId) => ({
-        user_id: uid,
-        instagram_account_id: accId,
-        video_url: videoUrl,
-        cover_url: coverUrl,
-        caption,
-        scheduled_at: scheduledDate,
-        status: "pending" as const,
-      }));
 
       const { error } = await supabase.from("scheduled_posts").insert(postsToInsert);
 
@@ -1196,18 +1215,26 @@ function CalendarPage() {
                 />
               </div>
 
+              {/* Anti-Duplicate Protection Notice */}
+              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
+                <ShieldCheck className="size-4 shrink-0 text-emerald-500" />
+                <span>
+                  <strong>Proteção Anti-Duplicação:</strong> Limpeza automática de metadados, EXIF e geração de hash único por conta.
+                </span>
+              </div>
+
               {/* Botão de Submit */}
               <Button
                 type="submit"
                 disabled={submitting}
-                className="w-full bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-bold h-11 transition shadow-glow rounded-xl"
+                className="w-full bg-gradient-brand text-primary-foreground border-0 hover:opacity-95 font-bold h-11 transition shadow-glow rounded-xl cursor-pointer"
               >
                 {submitting ? (
                   <span className="flex items-center gap-2 justify-center">
                     <Loader2 className="size-4 animate-spin" />{" "}
                     {publishMode === "now"
-                      ? "Uploading & Publicando..."
-                      : "Uploading & Agendando..."}
+                      ? "Enviando & Publicando..."
+                      : "Limpando metadados & Agendando..."}
                   </span>
                 ) : publishMode === "now" ? (
                   "Publicar Agora"

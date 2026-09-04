@@ -16,6 +16,7 @@ import {
   Info,
   Layers,
   Timer,
+  ShieldCheck,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUploadPresignedUrl } from "@/lib/r2.functions";
+import { sanitizeAndMutateMp4, sanitizeImageCover } from "@/lib/media-sanitizer";
 
 export const Route = createFileRoute("/bulk")({
   head: () => ({ meta: [{ title: "Postar em Massa — Reelary" }] }),
@@ -42,6 +44,7 @@ export const Route = createFileRoute("/bulk")({
 type Account = {
   id: string;
   username: string;
+  profile_picture_url?: string | null;
   category_id?: string | null;
   account_categories?: { id: string; name: string; color: string } | null;
 };
@@ -557,7 +560,7 @@ function BulkSchedulePage() {
       const totalVideos = videoFiles.length;
       const uploadedUrls: string[] = [];
 
-      // 1. Upload Video Files sequentially to prevent network congestion
+      // 1. Upload Video Files sequentially with metadata cleaning and unique hash injection
       for (let i = 0; i < totalVideos; i++) {
         const fileObj = videoFiles[i];
         const fileKey = `${fileObj.name}-${fileObj.size}-${fileObj.lastModified}`;
@@ -566,27 +569,33 @@ function BulkSchedulePage() {
 
         if (publicUrl) {
           setUploadStatus(
-            `Vídeo ${i + 1} de ${totalVideos} já enviado (usando cache): ${fileObj.name}...`,
+            `Vídeo ${i + 1} de ${totalVideos} já enviado: ${fileObj.name}...`,
           );
           uploadedUrls.push(publicUrl);
           setUploadProgress(Math.round(((i + 1) / totalVideos) * 90));
           continue;
         }
 
+        setUploadStatus(`Limpando metadados do vídeo ${i + 1} de ${totalVideos}...`);
+        const sanitizedVideo = await sanitizeAndMutateMp4(fileObj, {
+          seed: `bulk-${i}-${Date.now()}`,
+          customFileName: `reel_bulk_${i}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`,
+        });
+
         setUploadStatus(`Enviando vídeo ${i + 1} de ${totalVideos}: ${fileObj.name}...`);
 
         const videoUpload = await getUploadPresignedUrl({
           data: {
-            fileName: fileObj.name,
-            contentType: fileObj.type || "video/mp4",
+            fileName: sanitizedVideo.name,
+            contentType: sanitizedVideo.type || "video/mp4",
           },
         });
 
         await fetchWithRetry(videoUpload.uploadUrl, {
           method: "PUT",
-          body: fileObj,
+          body: sanitizedVideo,
           headers: {
-            "Content-Type": fileObj.type || "video/mp4",
+            "Content-Type": sanitizedVideo.type || "video/mp4",
           },
         });
 
@@ -598,27 +607,30 @@ function BulkSchedulePage() {
         setUploadProgress(Math.round(((i + 1) / totalVideos) * 90)); // 90% allocated for videos
       }
 
-      // 2. Upload Cover File (if selected)
+      // 2. Upload Cover File (if selected) with EXIF cleaned
       let coverUrl = null;
       if (coverFile) {
         const coverKey = `${coverFile.name}-${coverFile.size}-${coverFile.lastModified}`;
         if (uploadedCoverState && uploadedCoverState.key === coverKey) {
           coverUrl = uploadedCoverState.url;
-          setUploadStatus("Foto de capa comum já enviada (usando cache)...");
+          setUploadStatus("Foto de capa já enviada...");
         } else {
-          setUploadStatus("Enviando foto de capa comum...");
+          setUploadStatus("Limpando metadados da foto de capa...");
+          const sanitizedCover = await sanitizeImageCover(coverFile);
+
+          setUploadStatus("Enviando foto de capa limpa...");
           const coverUpload = await getUploadPresignedUrl({
             data: {
-              fileName: coverFile.name,
-              contentType: coverFile.type || "image/jpeg",
+              fileName: sanitizedCover.name,
+              contentType: sanitizedCover.type || "image/jpeg",
             },
           });
 
           await fetchWithRetry(coverUpload.uploadUrl, {
             method: "PUT",
-            body: coverFile,
+            body: sanitizedCover,
             headers: {
-              "Content-Type": coverFile.type || "image/jpeg",
+              "Content-Type": sanitizedCover.type || "image/jpeg",
             },
           });
 
@@ -1349,6 +1361,14 @@ function BulkSchedulePage() {
               </div>
             </div>
 
+            {/* Anti-Duplicate Protection Notice */}
+            <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
+              <ShieldCheck className="size-4 shrink-0 text-emerald-500" />
+              <span>
+                <strong>Proteção Anti-Duplicação:</strong> Limpeza automática de metadados, EXIF e geração de hash criptográfico único para cada Reel antes do envio.
+              </span>
+            </div>
+
             {/* Submit Button */}
             <Button
               type="submit"
@@ -1362,7 +1382,7 @@ function BulkSchedulePage() {
             >
               {submitting ? (
                 <>
-                  <Loader2 className="size-4 animate-spin mr-2" /> Agendando...
+                  <Loader2 className="size-4 animate-spin mr-2" /> Agendando com metadados únicos...
                 </>
               ) : (
                 `Agendar ${slots.length} Publicações`
