@@ -96,18 +96,22 @@ export async function sanitizeAndMutateMp4(
         }
       }
 
-      // 2. Modifica timestamps em cabeçalhos (mvhd, tkhd, mdhd)
+      // 2. Modifica timestamps em cabeçalhos (mvhd, tkhd, mdhd) com jitter único
       if (type === "mvhd" || type === "tkhd" || type === "mdhd") {
         if (payloadSize >= 12) {
           const version = buffer[payloadOffset];
+          // Pequeno jitter adicional por atom
+          const atomJitter = Math.floor(Math.random() * 300);
+          const atomTime = targetMp4Time - atomJitter;
+
           if (version === 0) {
             // Version 0: 32-bit creation_time e modification_time
-            view.setUint32(payloadOffset + 4, targetMp4Time);
-            view.setUint32(payloadOffset + 8, targetMp4Time);
+            view.setUint32(payloadOffset + 4, atomTime);
+            view.setUint32(payloadOffset + 8, atomTime);
           } else if (version === 1 && payloadSize >= 20) {
             // Version 1: 64-bit creation_time e modification_time
-            view.setBigUint64(payloadOffset + 4, BigInt(targetMp4Time));
-            view.setBigUint64(payloadOffset + 12, BigInt(targetMp4Time));
+            view.setBigUint64(payloadOffset + 4, BigInt(atomTime));
+            view.setBigUint64(payloadOffset + 12, BigInt(atomTime));
           }
         }
       }
@@ -135,7 +139,7 @@ export async function sanitizeAndMutateMp4(
     console.warn("Aviso ao analisar átomos MP4 (continuando com injeção de entropia):", err);
   }
 
-  // 4. Injeta um átomo 'free' final com entropia única garantida
+  // 4. Injeta um átomo 'free' final com entropia criptográfica única garantida
   // Isso altera 100% o hash SHA-256 e MD5 sem afetar o streaming ou a decodificação
   const saltLength = 64;
   const freeBoxSize = 8 + saltLength;
@@ -176,11 +180,13 @@ export async function sanitizeAndMutateMp4(
 }
 
 /**
- * Sanitiza metadados EXIF/GPS de imagens de capa gerando uma cópia limpa.
+ * Sanitiza metadados EXIF/GPS de imagens de capa gerando uma cópia limpa
+ * com micro-variação perceptual imperceptível (anti-hash matching).
  */
 export async function sanitizeImageCover(
   file: File | Blob,
   customFileName?: string,
+  options: { applyPerceptualJitter?: boolean } = { applyPerceptualJitter: true },
 ): Promise<File> {
   const mimeType = file.type || "image/jpeg";
 
@@ -196,17 +202,36 @@ export async function sanitizeImageCover(
         img.src = objectUrl;
       });
 
+      const naturalW = img.naturalWidth || img.width;
+      const naturalH = img.naturalHeight || img.height;
+
+      // Micro-crop imperceptível de 1-2px se jitter estiver ativo
+      const cropOffset = options.applyPerceptualJitter ? (Math.random() > 0.5 ? 1 : 0) : 0;
+      const targetW = Math.max(10, naturalW - cropOffset);
+      const targetH = Math.max(10, naturalH - cropOffset);
+
       const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth || img.width;
-      canvas.height = img.naturalHeight || img.height;
+      canvas.width = targetW;
+      canvas.height = targetH;
 
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        ctx.drawImage(img, 0, 0);
+        // Aplica leve filtro de brilho/contraste imperceptível (0.998 a 1.002)
+        if (options.applyPerceptualJitter) {
+          const brightnessFactor = 0.998 + Math.random() * 0.004;
+          ctx.filter = `brightness(${brightnessFactor.toFixed(4)})`;
+        }
+
+        ctx.drawImage(img, 0, 0, targetW, targetH);
         URL.revokeObjectURL(objectUrl);
 
+        // Qualidade com leve micro-variação de compressão para invalidar JPEG quant table hash
+        const quality = options.applyPerceptualJitter
+          ? 0.94 + Math.random() * 0.03
+          : 0.95;
+
         const cleanBlob = await new Promise<Blob | null>((resolve) => {
-          canvas.toBlob((b) => resolve(b), mimeType, 0.95);
+          canvas.toBlob((b) => resolve(b), mimeType, quality);
         });
 
         if (cleanBlob) {

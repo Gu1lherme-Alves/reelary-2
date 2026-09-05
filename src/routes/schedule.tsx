@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Upload, Loader2, Video, ChevronDown, Instagram, ShieldCheck } from "lucide-react";
+import { Upload, Loader2, Video, ChevronDown, Instagram, ShieldCheck, Sparkles, RefreshCw, Eye } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { getUploadPresignedUrl } from "@/lib/r2.functions";
 import { sanitizeAndMutateMp4, sanitizeImageCover } from "@/lib/media-sanitizer";
+import { renderSpintax, hasSpintax, generateSpintaxSamples } from "@/lib/spintax";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -71,6 +72,7 @@ function SchedulePage() {
   const [file, setFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
+  const [antiDetectionJitter, setAntiDetectionJitter] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
@@ -130,6 +132,7 @@ function SchedulePage() {
       // 1. Process and upload unique sanitized versions for each selected account
       const totalAccounts = accountIds.length;
       const postsToInsert = [];
+      const baseScheduleTime = publishMode === "now" ? Date.now() : new Date(scheduledAt).getTime();
 
       for (let i = 0; i < totalAccounts; i++) {
         const accId = accountIds[i];
@@ -170,12 +173,13 @@ function SchedulePage() {
 
         const videoUrl = videoUpload.publicUrl;
 
-        // 1.3 Upload Cover to Cloudflare R2 (if exists, with EXIF stripped)
+        // 1.3 Upload Cover to Cloudflare R2 (if exists, with EXIF stripped and perceptual jitter)
         let coverUrl = null;
         if (coverFile) {
           const sanitizedCover = await sanitizeImageCover(
             coverFile,
             `cover_${accId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`,
+            { applyPerceptualJitter: true },
           );
           const coverUpload = await getUploadPresignedUrl({
             data: {
@@ -207,15 +211,25 @@ function SchedulePage() {
           coverUrl = coverUpload.publicUrl;
         }
 
-        const scheduledDate =
-          publishMode === "now" ? new Date().toISOString() : new Date(scheduledAt).toISOString();
+        // Calcula o horário com Jitter inteligente anti-cluster para múltiplas contas
+        let postTimeMs = baseScheduleTime;
+        if (antiDetectionJitter && totalAccounts > 1 && i > 0) {
+          // Escalonamento de 2 a 6 minutos entre contas para agendamento
+          const jitterStepSec = publishMode === "now" ? i * 20 : (i * Math.floor(180 + Math.random() * 180));
+          postTimeMs += jitterStepSec * 1000;
+        }
+
+        const scheduledDate = new Date(postTimeMs).toISOString();
+
+        // Renderiza legenda com Spintax individual para cada perfil
+        const individualCaption = renderSpintax(caption);
 
         postsToInsert.push({
           user_id: uid,
           instagram_account_id: accId,
           video_url: videoUrl,
           cover_url: coverUrl,
-          caption,
+          caption: individualCaption,
           scheduled_at: scheduledDate,
           status: "pending" as const,
         });
@@ -467,14 +481,66 @@ function SchedulePage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="caption">Legenda</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="caption" className="flex items-center gap-1.5">
+                Legenda
+                {hasSpintax(caption) && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                    <Sparkles className="size-2.5" /> Spintax Ativo
+                  </span>
+                )}
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-[11px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                  >
+                    <Sparkles className="size-3" />
+                    Como usar Spintax?
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 text-xs space-y-2 p-3 bg-popover border-border/60">
+                  <p className="font-semibold text-foreground">Variação Automática de Texto (Spintax)</p>
+                  <p className="text-muted-foreground">
+                    Use chaves e barras para gerar variações automáticas diferentes para cada conta:
+                  </p>
+                  <div className="p-2 rounded bg-secondary/60 text-secondary-foreground font-mono text-[11px]">
+                    {"{Fala galera|E aí pessoal|Olha só}"} esse vídeo! {"{Veja até o final|Corre pros stories}"}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Cada conta selecionada receberá uma combinação única automaticamente.
+                  </p>
+                </PopoverContent>
+              </Popover>
+            </div>
             <Textarea
               id="caption"
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               rows={4}
-              placeholder="Escreva a legenda do seu Reel… #hashtags"
+              placeholder="Escreva a legenda ou use Spintax: {Fala galera|E aí pessoal} vejam isso! #hashtags"
             />
+            {hasSpintax(caption) && (
+              <div className="p-2.5 rounded-xl bg-secondary/30 border border-border/40 text-xs space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Eye className="size-3 text-primary" /> Exemplos gerados para as contas:
+                  </span>
+                  <span className="text-[10px] text-primary">Variação dinâmica</span>
+                </div>
+                <div className="space-y-1">
+                  {generateSpintaxSamples(caption, 2).map((sample, sIdx) => (
+                    <div
+                      key={sIdx}
+                      className="p-1.5 rounded bg-background/60 text-[11px] text-foreground/80 italic border border-border/30 truncate"
+                    >
+                      "{sample}"
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -508,10 +574,28 @@ function SchedulePage() {
             </div>
           )}
 
-          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
-            <ShieldCheck className="size-4 shrink-0 text-emerald-500" />
+          {accountIds.length > 1 && (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border/50">
+              <div className="space-y-0.5">
+                <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <ShieldCheck className="size-3.5 text-primary" />
+                  Jitter de Horário Anti-Cluster
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  Escalona os disparos entre as contas (2 a 6 min de intervalo) para evitar detecção de disparo em lote.
+                </div>
+              </div>
+              <Checkbox
+                checked={antiDetectionJitter}
+                onCheckedChange={(checked) => setAntiDetectionJitter(Boolean(checked))}
+              />
+            </div>
+          )}
+
+          <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
+            <ShieldCheck className="size-4 shrink-0 text-emerald-500 mt-0.5" />
             <span>
-              <strong>Proteção Anti-Duplicação:</strong> Limpeza automática de metadados, EXIF e geração de hash criptográfico único para cada publicação.
+              <strong>Proteção Anti-Detecção Ativa:</strong> Limpeza profunda de EXIF, micro-jitter de pixels, mutação de metadados de áudio/vídeo e geração de hash criptográfico único por conta.
             </span>
           </div>
 

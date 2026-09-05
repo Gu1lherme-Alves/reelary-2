@@ -40,6 +40,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { getUploadPresignedUrl, deleteR2File } from "@/lib/r2.functions";
 import { sanitizeAndMutateMp4, sanitizeImageCover } from "@/lib/media-sanitizer";
+import { renderSpintax, hasSpintax, generateSpintaxSamples } from "@/lib/spintax";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -330,12 +331,13 @@ function CalendarPage() {
 
         const videoUrl = videoUpload.publicUrl;
 
-        // 1.3 Upload Cover to Cloudflare R2 (if exists, with EXIF stripped)
+        // 1.3 Upload Cover to Cloudflare R2 (if exists, with EXIF stripped and perceptual jitter)
         let coverUrl = null;
         if (coverFile) {
           const sanitizedCover = await sanitizeImageCover(
             coverFile,
             `cover_${accId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`,
+            { applyPerceptualJitter: true },
           );
           const coverUpload = await getUploadPresignedUrl({
             data: {
@@ -367,15 +369,23 @@ function CalendarPage() {
           coverUrl = coverUpload.publicUrl;
         }
 
-        const scheduledDate =
-          publishMode === "now" ? new Date().toISOString() : new Date(scheduledAt).toISOString();
+        // Jitter de horário anti-cluster entre contas
+        const baseScheduleTime = publishMode === "now" ? Date.now() : new Date(scheduledAt).getTime();
+        let postTimeMs = baseScheduleTime;
+        if (totalAccounts > 1 && i > 0) {
+          const jitterStepSec = publishMode === "now" ? i * 20 : (i * Math.floor(180 + Math.random() * 180));
+          postTimeMs += jitterStepSec * 1000;
+        }
+
+        const scheduledDate = new Date(postTimeMs).toISOString();
+        const individualCaption = renderSpintax(caption);
 
         postsToInsert.push({
           user_id: uid,
           instagram_account_id: accId,
           video_url: videoUrl,
           cover_url: coverUrl,
-          caption,
+          caption: individualCaption,
           scheduled_at: scheduledDate,
           status: "pending" as const,
         });
@@ -1202,24 +1212,48 @@ function CalendarPage() {
 
               {/* Legenda (Caption) */}
               <div className="space-y-2">
-                <Label htmlFor="modalCaption" className="text-sm font-bold">
-                  Legenda do Post
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="modalCaption" className="text-sm font-bold flex items-center gap-1.5">
+                    Legenda do Post
+                    {hasSpintax(caption) && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                        <Sparkles className="size-2.5" /> Spintax Ativo
+                      </span>
+                    )}
+                  </Label>
+                </div>
                 <Textarea
                   id="modalCaption"
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
                   rows={4}
-                  placeholder="Escreva a legenda incrível para o seu Reels... Insira #hashtags e marque @amigos."
+                  placeholder="Escreva a legenda ou use Spintax: {Fala galera|E aí pessoal} vejam isso! #hashtags"
                   className="bg-secondary/40 border-border/60 rounded-xl"
                 />
+                {hasSpintax(caption) && (
+                  <div className="p-2.5 rounded-xl bg-secondary/30 border border-border/40 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                      <span>Exemplos de variações por conta:</span>
+                    </div>
+                    <div className="space-y-1">
+                      {generateSpintaxSamples(caption, 2).map((sample, sIdx) => (
+                        <div
+                          key={sIdx}
+                          className="p-1.5 rounded bg-background/60 text-[11px] text-foreground/80 italic border border-border/30 truncate"
+                        >
+                          "{sample}"
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Anti-Duplicate Protection Notice */}
-              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
-                <ShieldCheck className="size-4 shrink-0 text-emerald-500" />
+              <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
+                <ShieldCheck className="size-4 shrink-0 text-emerald-500 mt-0.5" />
                 <span>
-                  <strong>Proteção Anti-Duplicação:</strong> Limpeza automática de metadados, EXIF e geração de hash único por conta.
+                  <strong>Proteção Anti-Detecção:</strong> Hashes únicos, limpeza profunda de metadados/EXIF e Jitter de horário automático entre as contas.
                 </span>
               </div>
 

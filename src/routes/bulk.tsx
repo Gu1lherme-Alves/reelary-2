@@ -17,6 +17,7 @@ import {
   Layers,
   Timer,
   ShieldCheck,
+  Eye,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getUploadPresignedUrl } from "@/lib/r2.functions";
 import { sanitizeAndMutateMp4, sanitizeImageCover } from "@/lib/media-sanitizer";
+import { renderSpintax, hasSpintax, generateSpintaxSamples } from "@/lib/spintax";
 
 export const Route = createFileRoute("/bulk")({
   head: () => ({ meta: [{ title: "Postar em Massa — Reelary" }] }),
@@ -616,7 +618,9 @@ function BulkSchedulePage() {
           setUploadStatus("Foto de capa já enviada...");
         } else {
           setUploadStatus("Limpando metadados da foto de capa...");
-          const sanitizedCover = await sanitizeImageCover(coverFile);
+          const sanitizedCover = await sanitizeImageCover(coverFile, undefined, {
+            applyPerceptualJitter: true,
+          });
 
           setUploadStatus("Enviando foto de capa limpa...");
           const coverUpload = await getUploadPresignedUrl({
@@ -675,7 +679,7 @@ function BulkSchedulePage() {
             instagram_account_id: accId,
             video_url: uploadedUrls[videoIdx],
             cover_url: coverUrl,
-            caption,
+            caption: renderSpintax(caption),
             scheduled_at: scheduledDate.toISOString(),
             status: "pending",
           });
@@ -997,16 +1001,66 @@ function BulkSchedulePage() {
 
               {/* Caption */}
               <div className="space-y-1">
-                <Label htmlFor="caption" className="text-xs font-semibold text-muted-foreground">
-                  Legenda dos Reels
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="caption" className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    Legenda dos Reels
+                    {hasSpintax(caption) && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                        <Sparkles className="size-2.5" /> Spintax Ativo
+                      </span>
+                    )}
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                      >
+                        <Sparkles className="size-3" />
+                        Como usar Spintax?
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 text-xs space-y-2 p-3 bg-popover border-border/60">
+                      <p className="font-semibold text-foreground">Variação Automática de Texto (Spintax)</p>
+                      <p className="text-muted-foreground">
+                        Use chaves e barras para gerar variações de legendas automáticas entre as contas:
+                      </p>
+                      <div className="p-2 rounded bg-secondary/60 text-secondary-foreground font-mono text-[11px]">
+                        {"{Fala galera|E aí pessoal|Olha só}"} esse vídeo! {"{Veja até o final|Corre pros stories}"}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Cada post agendado para cada conta receberá uma combinação única.
+                      </p>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <Textarea
                   id="caption"
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
                   rows={3}
-                  placeholder="Escreva a legenda que será usada para todos os Reels agendados nesta leva…"
+                  placeholder="Escreva a legenda que será usada ou use Spintax: {Fala galera|E aí pessoal} vejam isso! #hashtags"
                 />
+                {hasSpintax(caption) && (
+                  <div className="p-2.5 rounded-xl bg-secondary/30 border border-border/40 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Eye className="size-3 text-primary" /> Exemplos que serão gerados:
+                      </span>
+                      <span className="text-[10px] text-primary">Variação dinâmica</span>
+                    </div>
+                    <div className="space-y-1">
+                      {generateSpintaxSamples(caption, 2).map((sample, sIdx) => (
+                        <div
+                          key={sIdx}
+                          className="p-1.5 rounded bg-background/60 text-[11px] text-foreground/80 italic border border-border/30 truncate"
+                        >
+                          "{sample}"
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
