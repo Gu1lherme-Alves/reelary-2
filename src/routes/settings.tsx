@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Shield, User, Loader2, Key, Info, HelpCircle } from "lucide-react";
+import { Check, Shield, User, Loader2, Key } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getAvailableMetaAppIds } from "@/lib/instagram.functions";
 import { toast } from "sonner";
@@ -17,24 +16,78 @@ export const Route = createFileRoute("/settings")({
   ),
 });
 
+type ProfileType = "guilherme" | "matheus" | "pedro" | "antonio" | "greg" | "esperanca";
+
+interface ProfileConfig {
+  id: ProfileType;
+  title: string;
+  description: string;
+  badge?: string;
+  badgeStyle?: string;
+  iconBg: string;
+  iconColor: string;
+}
+
+const PROFILES: ProfileConfig[] = [
+  {
+    id: "guilherme",
+    title: "Guilherme",
+    description: "Configuração padrão do projeto utilizando as credenciais principais da Meta do Guilherme.",
+    badge: "Padrão",
+    badgeStyle: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    iconBg: "bg-amber-500/10 border border-amber-500/20",
+    iconColor: "text-amber-500",
+  },
+  {
+    id: "matheus",
+    title: "Matheus",
+    description: "Configuração secundária utilizando as credenciais da Meta do Matheus para testes ou produção própria.",
+    iconBg: "bg-blue-500/10 border border-blue-500/20",
+    iconColor: "text-blue-500",
+  },
+  {
+    id: "pedro",
+    title: "Pedro",
+    description: "Configuração utilizando as credenciais da Meta do Pedro.",
+    iconBg: "bg-violet-500/10 border border-violet-500/20",
+    iconColor: "text-violet-500",
+  },
+  {
+    id: "antonio",
+    title: "Antonio",
+    description: "Configuração utilizando as credenciais da Meta do Antonio.",
+    iconBg: "bg-sky-500/10 border border-sky-500/20",
+    iconColor: "text-sky-500",
+  },
+  {
+    id: "greg",
+    title: "Greg",
+    description: "Configuração utilizando as credenciais da Meta do Greg.",
+    iconBg: "bg-teal-500/10 border border-teal-500/20",
+    iconColor: "text-teal-400",
+  },
+  {
+    id: "esperanca",
+    title: "Esperança",
+    description: "Configuração utilizando as credenciais da Meta de Esperança.",
+    badge: "Novo",
+    badgeStyle: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+    iconBg: "bg-rose-500/10 border border-rose-500/20",
+    iconColor: "text-rose-500",
+  },
+];
+
 function SettingsPage() {
-  const [profile, setProfile] = useState<"guilherme" | "matheus" | "pedro" | "antonio" | "greg">(
-    "guilherme",
-  );
+  const [profile, setProfile] = useState<ProfileType>("guilherme");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [appIds, setAppIds] = useState<{
-    guilherme: string | null;
-    matheus: string | null;
-    pedro: string | null;
-    antonio: string | null;
-    greg: string | null;
-  }>({
+  const [appIds, setAppIds] = useState<Record<ProfileType, string | null>>({
     guilherme: null,
     matheus: null,
     pedro: null,
     antonio: null,
     greg: null,
+    esperanca: null,
   });
 
   const fetchAppIds = useServerFn(getAvailableMetaAppIds);
@@ -53,8 +106,8 @@ function SettingsPage() {
         .maybeSingle();
 
       if (error) throw error;
-      if (data) {
-        setProfile(data.meta_credential_profile as "guilherme" | "matheus" | "pedro" | "antonio" | "greg");
+      if (data?.meta_credential_profile) {
+        setProfile(data.meta_credential_profile as ProfileType);
       }
 
       const ids = await fetchAppIds();
@@ -71,7 +124,8 @@ function SettingsPage() {
     loadSettings();
   }, []);
 
-  async function handleSave(selectedProfile: "guilherme" | "matheus" | "pedro" | "antonio" | "greg") {
+  async function handleSave(selectedProfile: ProfileType) {
+    if (selectedProfile === profile) return;
     setSaving(true);
     try {
       const {
@@ -90,12 +144,13 @@ function SettingsPage() {
 
       if (error) throw error;
       setProfile(selectedProfile);
-      const profileNames = {
+      const profileNames: Record<ProfileType, string> = {
         guilherme: "Guilherme",
         matheus: "Matheus",
         pedro: "Pedro",
         antonio: "Antonio",
         greg: "Greg",
+        esperanca: "Esperança",
       };
       toast.success(`Perfil de credenciais "${profileNames[selectedProfile]}" selecionado!`);
     } catch (err: any) {
@@ -115,7 +170,7 @@ function SettingsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto pb-12">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
         <p className="text-muted-foreground mt-1">
@@ -125,195 +180,112 @@ function SettingsPage() {
 
       <div className="space-y-6">
         {/* Escolha do Perfil */}
-        <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-card">
-          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-            <Shield className="size-5 text-primary" /> Selecione o Painel da Meta Developers
-          </h2>
-          <p className="text-sm text-muted-foreground mb-6">
-            Escolha qual aplicativo de desenvolvedor da Meta será responsável pelo fluxo de login e
-            conexão do Instagram.
-          </p>
+        <div className="rounded-2xl border border-border/60 bg-card p-6 md:p-7 shadow-card">
+          <div className="flex items-start gap-3 mb-6">
+            <div className="size-10 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center shrink-0 mt-0.5">
+              <Shield className="size-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Selecione o Painel da Meta Developers
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Escolha qual aplicativo de desenvolvedor da Meta será responsável pelo fluxo de login e
+                conexão do Instagram.
+              </p>
+            </div>
+          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-            {/* Card Guilherme */}
-            <button
-              onClick={() => handleSave("guilherme")}
-              disabled={saving}
-              className={`text-left rounded-2xl border p-5 transition-all duration-300 relative overflow-hidden group cursor-pointer flex flex-col justify-between ${
-                profile === "guilherme"
-                  ? "border-primary bg-primary/5 shadow-glow"
-                  : "border-border/60 bg-secondary/10 hover:bg-secondary/40 hover:border-border-hover"
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="size-10 rounded-xl bg-primary/10 grid place-items-center group-hover:scale-105 transition-transform">
-                    <User className="size-5 text-primary" />
-                  </div>
-                  {profile === "guilherme" && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-success/20 text-success border border-success/30">
-                      <Check className="size-3" /> ATIVO
-                    </span>
-                  )}
-                </div>
-                <h3 className="font-bold text-base text-foreground mb-1">Painel: Guilherme</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                  Configuração padrão do projeto utilizando as credenciais principais da Meta do
-                  Guilherme.
-                </p>
-              </div>
+          {/* Cards Horizontais */}
+          <div className="flex flex-col gap-3">
+            {PROFILES.map((item) => {
+              const isSelected = profile === item.id;
+              const appIdValue = appIds[item.id];
+              const isConfigured = Boolean(appIdValue);
 
-              <div className="border-t border-border/40 pt-3 mt-auto">
-                <span className="text-[10px] text-muted-foreground font-mono block truncate">
-                  App ID: {appIds.guilherme || "Não configurado no servidor"}
-                </span>
-              </div>
-            </button>
-
-            {/* Card Matheus */}
-            <button
-              onClick={() => handleSave("matheus")}
-              disabled={saving}
-              className={`text-left rounded-2xl border p-5 transition-all duration-300 relative overflow-hidden group cursor-pointer flex flex-col justify-between ${
-                profile === "matheus"
-                  ? "border-primary bg-primary/5 shadow-glow"
-                  : "border-border/60 bg-secondary/10 hover:bg-secondary/40 hover:border-border-hover"
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="size-10 rounded-xl bg-accent/10 grid place-items-center group-hover:scale-105 transition-transform">
-                    <User className="size-5 text-accent" />
-                  </div>
-                  {profile === "matheus" && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-success/20 text-success border border-success/30">
-                      <Check className="size-3" /> ATIVO
-                    </span>
-                  )}
-                </div>
-                <h3 className="font-bold text-base text-foreground mb-1">Painel: Matheus</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                  Configuração secundária utilizando as credenciais da Meta do Matheus para testes
-                  ou produção própria.
-                </p>
-              </div>
-
-              <div className="border-t border-border/40 pt-3 mt-auto">
-                <span
-                  className={`text-[10px] font-mono block truncate ${!appIds.matheus ? "text-warning" : "text-muted-foreground"}`}
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleSave(item.id)}
+                  disabled={saving}
+                  className={`w-full text-left rounded-2xl border p-4 sm:p-4.5 transition-all duration-300 relative overflow-hidden group cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                    isSelected
+                      ? "border-primary/80 bg-primary/10 shadow-glow ring-1 ring-primary/40"
+                      : "border-border/60 bg-secondary/15 hover:bg-secondary/40 hover:border-border-hover"
+                  }`}
                 >
-                  App ID: {appIds.matheus || "Configuração pendente no .env"}
-                </span>
-              </div>
-            </button>
+                  {/* Lado Esquerdo: Ícone + Título + Descrição */}
+                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                    {/* Avatar / Ícone */}
+                    <div
+                      className={`size-11 rounded-xl ${item.iconBg} grid place-items-center shrink-0 transition-transform duration-300 group-hover:scale-105`}
+                    >
+                      <User className={`size-5 ${item.iconColor}`} />
+                    </div>
 
-            {/* Card Pedro */}
-            <button
-              onClick={() => handleSave("pedro")}
-              disabled={saving}
-              className={`text-left rounded-2xl border p-5 transition-all duration-300 relative overflow-hidden group cursor-pointer flex flex-col justify-between ${
-                profile === "pedro"
-                  ? "border-primary bg-primary/5 shadow-glow"
-                  : "border-border/60 bg-secondary/10 hover:bg-secondary/40 hover:border-border-hover"
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="size-10 rounded-xl bg-violet-500/10 grid place-items-center group-hover:scale-105 transition-transform">
-                    <User className="size-5 text-violet-500" />
+                    {/* Dados do Perfil */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        <h3 className="font-bold text-base text-foreground tracking-tight">
+                          Painel: {item.title}
+                        </h3>
+                        {item.badge && (
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border ${item.badgeStyle}`}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-1 sm:line-clamp-2">
+                        {item.description}
+                      </p>
+
+                      {/* App ID visível no mobile */}
+                      <div className="sm:hidden mt-2">
+                        <span
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded bg-background/80 border border-border/50 inline-block ${
+                            !isConfigured ? "text-warning" : "text-muted-foreground"
+                          }`}
+                        >
+                          App ID: {appIdValue || "Pendente no .env"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  {profile === "pedro" && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-success/20 text-success border border-success/30">
-                      <Check className="size-3" /> ATIVO
-                    </span>
-                  )}
-                </div>
-                <h3 className="font-bold text-base text-foreground mb-1">Painel: Pedro</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                  Configuração utilizando as credenciais da Meta do Pedro.
-                </p>
-              </div>
 
-              <div className="border-t border-border/40 pt-3 mt-auto">
-                <span
-                  className={`text-[10px] font-mono block truncate ${!appIds.pedro ? "text-warning" : "text-muted-foreground"}`}
-                >
-                  App ID: {appIds.pedro || "Configuração pendente no .env"}
-                </span>
-              </div>
-            </button>
+                  {/* Lado Direito: App ID no Desktop + Badge de Status */}
+                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/30">
+                    <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-background/60 border border-border/50">
+                      <Key className="size-3 text-muted-foreground" />
+                      <span
+                        className={`text-xs font-mono ${
+                          !isConfigured ? "text-warning" : "text-muted-foreground"
+                        }`}
+                      >
+                        {isConfigured ? `App ID: ${appIdValue}` : "Configuração pendente"}
+                      </span>
+                    </div>
 
-            {/* Card Antonio */}
-            <button
-              onClick={() => handleSave("antonio")}
-              disabled={saving}
-              className={`text-left rounded-2xl border p-5 transition-all duration-300 relative overflow-hidden group cursor-pointer flex flex-col justify-between ${
-                profile === "antonio"
-                  ? "border-primary bg-primary/5 shadow-glow"
-                  : "border-border/60 bg-secondary/10 hover:bg-secondary/40 hover:border-border-hover"
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="size-10 rounded-xl bg-sky-500/10 grid place-items-center group-hover:scale-105 transition-transform">
-                    <User className="size-5 text-sky-500" />
+                    {/* Status Ativo ou Indicador de Seleção */}
+                    {isSelected ? (
+                      <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-success/20 text-success border border-success/30 font-bold text-xs shadow-sm">
+                        <Check className="size-3.5 stroke-[3]" />
+                        <span>ATIVO</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 group-hover:text-muted-foreground transition-colors px-2 py-1">
+                        <span className="text-xs hidden sm:inline">Selecionar</span>
+                        <div className="size-5 rounded-full border border-border/80 group-hover:border-primary/60 flex items-center justify-center transition-colors">
+                          <div className="size-2 rounded-full bg-transparent group-hover:bg-primary/60 transition-colors" />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {profile === "antonio" && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-success/20 text-success border border-success/30">
-                      <Check className="size-3" /> ATIVO
-                    </span>
-                  )}
-                </div>
-                <h3 className="font-bold text-base text-foreground mb-1">Painel: Antonio</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                  Configuração utilizando as credenciais da Meta do Antonio.
-                </p>
-              </div>
-
-              <div className="border-t border-border/40 pt-3 mt-auto">
-                <span
-                  className={`text-[10px] font-mono block truncate ${!appIds.antonio ? "text-warning" : "text-muted-foreground"}`}
-                >
-                  App ID: {appIds.antonio || "Configuração pendente no .env"}
-                </span>
-              </div>
-            </button>
-
-            {/* Card Greg */}
-            <button
-              onClick={() => handleSave("greg")}
-              disabled={saving}
-              className={`text-left rounded-2xl border p-5 transition-all duration-300 relative overflow-hidden group cursor-pointer flex flex-col justify-between ${
-                profile === "greg"
-                  ? "border-primary bg-primary/5 shadow-glow"
-                  : "border-border/60 bg-secondary/10 hover:bg-secondary/40 hover:border-border-hover"
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="size-10 rounded-xl bg-emerald-500/10 grid place-items-center group-hover:scale-105 transition-transform">
-                    <User className="size-5 text-emerald-500" />
-                  </div>
-                  {profile === "greg" && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-success/20 text-success border border-success/30">
-                      <Check className="size-3" /> ATIVO
-                    </span>
-                  )}
-                </div>
-                <h3 className="font-bold text-base text-foreground mb-1">Painel: Greg</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                  Configuração utilizando as credenciais da Meta do Greg.
-                </p>
-              </div>
-
-              <div className="border-t border-border/40 pt-3 mt-auto">
-                <span
-                  className={`text-[10px] font-mono block truncate ${!appIds.greg ? "text-warning" : "text-muted-foreground"}`}
-                >
-                  App ID: {appIds.greg || "Configuração pendente no .env"}
-                </span>
-              </div>
-            </button>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

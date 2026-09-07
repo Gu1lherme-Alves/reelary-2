@@ -31,6 +31,9 @@ export async function getMetaCredentialsForUser(supabase: any, userId: string) {
   } else if (profile === "greg") {
     appId = process.env.META_APP_ID_GREG || "";
     appSecret = process.env.META_APP_SECRET_GREG || "";
+  } else if (profile === "esperanca") {
+    appId = process.env.META_APP_ID_ESPERANCA || "";
+    appSecret = process.env.META_APP_SECRET_ESPERANCA || "";
   } else {
     // default/guilherme
     appId =
@@ -338,11 +341,13 @@ export const getAvailableMetaAppIds = createServerFn({ method: "GET" })
     const rawPedro = process.env.META_APP_ID_PEDRO || "";
     const rawAntonio = process.env.META_APP_ID_ANTONIO || "";
     const rawGreg = process.env.META_APP_ID_GREG || "";
+    const rawEsperanca = process.env.META_APP_ID_ESPERANCA || "";
     const guilhermeAppId = rawGuilherme.match(/\d+/)?.[0] ?? null;
     const matheusAppId = rawMatheus.match(/\d+/)?.[0] ?? null;
     const pedroAppId = rawPedro.match(/\d+/)?.[0] ?? null;
     const antonioAppId = rawAntonio.match(/\d+/)?.[0] ?? null;
     const gregAppId = rawGreg.match(/\d+/)?.[0] ?? null;
+    const esperancaAppId = rawEsperanca.match(/\d+/)?.[0] ?? null;
 
     return {
       guilherme: guilhermeAppId,
@@ -350,5 +355,6 @@ export const getAvailableMetaAppIds = createServerFn({ method: "GET" })
       pedro: pedroAppId,
       antonio: antonioAppId,
       greg: gregAppId,
+      esperanca: esperancaAppId,
     };
   });
