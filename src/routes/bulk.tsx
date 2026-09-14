@@ -18,6 +18,7 @@ import {
   Timer,
   ShieldCheck,
   Eye,
+  Repeat,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -196,6 +197,9 @@ function BulkSchedulePage() {
   const [postingTimes, setPostingTimes] = useState<string[]>(["12:00", "18:00"]);
   const [newTime, setNewTime] = useState("");
 
+  // Number of repetition cycles
+  const [cycles, setCycles] = useState(1);
+
   // Random time scheduling states
   const [isRandomTimeMode, setIsRandomTimeMode] = useState(false);
   const [randomStartHour, setRandomStartHour] = useState("11:00");
@@ -267,22 +271,27 @@ function BulkSchedulePage() {
     };
   }, [coverPreviewUrl]);
 
-  // Synchronize and shuffle video orders per account reactively
+  // Synchronize and shuffle video orders per account reactively across all cycles
   useEffect(() => {
     const newOrders: Record<string, number[]> = {};
+    const totalAccountVideos = videoFiles.length * cycles;
     selectedAccounts.forEach((accId) => {
       const existing = accountVideoOrders[accId];
-      if (existing && existing.length === videoFiles.length) {
+      if (existing && existing.length === totalAccountVideos) {
         newOrders[accId] = existing;
       } else {
-        const seq = Array.from({ length: videoFiles.length }, (_, i) => i);
-        newOrders[accId] = randomize ? shuffleArray(seq) : seq;
+        const order: number[] = [];
+        for (let c = 0; c < cycles; c++) {
+          const seq = Array.from({ length: videoFiles.length }, (_, i) => i);
+          order.push(...(randomize ? shuffleArray(seq) : seq));
+        }
+        newOrders[accId] = order;
       }
     });
     setAccountVideoOrders(newOrders);
-  }, [videoFiles.length, selectedAccounts, randomize]);
+  }, [videoFiles.length, selectedAccounts, randomize, cycles]);
 
-  // Generate random delay offsets per account and video within each batch reactively
+  // Generate random delay offsets per account and video within each batch reactively across all cycles
   useEffect(() => {
     if (selectedAccounts.length === 0 || videoFiles.length === 0) {
       setStableBatchDelays({});
@@ -293,12 +302,13 @@ function BulkSchedulePage() {
     const maxSec = Math.max(0, Math.max(batchMinDelaySeconds, batchMaxDelaySeconds));
 
     const newDelays: Record<string, number[]> = {};
+    const totalAccountVideos = videoFiles.length * cycles;
 
     selectedAccounts.forEach((accId) => {
       const delays: number[] = [];
       let currentBatchCumulative = 0;
 
-      for (let i = 0; i < videoFiles.length; i++) {
+      for (let i = 0; i < totalAccountVideos; i++) {
         const posInBatch = i % batchSize;
         if (posInBatch === 0 || batchSize <= 1) {
           currentBatchCumulative = 0;
@@ -318,13 +328,14 @@ function BulkSchedulePage() {
   }, [
     selectedAccounts,
     videoFiles.length,
+    cycles,
     batchSize,
     batchMinDelaySeconds,
     batchMaxDelaySeconds,
     randomTrigger,
   ]);
 
-  // Generate random posting times per account and day reactively in random mode
+  // Generate random posting times per account and day reactively in random mode across all cycles
   useEffect(() => {
     if (!isRandomTimeMode || selectedAccounts.length === 0 || videoFiles.length === 0) {
       return;
@@ -336,10 +347,11 @@ function BulkSchedulePage() {
     const actualEndMin = Math.max(startMin, endMin);
 
     const newRandomTimes: Record<string, string[][]> = {};
+    const totalAccountVideos = videoFiles.length * cycles;
 
     selectedAccounts.forEach((accId) => {
       const accountTimes: string[][] = [];
-      const totalSlots = Math.ceil(videoFiles.length / batchSize);
+      const totalSlots = Math.ceil(totalAccountVideos / batchSize);
       const totalDays = Math.ceil(totalSlots / randomCountPerDay) + 15;
 
       for (let d = 0; d < totalDays; d++) {
@@ -367,6 +379,7 @@ function BulkSchedulePage() {
     isRandomTimeMode,
     selectedAccounts,
     videoFiles.length,
+    cycles,
     randomStartHour,
     randomEndHour,
     randomCountPerDay,
@@ -377,8 +390,12 @@ function BulkSchedulePage() {
   const handleReshuffle = () => {
     const newOrders: Record<string, number[]> = {};
     selectedAccounts.forEach((accId) => {
-      const seq = Array.from({ length: videoFiles.length }, (_, i) => i);
-      newOrders[accId] = shuffleArray(seq);
+      const order: number[] = [];
+      for (let c = 0; c < cycles; c++) {
+        const seq = Array.from({ length: videoFiles.length }, (_, i) => i);
+        order.push(...shuffleArray(seq));
+      }
+      newOrders[accId] = order;
     });
     setAccountVideoOrders(newOrders);
     setRandomTrigger((prev) => prev + 1);
@@ -437,6 +454,8 @@ function BulkSchedulePage() {
     videoIndex: number;
     videoFileName: string;
     scheduledTimestamp: number;
+    cycleNumber: number;
+    totalCycles: number;
   }
 
   const getScheduleSlots = (): ScheduleSlot[] => {
@@ -449,7 +468,8 @@ function BulkSchedulePage() {
 
     const slots: ScheduleSlot[] = [];
     const sortedTimes = [...postingTimes].sort();
-    const totalBatchSlots = Math.ceil(videoFiles.length / batchSize);
+    const totalAccountVideos = videoFiles.length * cycles;
+    const totalBatchSlots = Math.ceil(totalAccountVideos / batchSize);
 
     selectedAccounts.forEach((accId) => {
       const account = accounts.find((a) => a.id === accId);
@@ -466,8 +486,14 @@ function BulkSchedulePage() {
         randomCountPerDay,
       });
 
-      const order =
-        accountVideoOrders[accId] || Array.from({ length: videoFiles.length }, (_, i) => i);
+      const defaultOrder: number[] = [];
+      for (let c = 0; c < cycles; c++) {
+        for (let v = 0; v < videoFiles.length; v++) {
+          defaultOrder.push(v);
+        }
+      }
+
+      const order = accountVideoOrders[accId] || defaultOrder;
 
       order.forEach((videoIdx, i) => {
         if (videoIdx >= videoFiles.length) return;
@@ -492,6 +518,8 @@ function BulkSchedulePage() {
         const formattedTime =
           batchSize > 1 || delaySec > 0 ? `${hStr}:${mStr}:${sStr}` : `${hStr}:${mStr}`;
 
+        const cycleNumber = Math.floor(i / videoFiles.length) + 1;
+
         slots.push({
           dateStr: formattedDate,
           timeStr: formattedTime,
@@ -503,6 +531,8 @@ function BulkSchedulePage() {
           videoIndex: videoIdx,
           videoFileName: videoFiles[videoIdx].name,
           scheduledTimestamp: slotDate.getTime(),
+          cycleNumber,
+          totalCycles: cycles,
         });
       });
     });
@@ -649,7 +679,8 @@ function BulkSchedulePage() {
       // 3. Prepare DB records
       const postsToInsert: any[] = [];
       const sortedTimes = [...postingTimes].sort();
-      const totalBatchSlots = Math.ceil(totalVideos / batchSize);
+      const totalAccountVideos = totalVideos * cycles;
+      const totalBatchSlots = Math.ceil(totalAccountVideos / batchSize);
 
       selectedAccounts.forEach((accId) => {
         const batchSlots = computeAccountBatchSlots({
@@ -663,10 +694,18 @@ function BulkSchedulePage() {
           randomCountPerDay,
         });
 
-        const order =
-          accountVideoOrders[accId] || Array.from({ length: totalVideos }, (_, idx) => idx);
+        const defaultOrder: number[] = [];
+        for (let c = 0; c < cycles; c++) {
+          for (let v = 0; v < totalVideos; v++) {
+            defaultOrder.push(v);
+          }
+        }
+
+        const order = accountVideoOrders[accId] || defaultOrder;
 
         order.forEach((videoIdx, i) => {
+          if (videoIdx >= totalVideos) return;
+
           const slotIndex = Math.floor(i / batchSize);
           const baseSlotDate = batchSlots[slotIndex];
           if (!baseSlotDate) return;
@@ -692,7 +731,9 @@ function BulkSchedulePage() {
 
       setUploadProgress(100);
       setUploadStatus("Agendado com sucesso!");
-      toast.success(`${postsToInsert.length} posts agendados com sucesso!`);
+      toast.success(
+        `${postsToInsert.length} posts agendados com sucesso (${cycles} ${cycles === 1 ? "ciclo" : "ciclos"})!`,
+      );
       navigate({ to: "/posts" });
     } catch (err: any) {
       console.error("Bulk scheduling error:", err);
@@ -1132,6 +1173,81 @@ function BulkSchedulePage() {
                 </div>
               </div>
 
+              {/* Repetition Cycles */}
+              <div className="p-4 rounded-xl border border-border/50 bg-secondary/20 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <Label htmlFor="cycles" className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <Repeat className="size-4 text-primary shrink-0" />
+                      Ciclos de Repetição
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Quantas vezes repetir todo o lote de {videoFiles.length > 0 ? `${videoFiles.length} reels` : "reels"} sequencialmente no cronograma.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground font-semibold">Atalhos:</span>
+                    {[1, 2, 3, 5, 10].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setCycles(c)}
+                        className={`text-[10px] px-2 py-0.5 rounded-md font-semibold transition border cursor-pointer ${
+                          cycles === c
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-secondary/60 text-foreground border-border/40 hover:bg-secondary"
+                        }`}
+                      >
+                        {c}x
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 bg-card border border-border/60 rounded-lg p-0.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setCycles((prev) => Math.max(1, prev - 1))}
+                      disabled={cycles <= 1}
+                      className="size-8 text-foreground hover:bg-secondary rounded-md"
+                    >
+                      -
+                    </Button>
+                    <Input
+                      type="number"
+                      id="cycles"
+                      min={1}
+                      max={100}
+                      value={cycles}
+                      onChange={(e) => setCycles(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="h-8 w-16 text-center font-bold bg-transparent border-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setCycles((prev) => prev + 1)}
+                      className="size-8 text-foreground hover:bg-secondary rounded-md"
+                    >
+                      +
+                    </Button>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    {cycles > 1 ? (
+                      <span>
+                        Serão agendados <strong className="text-primary font-bold">{videoFiles.length * cycles}</strong> posts por conta ({cycles} voltas completas dos {videoFiles.length} vídeos).
+                      </span>
+                    ) : (
+                      <span>1 ciclo regular (cada vídeo postado 1 vez por conta).</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Batch Delay Variation Section (shown when batchSize > 1) */}
               {batchSize > 1 && (
                 <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -1439,7 +1555,7 @@ function BulkSchedulePage() {
                   <Loader2 className="size-4 animate-spin mr-2" /> Agendando com metadados únicos...
                 </>
               ) : (
-                `Agendar ${slots.length} Publicações`
+                `Agendar ${slots.length} Publicações (${cycles} ${cycles === 1 ? "ciclo" : "ciclos"})`
               )}
             </Button>
           </form>
@@ -1462,10 +1578,10 @@ function BulkSchedulePage() {
               ) : (
                 <div className="space-y-4">
                   {/* Summary Indicators */}
-                  <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="p-2 border border-border/30 rounded-xl bg-secondary/15">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                        Total de Posts
+                        Total Posts
                       </span>
                       <p className="text-xl font-black text-gradient-brand mt-0.5">
                         {slots.length}
@@ -1473,9 +1589,17 @@ function BulkSchedulePage() {
                     </div>
                     <div className="p-2 border border-border/30 rounded-xl bg-secondary/15">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                        Período Estimado
+                        Ciclos
                       </span>
                       <p className="text-xl font-black text-primary mt-0.5">
+                        {cycles}x
+                      </p>
+                    </div>
+                    <div className="p-2 border border-border/30 rounded-xl bg-secondary/15">
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                        Período
+                      </span>
+                      <p className="text-xl font-black text-foreground mt-0.5">
                         {totalCalculatedDays} {totalCalculatedDays === 1 ? "dia" : "dias"}
                       </p>
                     </div>
@@ -1498,8 +1622,13 @@ function BulkSchedulePage() {
                                 <span className="font-extrabold text-foreground shrink-0 font-mono text-[11px]">
                                   {slot.timeStr}
                                 </span>
+                                {slot.totalCycles > 1 && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/25 shrink-0 flex items-center gap-0.5">
+                                    <Repeat className="size-2.5" /> {slot.cycleNumber}/{slot.totalCycles}
+                                  </span>
+                                )}
                                 {slot.delaySeconds !== undefined && slot.delaySeconds > 0 && (
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/25 shrink-0">
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary text-foreground/80 border border-border/40 shrink-0">
                                     +{slot.delaySeconds}s
                                   </span>
                                 )}
