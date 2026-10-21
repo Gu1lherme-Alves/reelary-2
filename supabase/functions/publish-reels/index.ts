@@ -269,6 +269,7 @@ Deno.serve(async (req: Request) => {
             video_url: post.video_url,
             caption: post.caption,
             media_type: "REELS",
+            share_to_feed: true,
             access_token: ig.access_token,
           };
 

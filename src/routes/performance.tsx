@@ -68,6 +68,7 @@ function PerformancePage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncingAll, setSyncingAll] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; username: string } | null>(null);
   const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
 
   // Filters and search
@@ -94,21 +95,62 @@ function PerformancePage() {
   }, []);
 
   async function handleSyncAll() {
+    if (!data?.accounts || data.accounts.length === 0) {
+      toast.info("Nenhuma conta encontrada para sincronizar.");
+      return;
+    }
+
     setSyncingAll(true);
-    toast.info("Sincronizando todas as contas com a Meta...");
+    const accountsToSync = data.accounts.filter((a) => !a.hidden);
+    const total = accountsToSync.length;
+
+    let synced = 0;
+    let failed = 0;
+    const toastId = "sync-all-accounts";
+
+    toast.loading(`Iniciando sincronização de ${total} conta(s)...`, { id: toastId });
+
     try {
-      const res = await syncAllAccountsInsightsFn();
+      // Process accounts client-side one-by-one to prevent serverless function timeouts
+      // and provide instant, accurate progress feedback to the user
+      for (let i = 0; i < accountsToSync.length; i++) {
+        const acc = accountsToSync[i];
+        setSyncProgress({ current: i + 1, total, username: acc.username });
+        toast.loading(`Sincronizando conta (${i + 1}/${total}): @${acc.username}...`, {
+          id: toastId,
+        });
+
+        try {
+          await syncAccountInsightsFn({ data: { accountId: acc.id } });
+          synced++;
+        } catch (err: any) {
+          console.warn(`Falha ao sincronizar @${acc.username}:`, err);
+          failed++;
+        }
+      }
+
       await loadData();
-      toast.success(
-        `Sincronização concluída! ${res.synced} conta(s) atualizada(s)${
-          res.failed > 0 ? `, ${res.failed} com falha.` : "."
-        }`,
-      );
+
+      if (failed === 0) {
+        toast.success(`Todas as ${synced} conta(s) foram sincronizadas com sucesso!`, {
+          id: toastId,
+        });
+      } else if (synced > 0) {
+        toast.warning(
+          `Sincronização concluída: ${synced} conta(s) atualizada(s), ${failed} com falha.`,
+          { id: toastId },
+        );
+      } else {
+        toast.error("Falha ao sincronizar as contas. Verifique se os tokens estão válidos.", {
+          id: toastId,
+        });
+      }
     } catch (err: any) {
       console.error("Sync all error:", err);
-      toast.error(err.message || "Erro ao sincronizar contas com o Instagram.");
+      toast.error(err.message || "Erro inesperado ao sincronizar contas.", { id: toastId });
     } finally {
       setSyncingAll(false);
+      setSyncProgress(null);
     }
   }
 
@@ -194,7 +236,11 @@ function PerformancePage() {
             className="bg-amber-600 hover:bg-amber-700 text-zinc-950 font-bold text-xs h-9 px-3.5 gap-2 cursor-pointer rounded-md shadow-sm"
           >
             <RefreshCw className={`size-3.5 ${syncingAll ? "animate-spin" : ""}`} />
-            {syncingAll ? "Sincronizando..." : "Sincronizar Todas"}
+            {syncingAll && syncProgress
+              ? `Sincronizando (${syncProgress.current}/${syncProgress.total})...`
+              : syncingAll
+                ? "Sincronizando..."
+                : "Sincronizar Todas"}
           </Button>
         </div>
       </div>
