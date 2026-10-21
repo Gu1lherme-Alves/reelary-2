@@ -37,12 +37,7 @@ export const Route = createFileRoute("/performance")({
   ),
 });
 
-type SortField =
-  | "engagementRate"
-  | "totalViews"
-  | "totalReach"
-  | "followersCount"
-  | "pendingCount";
+type SortField = "engagementRate" | "totalViews" | "totalReach" | "followersCount" | "pendingCount";
 
 function formatNumber(num: number | null | undefined): string {
   if (!num) return "0";
@@ -68,7 +63,11 @@ function PerformancePage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncingAll, setSyncingAll] = useState(false);
-  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; username: string } | null>(null);
+  const [syncProgress, setSyncProgress] = useState<{
+    current: number;
+    total: number;
+    username: string;
+  } | null>(null);
   const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
 
   // Filters and search
@@ -265,7 +264,8 @@ function PerformancePage() {
           <div>
             <h3 className="text-base font-bold text-white">Nenhuma conta conectada</h3>
             <p className="text-xs text-zinc-400 max-w-md mx-auto mt-1">
-              Conecte suas contas do Instagram para acompanhar o ranking de visualizações e engajamento.
+              Conecte suas contas do Instagram para acompanhar o ranking de visualizações e
+              engajamento.
             </p>
           </div>
           <Button
@@ -313,16 +313,12 @@ function PerformancePage() {
                 </span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-amber-400">
-                  {avgEngagementRate}%
-                </span>
+                <span className="text-2xl font-black text-amber-400">{avgEngagementRate}%</span>
                 <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">
                   taxa média
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400 mt-1">
-                Interações médias por alcance/plays.
-              </p>
+              <p className="text-[11px] text-zinc-400 mt-1">Interações médias por alcance/plays.</p>
             </div>
 
             {/* Card 3: Base de Seguidores */}
@@ -362,7 +358,8 @@ function PerformancePage() {
                     Ranking de Performance de Contas
                   </h2>
                   <p className="text-[11px] text-zinc-400">
-                    Listagem completa das {data.accounts.length} contas conectadas, ordenadas por desempenho.
+                    Listagem completa das {data.accounts.length} contas conectadas, ordenadas por
+                    desempenho.
                   </p>
                 </div>
               </div>
@@ -565,7 +562,8 @@ function PerformancePage() {
                             </span>
                           </div>
                           <span className="text-[9px] text-zinc-500 block truncate">
-                            {acc.pendingCount} {acc.pendingCount === 1 ? "reel na fila" : "reels na fila"}
+                            {acc.pendingCount}{" "}
+                            {acc.pendingCount === 1 ? "reel na fila" : "reels na fila"}
                           </span>
                         </div>
 

@@ -19,7 +19,10 @@ interface MediaItem {
 }
 
 // Helper to fetch JSON from Facebook or Instagram Graph API safely with timeout and auth error detection
-async function safeGraphFetch(url: string, timeoutMs = 8000): Promise<{
+async function safeGraphFetch(
+  url: string,
+  timeoutMs = 8000,
+): Promise<{
   ok: boolean;
   data?: any;
   isAuthError?: boolean;
@@ -47,7 +50,9 @@ async function safeGraphFetch(url: string, timeoutMs = 8000): Promise<{
         if (code === 190 || subcode === 463 || subcode === 467 || type === "OAuthException") {
           isAuthError = true;
         }
-      } catch {}
+      } catch (_err) {
+        // Ignora erro se a resposta não for JSON
+      }
 
       console.warn(`Graph API fetch returned ${res.status} for ${url.split("?")[0]}:`, msg);
       return { ok: false, isAuthError, errorMessage: msg };
@@ -159,7 +164,8 @@ async function fetchAccountLevelInsights(
     const res2 = await safeGraphFetch(url2, 4000);
     if (res2.ok && res2.data?.data && Array.isArray(res2.data.data)) {
       res2.data.data.forEach((metricObj: any) => {
-        const val = Number(metricObj?.values?.[0]?.value ?? metricObj?.total_value?.value ?? 0) || 0;
+        const val =
+          Number(metricObj?.values?.[0]?.value ?? metricObj?.total_value?.value ?? 0) || 0;
         if (metricObj.name === "reach") accountReach = Math.max(accountReach, val);
         if (metricObj.name === "views") accountImpressions = Math.max(accountImpressions, val);
       });
@@ -201,7 +207,8 @@ export const syncAccountInsightsFn = createServerFn({ method: "POST" })
       : "https://graph.instagram.com/v21.0";
 
     // 2. Fetch Account Profile (Followers, Follows, Media Count, Profile Picture)
-    const profileFields = "id,username,profile_picture_url,followers_count,follows_count,media_count";
+    const profileFields =
+      "id,username,profile_picture_url,followers_count,follows_count,media_count";
     const profileUrl = `${baseUrl}/${instagram_user_id}?fields=${profileFields}&access_token=${encodeURIComponent(access_token)}`;
     const profileRes = await safeGraphFetch(profileUrl, 6000);
 
@@ -336,7 +343,8 @@ export const syncAccountInsightsFn = createServerFn({ method: "POST" })
     const finalTotalSaved = Number(sumMediaSaved);
 
     // 6. Calculate Overall Account Engagement Rate
-    const sumAllInteractions = finalTotalLikes + finalTotalComments + finalTotalShares + finalTotalSaved;
+    const sumAllInteractions =
+      finalTotalLikes + finalTotalComments + finalTotalShares + finalTotalSaved;
     let overallEngagementRate = 0;
 
     if (finalTotalViews > 0) {
@@ -344,8 +352,7 @@ export const syncAccountInsightsFn = createServerFn({ method: "POST" })
     } else if (finalTotalReach > 0) {
       overallEngagementRate = (sumAllInteractions / finalTotalReach) * 100;
     } else if (followersCount > 0 && rawMediaList.length > 0) {
-      overallEngagementRate =
-        (sumAllInteractions / (followersCount * rawMediaList.length)) * 100;
+      overallEngagementRate = (sumAllInteractions / (followersCount * rawMediaList.length)) * 100;
     }
 
     // 7. Upsert Account Insights in Supabase
@@ -446,7 +453,8 @@ export const getCachedInsightsFn = createServerFn({ method: "GET" })
     // 1. Fetch Accounts with Categories and Profile Picture
     const { data: accounts, error: accErr } = await supabase
       .from("instagram_accounts")
-      .select(`
+      .select(
+        `
         id,
         username,
         profile_picture_url,
@@ -454,7 +462,8 @@ export const getCachedInsightsFn = createServerFn({ method: "GET" })
         hidden,
         created_at,
         account_categories(id, name, color)
-      `)
+      `,
+      )
       .eq("user_id", userId)
       .eq("hidden", false)
       .order("created_at", { ascending: false });
@@ -476,7 +485,8 @@ export const getCachedInsightsFn = createServerFn({ method: "GET" })
     // 3. Fetch Top Media (Top 12 across all accounts by views/likes)
     const { data: topMediaData, error: mediaErr } = await supabase
       .from("instagram_media_insights")
-      .select(`
+      .select(
+        `
         id,
         instagram_account_id,
         ig_media_id,
@@ -495,7 +505,8 @@ export const getCachedInsightsFn = createServerFn({ method: "GET" })
         published_at,
         last_synced_at,
         instagram_accounts(username, profile_picture_url, account_categories(name, color))
-      `)
+      `,
+      )
       .in("instagram_account_id", accountIds)
       .order("views_count", { ascending: false })
       .limit(12);

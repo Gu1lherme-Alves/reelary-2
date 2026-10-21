@@ -545,11 +545,13 @@ Deno.serve(async (req: Request) => {
             errorLower.includes("login to www.instagram.com") ||
             errorLower.includes("invalid access token") ||
             errorLower.includes("token has expired") ||
-            (errorLower.includes("190") && !errorLower.includes("is_transient\":true"));
+            (errorLower.includes("190") && !errorLower.includes('is_transient":true'));
         }
 
         if (isTokenExpired && updatedPost?.instagram_account_id) {
-          console.log(`[${post.id}] Token is expired or invalid. Marking account as token_invalid.`);
+          console.log(
+            `[${post.id}] Token is expired or invalid. Marking account as token_invalid.`,
+          );
           await supabase
             .from("instagram_accounts")
             .update({ token_invalid: true })
