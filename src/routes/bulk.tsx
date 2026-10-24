@@ -1165,7 +1165,7 @@ function BulkSchedulePage() {
                     type="number"
                     id="batchSize"
                     min={1}
-                    max={20}
+                    max={100}
                     value={batchSize}
                     onChange={(e) => setBatchSize(Math.max(1, parseInt(e.target.value) || 1))}
                     className="h-10 bg-card w-full font-semibold"

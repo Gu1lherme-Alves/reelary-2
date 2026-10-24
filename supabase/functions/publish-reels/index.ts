@@ -488,14 +488,8 @@ Deno.serve(async (req: Request) => {
         const msg = (err?.message ?? String(err)).slice(0, 500);
         console.error(`[${post.id}] ❌ Error: ${msg}`);
 
-        const { data: updatedPost } = await supabase
-          .from("scheduled_posts")
-          .update({ status: "failed", error_message: msg, locked_at: null })
-          .eq("id", post.id)
-          .select("instagram_account_id")
-          .single();
-
         let isTokenExpired = false;
+        let isPermanentError = false;
 
         try {
           // Meta errors are thrown with a JSON string inside the message.
@@ -511,6 +505,15 @@ Deno.serve(async (req: Request) => {
               const subcode = metaError.error_subcode;
               const message = (metaError.message ?? "").toLowerCase();
               const isTransient = metaError.is_transient ?? false;
+
+              // Check for permanent user content errors (e.g. caption too long)
+              if (
+                code === 36004 ||
+                subcode === 2207010 ||
+                message.includes("caption was too long")
+              ) {
+                isPermanentError = true;
+              }
 
               if (isTransient) {
                 // If it is explicitly marked transient, it is NOT an expired token issue.
@@ -548,17 +551,79 @@ Deno.serve(async (req: Request) => {
             (errorLower.includes("190") && !errorLower.includes('is_transient":true'));
         }
 
-        if (isTokenExpired && updatedPost?.instagram_account_id) {
+        const accountId = (post as any).instagram_account_id;
+
+        if (isTokenExpired) {
           console.log(
             `[${post.id}] Token is expired or invalid. Marking account as token_invalid.`,
           );
+          if (accountId) {
+            await supabase
+              .from("instagram_accounts")
+              .update({ token_invalid: true })
+              .eq("id", accountId);
+          }
           await supabase
-            .from("instagram_accounts")
-            .update({ token_invalid: true })
-            .eq("id", updatedPost.instagram_account_id);
-        }
+            .from("scheduled_posts")
+            .update({ status: "failed", error_message: msg, locked_at: null })
+            .eq("id", post.id);
 
-        results.errors.push(`Post ${post.id}: ${msg}`);
+          results.errors.push(`Post ${post.id}: ${msg}`);
+        } else if (isPermanentError) {
+          console.warn(
+            `[${post.id}] Erro permanente detectado no conteúdo do post. Marcando como falha.`,
+          );
+          await supabase
+            .from("scheduled_posts")
+            .update({ status: "failed", error_message: msg, locked_at: null })
+            .eq("id", post.id);
+
+          results.errors.push(`Post ${post.id}: ${msg}`);
+        } else {
+          // Conta ativa / erro transitório (download de vídeo pela Meta, 500, timeout, rede, etc.)
+          const currentRetries = Number((post as any).retry_count ?? 0);
+          const MAX_RETRIES = 3;
+
+          if (currentRetries < MAX_RETRIES) {
+            const nextRetry = currentRetries + 1;
+            // Delay suave: 1 min na tentativa 1, 2 min na tentativa 2, 3 min na tentativa 3
+            const delayMinutes = nextRetry;
+            const nextScheduledAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();
+
+            console.log(
+              `[${post.id}] ⚠️ Erro transitório em conta ativa (@${ig.username}). Tentativa ${nextRetry}/${MAX_RETRIES} reagendada para ${nextScheduledAt}.`,
+            );
+
+            await supabase
+              .from("scheduled_posts")
+              .update({
+                status: "pending",
+                retry_count: nextRetry,
+                ig_container_id: null, // Limpa o container antigo com erro para a Meta recriar e baixar novamente
+                scheduled_at: nextScheduledAt,
+                locked_at: null,
+                error_message: `[Tentativa ${nextRetry}/${MAX_RETRIES}]: ${msg}. Reagendado automaticamente.`,
+              })
+              .eq("id", post.id);
+
+            results.errors.push(`Post ${post.id} (reagendado ${nextRetry}/${MAX_RETRIES}): ${msg}`);
+          } else {
+            console.error(
+              `[${post.id}] ❌ Limite máximo de ${MAX_RETRIES} tentativas atingido para este post. Marcando como falha final.`,
+            );
+
+            await supabase
+              .from("scheduled_posts")
+              .update({
+                status: "failed",
+                locked_at: null,
+                error_message: `[Falha final após ${MAX_RETRIES} tentativas]: ${msg}`,
+              })
+              .eq("id", post.id);
+
+            results.errors.push(`Post ${post.id} (falha final após ${MAX_RETRIES} tentativas): ${msg}`);
+          }
+        }
       }
     }
 

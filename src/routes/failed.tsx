@@ -8,7 +8,8 @@ import {
   Video,
   Calendar,
   AlertOctagon,
-  HelpCircle,
+  RotateCcw,
+  Loader2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -32,10 +33,12 @@ type FailedPost = {
   scheduled_at: string;
   status: "pending" | "published" | "failed";
   error_message: string | null;
+  retry_count?: number;
   instagram_account_id: string;
   instagram_accounts: {
     id: string;
     username: string;
+    token_invalid?: boolean;
   } | null;
 };
 
@@ -43,6 +46,8 @@ function FailedPostsPage() {
   const [posts, setPosts] = useState<FailedPost[]>([]);
   const [bannedAccounts, setBannedAccounts] = useState<{ id: string; username: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryingAll, setRetryingAll] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -50,7 +55,7 @@ function FailedPostsPage() {
       const { data: postsData, error: postsError } = await supabase
         .from("scheduled_posts")
         .select(
-          "id, caption, video_url, cover_url, scheduled_at, status, error_message, instagram_account_id, instagram_accounts(id, username)",
+          "id, caption, video_url, cover_url, scheduled_at, status, error_message, retry_count, instagram_account_id, instagram_accounts(id, username, token_invalid)",
         )
         .eq("status", "failed")
         .order("scheduled_at", { ascending: false });
@@ -138,6 +143,74 @@ function FailedPostsPage() {
     }
   }
 
+  async function retryPost(post: FailedPost) {
+    setRetryingId(post.id);
+    try {
+      const { error } = await supabase
+        .from("scheduled_posts")
+        .update({
+          status: "pending",
+          ig_container_id: null,
+          scheduled_at: new Date().toISOString(),
+          locked_at: null,
+          error_message: null,
+          retry_count: 0,
+        })
+        .eq("id", post.id);
+
+      if (error) throw error;
+
+      toast.success("Publicação colocada na fila para republicação!");
+      load();
+
+      // Trigger Edge Function in background
+      supabase.functions.invoke("publish-reels").catch((e) => console.warn("invoke error:", e));
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao tentar publicar novamente");
+    } finally {
+      setRetryingId(null);
+    }
+  }
+
+  async function retryAllEligiblePosts() {
+    const eligible = posts.filter(
+      (p) => p.video_url && !p.instagram_accounts?.token_invalid
+    );
+
+    if (eligible.length === 0) {
+      toast.info("Nenhum vídeo elegível para nova tentativa.");
+      return;
+    }
+
+    setRetryingAll(true);
+    try {
+      const ids = eligible.map((p) => p.id);
+      const { error } = await supabase
+        .from("scheduled_posts")
+        .update({
+          status: "pending",
+          ig_container_id: null,
+          scheduled_at: new Date().toISOString(),
+          locked_at: null,
+          error_message: null,
+          retry_count: 0,
+        })
+        .in("id", ids);
+
+      if (error) throw error;
+
+      toast.success(`${eligible.length} vídeo(s) colocados na fila para republicação!`);
+      load();
+
+      // Trigger Edge Function in background
+      supabase.functions.invoke("publish-reels").catch((e) => console.warn("invoke error:", e));
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao tentar republicar vídeos");
+    } finally {
+      setRetryingAll(false);
+    }
+  }
+
   async function deleteAllBannedAccounts() {
     if (bannedAccounts.length === 0) {
       toast.info("Nenhuma conta banida para excluir.");
@@ -177,6 +250,10 @@ function FailedPostsPage() {
     }
   }
 
+  const eligiblePostsCount = posts.filter(
+    (p) => p.video_url && !p.instagram_accounts?.token_invalid
+  ).length;
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -190,6 +267,21 @@ function FailedPostsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-3 sm:self-center">
+          {eligiblePostsCount > 0 && (
+            <Button
+              variant="default"
+              onClick={retryAllEligiblePosts}
+              disabled={retryingAll}
+              className="font-semibold gap-1.5 bg-primary text-primary-foreground hover:opacity-90 transition rounded-xl cursor-pointer"
+            >
+              {retryingAll ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <RotateCcw className="size-4" />
+              )}
+              Tentar Publicar Novamente ({eligiblePostsCount})
+            </Button>
+          )}
           {bannedAccounts.length > 0 && (
             <Button
               variant="destructive"
@@ -279,6 +371,14 @@ function FailedPostsPage() {
                           timeStyle: "short",
                         })}
                       </span>
+                      {typeof p.retry_count === "number" && p.retry_count > 0 && (
+                        <>
+                          <span>•</span>
+                          <span className="text-amber-400 font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                            {p.retry_count}/3 tentativas
+                          </span>
+                        </>
+                      )}
                     </div>
 
                     <p className="text-sm line-clamp-2 text-foreground/90 font-medium">
@@ -309,6 +409,23 @@ function FailedPostsPage() {
 
                   {/* Actions Row */}
                   <div className="flex flex-wrap gap-3 mt-5 border-t border-border/40 pt-4">
+                    {p.video_url && !p.instagram_accounts?.token_invalid && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => retryPost(p)}
+                        disabled={retryingId === p.id}
+                        className="font-semibold gap-1.5 bg-primary text-primary-foreground hover:opacity-90 transition rounded-xl cursor-pointer"
+                      >
+                        {retryingId === p.id ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <RotateCcw className="size-4" />
+                        )}
+                        Tentar Novamente
+                      </Button>
+                    )}
+
                     <Button
                       variant="destructive"
                       size="sm"
