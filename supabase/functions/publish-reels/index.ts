@@ -265,23 +265,25 @@ Deno.serve(async (req: Request) => {
         if (!containerId) {
           console.log(`[${post.id}] Creating media container for @${ig.username}...`);
 
-          const body: any = {
-            video_url: post.video_url,
-            caption: post.caption,
-            media_type: "REELS",
-            share_to_feed: true,
-            access_token: ig.access_token,
-          };
+          const formParams = new URLSearchParams();
+          formParams.append("video_url", post.video_url);
+          formParams.append("media_type", "REELS");
+          formParams.append("share_to_feed", "true");
+          formParams.append("access_token", ig.access_token);
+
+          if (post.caption) {
+            formParams.append("caption", post.caption);
+          }
 
           if (post.cover_url) {
             console.log(`[${post.id}] Using custom cover image: ${post.cover_url}`);
-            body.cover_url = post.cover_url;
+            formParams.append("cover_url", post.cover_url);
           }
 
           const createRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: formParams.toString(),
           });
 
           if (!createRes.ok) {
@@ -375,13 +377,14 @@ Deno.serve(async (req: Request) => {
         // ════════════════════════════════════════════
         if (shouldPublish) {
           console.log(`[${post.id}] Publishing reel to @${ig.username}...`);
+          const pubParams = new URLSearchParams();
+          pubParams.append("creation_id", containerId);
+          pubParams.append("access_token", ig.access_token);
+
           const pubRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media_publish`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              creation_id: containerId,
-              access_token: ig.access_token,
-            }),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: pubParams.toString(),
           });
 
           if (!pubRes.ok) {
