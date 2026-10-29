@@ -264,26 +264,38 @@ Deno.serve(async (req: Request) => {
         // ════════════════════════════════════════════
         if (!containerId) {
           console.log(`[${post.id}] Creating media container for @${ig.username}...`);
+          console.log(`[${post.id}] CAPTION RAW: ${JSON.stringify(post.caption)} (type: ${typeof post.caption})`);
 
-          const formParams = new URLSearchParams();
-          formParams.append("video_url", post.video_url);
-          formParams.append("media_type", "REELS");
-          formParams.append("share_to_feed", "true");
-          formParams.append("access_token", ig.access_token);
+          const containerParams = new URLSearchParams();
+          containerParams.append("video_url", post.video_url);
+          containerParams.append("media_type", "REELS");
+          containerParams.append("share_to_feed", "true");
 
           if (post.caption) {
-            formParams.append("caption", post.caption);
+            containerParams.append("caption", post.caption);
+          } else {
+            console.warn(`[${post.id}] WARNING: post.caption is empty or falsy!`);
           }
 
           if (post.cover_url) {
             console.log(`[${post.id}] Using custom cover image: ${post.cover_url}`);
-            formParams.append("cover_url", post.cover_url);
+            containerParams.append("cover_url", post.cover_url);
           }
+
+          containerParams.append("access_token", ig.access_token);
+
+          console.log(`[${post.id}] SENDING BODY TO META: ${containerParams.toString().substring(0, 500)}`);
+
+          const metaHeaders = {
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "application/json",
+          };
 
           const createRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media`, {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: formParams.toString(),
+            headers: metaHeaders,
+            body: containerParams.toString(),
           });
 
           if (!createRes.ok) {
@@ -312,6 +324,12 @@ Deno.serve(async (req: Request) => {
         try {
           const statusRes = await fetch(
             `${graphApiUrl}/${containerId}?fields=status_code&access_token=${encodeURIComponent(ig.access_token)}`,
+            {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+              },
+            },
           );
 
           if (!statusRes.ok) {
@@ -383,7 +401,11 @@ Deno.serve(async (req: Request) => {
 
           const pubRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media_publish`, {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+              "Accept": "application/json",
+            },
             body: pubParams.toString(),
           });
 
