@@ -1,12 +1,59 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import fs from "node:fs";
+import path from "node:path";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+export function updateEnvFile(updates: Record<string, string>) {
+  // 1. Atualizar em memória imediatamente para o processo Node atual
+  for (const [key, value] of Object.entries(updates)) {
+    process.env[key] = value;
+  }
+
+  // 2. Persistir no arquivo .env se acessível no ambiente
+  try {
+    const envPath = path.resolve(process.cwd(), ".env");
+    let content = "";
+    if (fs.existsSync(envPath)) {
+      content = fs.readFileSync(envPath, "utf-8");
+    }
+
+    let lines = content ? content.split(/\r?\n/) : [];
+    const handledKeys = new Set<string>();
+
+    lines = lines.map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) {
+        return line;
+      }
+      const eqIdx = line.indexOf("=");
+      if (eqIdx === -1) return line;
+
+      const key = line.slice(0, eqIdx).trim();
+      if (key in updates) {
+        handledKeys.add(key);
+        return `${key}="${updates[key]}"`;
+      }
+      return line;
+    });
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (!handledKeys.has(key)) {
+        lines.push(`${key}="${value}"`);
+      }
+    }
+
+    fs.writeFileSync(envPath, lines.join("\n"), "utf-8");
+  } catch (err) {
+    console.warn("Não foi possível persistir no arquivo .env em disco:", err);
+  }
+}
 
 export async function getMetaCredentialsForUser(supabase: any, userId: string) {
   // Query user settings
   const { data, error } = await supabase
     .from("user_settings")
-    .select("meta_credential_profile")
+    .select("meta_credential_profile, custom_meta_app_id, custom_meta_app_secret")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -19,7 +66,18 @@ export async function getMetaCredentialsForUser(supabase: any, userId: string) {
   let appId = "";
   let appSecret = "";
 
-  if (profile === "matheus") {
+  if (profile === "custom") {
+    appId =
+      data?.custom_meta_app_id ||
+      process.env.META_APP_ID_CUSTOM ||
+      process.env.META_APP_ID ||
+      "";
+    appSecret =
+      data?.custom_meta_app_secret ||
+      process.env.META_APP_SECRET_CUSTOM ||
+      process.env.META_APP_SECRET ||
+      "";
+  } else if (profile === "matheus") {
     appId = process.env.META_APP_ID_MATHEUS || "";
     appSecret = process.env.META_APP_SECRET_MATHEUS || "";
   } else if (profile === "pedro") {
@@ -329,9 +387,105 @@ export const connectFacebookAccount = createServerFn({ method: "POST" })
     return { username, instagramUserId };
   });
 
+export const saveCustomMetaCredentials = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        appId: z.string().trim().min(4, "Meta App ID inválido (deve conter pelo menos 4 dígitos)"),
+        appSecret: z.string().trim().min(8, "Chave API / App Secret inválida"),
+        setActive: z.boolean().optional().default(true),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const cleanedAppId = data.appId.replace(/\D/g, "");
+    const cleanedSecret = data.appSecret.trim();
+
+    if (!cleanedAppId) {
+      throw new Error("O Meta App ID deve conter números válidos.");
+    }
+
+    // 1. Atualizar no banco de dados na tabela user_settings
+    const updatePayload: any = {
+      user_id: userId,
+      custom_meta_app_id: cleanedAppId,
+      custom_meta_app_secret: cleanedSecret,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (data.setActive) {
+      updatePayload.meta_credential_profile = "custom";
+    }
+
+    const { error: dbError } = await supabase
+      .from("user_settings")
+      .upsert(updatePayload, { onConflict: "user_id" });
+
+    if (dbError) {
+      console.error("Erro ao salvar credenciais personalizadas no Supabase:", dbError);
+      throw new Error("Erro ao salvar no banco de dados: " + dbError.message);
+    }
+
+    // 2. Atualizar no arquivo .env e em process.env
+    try {
+      updateEnvFile({
+        VITE_META_APP_ID: cleanedAppId,
+        META_APP_ID: cleanedAppId,
+        META_APP_SECRET: cleanedSecret,
+        META_APP_ID_CUSTOM: cleanedAppId,
+        META_APP_SECRET_CUSTOM: cleanedSecret,
+      });
+    } catch (envError: any) {
+      console.warn("Erro ao atualizar variáveis de ambiente (.env):", envError);
+    }
+
+    return {
+      success: true,
+      appId: cleanedAppId,
+      profile: data.setActive ? "custom" : undefined,
+    };
+  });
+
+export const getUserCustomMetaSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("user_settings")
+      .select("meta_credential_profile, custom_meta_app_id, custom_meta_app_secret")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Erro ao carregar configurações personalizadas da Meta:", error);
+    }
+
+    const customAppId =
+      data?.custom_meta_app_id ||
+      process.env.META_APP_ID_CUSTOM ||
+      process.env.META_APP_ID ||
+      "";
+    const customAppSecret =
+      data?.custom_meta_app_secret ||
+      process.env.META_APP_SECRET_CUSTOM ||
+      process.env.META_APP_SECRET ||
+      "";
+
+    return {
+      profile: (data?.meta_credential_profile || "guilherme") as string,
+      customAppId,
+      customAppSecret,
+      hasCustomCredentials: Boolean(customAppId && customAppSecret),
+    };
+  });
+
 export const getAvailableMetaAppIds = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+
     const rawGuilherme =
       process.env.META_APP_ID_GUILHERME ||
       process.env.META_APP_ID ||
@@ -349,6 +503,21 @@ export const getAvailableMetaAppIds = createServerFn({ method: "GET" })
     const gregAppId = rawGreg.match(/\d+/)?.[0] ?? null;
     const esperancaAppId = rawEsperanca.match(/\d+/)?.[0] ?? null;
 
+    let customAppId: string | null = null;
+    try {
+      const { data } = await supabase
+        .from("user_settings")
+        .select("custom_meta_app_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      customAppId =
+        data?.custom_meta_app_id?.match(/\d+/)?.[0] ||
+        process.env.META_APP_ID_CUSTOM?.match(/\d+/)?.[0] ||
+        null;
+    } catch (_) {
+      customAppId = process.env.META_APP_ID_CUSTOM?.match(/\d+/)?.[0] || null;
+    }
+
     return {
       guilherme: guilhermeAppId,
       matheus: matheusAppId,
@@ -356,5 +525,6 @@ export const getAvailableMetaAppIds = createServerFn({ method: "GET" })
       antonio: antonioAppId,
       greg: gregAppId,
       esperanca: esperancaAppId,
+      custom: customAppId,
     };
   });
