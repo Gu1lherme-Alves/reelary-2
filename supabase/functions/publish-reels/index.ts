@@ -209,7 +209,7 @@ Deno.serve(async (req: Request) => {
 
     // Fetch pending posts that are due using the atomic grab and lock function
     const { data: posts, error: fetchErr } = await supabase.rpc("grab_pending_posts_to_publish", {
-      limit_count: 50,
+      limit_count: 8,
     });
 
     if (fetchErr) {
@@ -224,7 +224,12 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Found ${posts.length} pending post(s) to process.`);
 
-    for (const post of posts) {
+    for (let postIndex = 0; postIndex < posts.length; postIndex++) {
+      const post = posts[postIndex];
+      if (postIndex > 0) {
+        // Pacing delay (2.5s) between posts to avoid Meta IP burst rate limiting
+        await new Promise((r) => setTimeout(r, 2500));
+      }
       results.processed++;
       const ig = {
         instagram_user_id: (post as any).instagram_user_id,
@@ -394,6 +399,8 @@ Deno.serve(async (req: Request) => {
         // PHASE 3: Publish the Reel!
         // ════════════════════════════════════════════
         if (shouldPublish) {
+          // Settling dwell time (1.5s) so Meta's backend synchronizes container metadata
+          await new Promise((r) => setTimeout(r, 1500));
           console.log(`[${post.id}] Publishing reel to @${ig.username}...`);
           const pubParams = new URLSearchParams();
           pubParams.append("creation_id", containerId);
@@ -440,6 +447,65 @@ Deno.serve(async (req: Request) => {
 
           const pubData = await pubRes.json();
           console.log(`[${post.id}] ✅ Published! Media ID: ${pubData.id}`);
+
+          // ════════════════════════════════════════════
+          // PHASE 4: Verify Caption & First Comment Fallback
+          // ════════════════════════════════════════════
+          if (post.caption && post.caption.trim()) {
+            try {
+              // Wait 1.5s for media node replication
+              await new Promise((r) => setTimeout(r, 1500));
+              const verifyRes = await fetch(
+                `${graphApiUrl}/${pubData.id}?fields=caption&access_token=${encodeURIComponent(ig.access_token)}`,
+                {
+                  headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "Accept": "application/json",
+                  },
+                },
+              );
+
+              let hasCaption = false;
+              if (verifyRes.ok) {
+                const verifyData = await verifyRes.json();
+                if (verifyData.caption && verifyData.caption.trim()) {
+                  hasCaption = true;
+                  console.log(`[${post.id}] ✅ Main caption verified on published Reel!`);
+                }
+              }
+
+              if (!hasCaption) {
+                console.warn(
+                  `[${post.id}] ⚠️ Meta silently stripped caption from Reel! Posting caption as first comment fallback...`,
+                );
+                const commentParams = new URLSearchParams();
+                const commentText =
+                  post.caption.length > 2200 ? post.caption.substring(0, 2197) + "..." : post.caption;
+                commentParams.append("message", commentText);
+                commentParams.append("access_token", ig.access_token);
+
+                const commentRes = await fetch(`${graphApiUrl}/${pubData.id}/comments`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "Accept": "application/json",
+                  },
+                  body: commentParams.toString(),
+                });
+
+                if (commentRes.ok) {
+                  const commentData = await commentRes.json();
+                  console.log(`[${post.id}] ✅ Caption successfully posted as first comment! ID: ${commentData.id}`);
+                } else {
+                  const commentErr = await commentRes.text();
+                  console.error(`[${post.id}] ❌ Comment fallback error: ${commentErr}`);
+                }
+              }
+            } catch (vErr: any) {
+              console.warn(`[${post.id}] Caption verification check exception: ${vErr?.message}`);
+            }
+          }
 
           // Mark as published, clear video/cover URLs and reset locked_at
           await supabase
