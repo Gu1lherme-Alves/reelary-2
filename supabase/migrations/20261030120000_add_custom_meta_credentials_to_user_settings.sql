@@ -9,3 +9,4 @@ ALTER TABLE public.user_settings
 
 ALTER TABLE public.user_settings
   ADD CONSTRAINT check_profile_value CHECK (meta_credential_profile IN ('guilherme', 'matheus', 'pedro', 'antonio', 'greg', 'esperanca', 'custom'));
+
