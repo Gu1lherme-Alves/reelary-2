@@ -38,6 +38,74 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_categories: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          category_id: string | null
+          created_at: string
+          expense_date: string
+          id: string
+          notes: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category_id?: string | null
+          created_at?: string
+          expense_date?: string
+          id?: string
+          notes?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string | null
+          created_at?: string
+          expense_date?: string
+          id?: string
+          notes?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instagram_account_insights: {
         Row: {
           created_at: string | null
@@ -250,6 +318,7 @@ export type Database = {
           instagram_account_id: string
           locked_at: string | null
           published_at: string | null
+          retry_count: number
           scheduled_at: string
           status: Database["public"]["Enums"]["post_status"]
           updated_at: string
@@ -266,6 +335,7 @@ export type Database = {
           instagram_account_id: string
           locked_at?: string | null
           published_at?: string | null
+          retry_count?: number
           scheduled_at: string
           status?: Database["public"]["Enums"]["post_status"]
           updated_at?: string
@@ -282,6 +352,7 @@ export type Database = {
           instagram_account_id?: string
           locked_at?: string | null
           published_at?: string | null
+          retry_count?: number
           scheduled_at?: string
           status?: Database["public"]["Enums"]["post_status"]
           updated_at?: string
@@ -301,18 +372,24 @@ export type Database = {
       user_settings: {
         Row: {
           created_at: string
+          custom_meta_app_id: string | null
+          custom_meta_app_secret: string | null
           meta_credential_profile: string
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          custom_meta_app_id?: string | null
+          custom_meta_app_secret?: string | null
           meta_credential_profile?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          custom_meta_app_id?: string | null
+          custom_meta_app_secret?: string | null
           meta_credential_profile?: string
           updated_at?: string
           user_id?: string
@@ -332,8 +409,11 @@ export type Database = {
           cover_url: string
           id: string
           ig_container_id: string
+          instagram_account_id: string
           instagram_user_id: string
+          retry_count: number
           scheduled_at: string
+          updated_at: string
           username: string
           video_url: string
         }[]

@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Trash2,
   TrendingUp,
+  Receipt,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -142,6 +143,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       items: [
         { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { to: "/performance", label: "Performance", icon: TrendingUp },
+      ],
+    },
+    {
+      title: "FINANCEIRO",
+      items: [
+        { to: "/expenses", label: "Despesas", icon: Receipt },
       ],
     },
     {

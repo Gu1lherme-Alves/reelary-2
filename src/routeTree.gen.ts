@@ -14,6 +14,7 @@ import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as BulkRouteImport } from './routes/bulk'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as FailedRouteImport } from './routes/failed'
 import { Route as PerformanceRouteImport } from './routes/performance'
 import { Route as PostsRouteImport } from './routes/posts'
@@ -46,6 +47,11 @@ const CalendarRoute = CalendarRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExpensesRoute = ExpensesRouteImport.update({
+  id: '/expenses',
+  path: '/expenses',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FailedRoute = FailedRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/bulk': typeof BulkRoute
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
+  '/expenses': typeof ExpensesRoute
   '/failed': typeof FailedRoute
   '/performance': typeof PerformanceRoute
   '/posts': typeof PostsRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/bulk': typeof BulkRoute
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
+  '/expenses': typeof ExpensesRoute
   '/failed': typeof FailedRoute
   '/performance': typeof PerformanceRoute
   '/posts': typeof PostsRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/bulk': typeof BulkRoute
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
+  '/expenses': typeof ExpensesRoute
   '/failed': typeof FailedRoute
   '/performance': typeof PerformanceRoute
   '/posts': typeof PostsRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/bulk'
     | '/calendar'
     | '/dashboard'
+    | '/expenses'
     | '/failed'
     | '/performance'
     | '/posts'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/bulk'
     | '/calendar'
     | '/dashboard'
+    | '/expenses'
     | '/failed'
     | '/performance'
     | '/posts'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/bulk'
     | '/calendar'
     | '/dashboard'
+    | '/expenses'
     | '/failed'
     | '/performance'
     | '/posts'
@@ -189,6 +201,7 @@ export interface RootRouteChildren {
   BulkRoute: typeof BulkRoute
   CalendarRoute: typeof CalendarRoute
   DashboardRoute: typeof DashboardRoute
+  ExpensesRoute: typeof ExpensesRoute
   FailedRoute: typeof FailedRoute
   PerformanceRoute: typeof PerformanceRoute
   PostsRoute: typeof PostsRoute
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/expenses': {
+      id: '/expenses'
+      path: '/expenses'
+      fullPath: '/expenses'
+      preLoaderRoute: typeof ExpensesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/failed': {
@@ -301,6 +321,7 @@ const rootRouteChildren: RootRouteChildren = {
   BulkRoute: BulkRoute,
   CalendarRoute: CalendarRoute,
   DashboardRoute: DashboardRoute,
+  ExpensesRoute: ExpensesRoute,
   FailedRoute: FailedRoute,
   PerformanceRoute: PerformanceRoute,
   PostsRoute: PostsRoute,

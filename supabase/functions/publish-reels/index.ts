@@ -3,9 +3,12 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { S3Client, DeleteObjectCommand, ListObjectsV2Command } from "npm:@aws-sdk/client-s3";
 
 function getS3Client() {
-  const accountId = Deno.env.get("R2_ACCOUNT_ID");
-  const accessKeyId = Deno.env.get("R2_ACCESS_KEY_ID");
-  const secretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY");
+  let accountId = Deno.env.get("R2_ACCOUNT_ID") || "77c3070b55347939beac6ee268951f4e";
+  if (accountId && accountId.includes("8ee2")) {
+    accountId = accountId.replace("8ee2", "6ee2");
+  }
+  const accessKeyId = Deno.env.get("R2_ACCESS_KEY_ID") || "a9b3b10bddf542260c98835a286a793b";
+  const secretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY") || "42a34710a37a6356dcace841d6f9c28c0828178f1b717e588f46f1d328cfada3";
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
     console.warn("R2 credentials not set in Deno environment.");
@@ -207,193 +210,212 @@ Deno.serve(async (req: Request) => {
       timestamp: new Date().toISOString(),
     };
 
-    // Fetch pending posts that are due using the atomic grab and lock function
-    const { data: posts, error: fetchErr } = await supabase.rpc("grab_pending_posts_to_publish", {
-      limit_count: 8,
-    });
+    const executionStart = Date.now();
+    const MAX_RUN_TIME_MS = 50000; // 50s safety window within 120s cron timeout
 
-    if (fetchErr) {
-      console.error("DB fetch error:", fetchErr);
-      return Response.json({ ...results, errors: [`DB: ${fetchErr.message}`] }, { status: 500 });
-    }
+    while (Date.now() - executionStart < MAX_RUN_TIME_MS) {
+      // Fetch pending posts that are due using the atomic grab and lock function
+      const { data: posts, error: fetchErr } = await supabase.rpc("grab_pending_posts_to_publish", {
+        limit_count: 8,
+      });
 
-    if (!posts || posts.length === 0) {
-      console.log("No pending posts due for publishing.");
-      return Response.json(results);
-    }
-
-    console.log(`Found ${posts.length} pending post(s) to process.`);
-
-    for (let postIndex = 0; postIndex < posts.length; postIndex++) {
-      const post = posts[postIndex];
-      if (postIndex > 0) {
-        // Pacing delay (2.5s) between posts to avoid Meta IP burst rate limiting
-        await new Promise((r) => setTimeout(r, 2500));
+      if (fetchErr) {
+        console.error("DB fetch error:", fetchErr);
+        results.errors.push(`DB: ${fetchErr.message}`);
+        break;
       }
-      results.processed++;
-      const ig = {
-        instagram_user_id: (post as any).instagram_user_id,
-        access_token: (post as any).access_token,
-        username: (post as any).username,
-      };
 
-      if (!ig.access_token || !ig.instagram_user_id) {
-        const msg = "Conta Instagram desconectada ou sem token.";
-        const { data: updatedPost } = await supabase
-          .from("scheduled_posts")
-          .update({ status: "failed", error_message: msg, locked_at: null })
-          .eq("id", post.id)
-          .select("instagram_account_id")
-          .single();
-
-        if (updatedPost?.instagram_account_id) {
-          await supabase
-            .from("instagram_accounts")
-            .update({ token_invalid: true })
-            .eq("id", updatedPost.instagram_account_id);
+      if (!posts || posts.length === 0) {
+        if (results.processed === 0) {
+          console.log("No pending posts due for publishing.");
         }
-
-        results.errors.push(`Post ${post.id}: ${msg}`);
-        continue;
+        break;
       }
 
-      const graphApiUrl = ig.access_token.startsWith("IG")
-        ? "https://graph.instagram.com/v21.0"
-        : "https://graph.facebook.com/v21.0";
+      console.log(`Processing batch of ${posts.length} pending post(s)...`);
 
-      try {
-        let containerId = post.ig_container_id;
+      for (let postIndex = 0; postIndex < posts.length; postIndex++) {
+        const post = posts[postIndex];
+        if (postIndex > 0) {
+          // Pacing delay (1.5s) between posts to avoid Meta IP burst rate limiting
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+        results.processed++;
+        const ig = {
+          instagram_user_id: (post as any).instagram_user_id,
+          access_token: (post as any).access_token,
+          username: (post as any).username,
+        };
 
-        // ════════════════════════════════════════════
-        // PHASE 1: Create media container (if needed)
-        // ════════════════════════════════════════════
-        if (!containerId) {
-          console.log(`[${post.id}] Creating media container for @${ig.username}...`);
-          console.log(`[${post.id}] CAPTION RAW: ${JSON.stringify(post.caption)} (type: ${typeof post.caption})`);
-
-          const containerParams = new URLSearchParams();
-          containerParams.append("video_url", post.video_url);
-          containerParams.append("media_type", "REELS");
-          containerParams.append("share_to_feed", "true");
-
-          if (post.caption) {
-            containerParams.append("caption", post.caption);
-          } else {
-            console.warn(`[${post.id}] WARNING: post.caption is empty or falsy!`);
-          }
-
-          if (post.cover_url) {
-            console.log(`[${post.id}] Using custom cover image: ${post.cover_url}`);
-            containerParams.append("cover_url", post.cover_url);
-          }
-
-          containerParams.append("access_token", ig.access_token);
-
-          console.log(`[${post.id}] SENDING BODY TO META: ${containerParams.toString().substring(0, 500)}`);
-
-          const metaHeaders = {
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept": "application/json",
-          };
-
-          const createRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media`, {
-            method: "POST",
-            headers: metaHeaders,
-            body: containerParams.toString(),
-          });
-
-          if (!createRes.ok) {
-            const errBody = await createRes.text();
-            throw new Error(`Container creation failed (${createRes.status}): ${errBody}`);
-          }
-
-          const createData = await createRes.json();
-          containerId = createData.id;
-          console.log(`[${post.id}] Container created: ${containerId}`);
-
-          // Save container ID immediately so we don't re-create on retry
-          await supabase
+        if (!ig.access_token || !ig.instagram_user_id) {
+          const msg = "Conta Instagram desconectada ou sem token.";
+          const { data: updatedPost } = await supabase
             .from("scheduled_posts")
-            .update({ ig_container_id: containerId })
-            .eq("id", post.id);
-        }
+            .update({ status: "failed", error_message: msg, locked_at: null })
+            .eq("id", post.id)
+            .select("instagram_account_id")
+            .single();
 
-        // ════════════════════════════════════════════
-        // PHASE 2: Check container status (with direct publish fallback)
-        // ════════════════════════════════════════════
-        let shouldPublish = false;
-        let isProcessing = false;
-
-        console.log(`[${post.id}] Checking container ${containerId} status...`);
-        try {
-          const statusRes = await fetch(
-            `${graphApiUrl}/${containerId}?fields=status_code&access_token=${encodeURIComponent(ig.access_token)}`,
-            {
-              headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Accept": "application/json",
-              },
-            },
-          );
-
-          if (!statusRes.ok) {
-            const errBody = await statusRes.text();
-            throw new Error(`Status check returned ${statusRes.status}: ${errBody}`);
+          if (updatedPost?.instagram_account_id) {
+            await supabase
+              .from("instagram_accounts")
+              .update({ token_invalid: true })
+              .eq("id", updatedPost.instagram_account_id);
           }
 
-          const statusData = await statusRes.json();
-          console.log(`[${post.id}] Container status: ${statusData.status_code}`);
+          results.errors.push(`Post ${post.id}: ${msg}`);
+          continue;
+        }
 
-          if (statusData.status_code === "ERROR") {
-            throw new Error(`Instagram rejected the video: ${JSON.stringify(statusData)}`);
-          } else if (statusData.status_code === "FINISHED") {
-            shouldPublish = true;
-          } else if (statusData.status_code === "PUBLISHED") {
-            console.log(`[${post.id}] Reel already published on Instagram. Updating DB status...`);
+        const graphApiUrl = ig.access_token.startsWith("IG")
+          ? "https://graph.instagram.com/v21.0"
+          : "https://graph.facebook.com/v21.0";
+
+        try {
+          let containerId = post.ig_container_id;
+
+          // ════════════════════════════════════════════
+          // PHASE 1: Create media container (if needed)
+          // ════════════════════════════════════════════
+          if (!containerId) {
+            console.log(`[${post.id}] Creating media container for @${ig.username}...`);
+            console.log(`[${post.id}] CAPTION RAW: ${JSON.stringify(post.caption)} (type: ${typeof post.caption})`);
+
+            const containerParams = new URLSearchParams();
+            containerParams.append("video_url", post.video_url);
+            containerParams.append("media_type", "REELS");
+            containerParams.append("share_to_feed", "true");
+
+            if (post.caption) {
+              containerParams.append("caption", post.caption);
+            } else {
+              console.warn(`[${post.id}] WARNING: post.caption is empty or falsy!`);
+            }
+
+            if (post.cover_url) {
+              console.log(`[${post.id}] Using custom cover image: ${post.cover_url}`);
+              containerParams.append("cover_url", post.cover_url);
+            }
+
+            containerParams.append("access_token", ig.access_token);
+
+            console.log(`[${post.id}] SENDING BODY TO META: ${containerParams.toString().substring(0, 500)}`);
+
+            const metaHeaders = {
+              "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+              "Accept": "application/json",
+            };
+
+            const createRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media`, {
+              method: "POST",
+              headers: metaHeaders,
+              body: containerParams.toString(),
+            });
+
+            if (!createRes.ok) {
+              const errBody = await createRes.text();
+              throw new Error(`Container creation failed (${createRes.status}): ${errBody}`);
+            }
+
+            const createData = await createRes.json();
+            containerId = createData.id;
+            console.log(`[${post.id}] Container created: ${containerId}`);
+
+            // Save container ID immediately so we don't re-create on retry
             await supabase
               .from("scheduled_posts")
-              .update({
-                status: "published",
-                published_at: new Date().toISOString(),
-                error_message: null,
-                video_url: "",
-                cover_url: null,
-                locked_at: null,
-              })
+              .update({ ig_container_id: containerId, updated_at: new Date().toISOString() })
               .eq("id", post.id);
+          }
 
-            results.published++;
-            continue;
-          } else if (statusData.status_code === "EXPIRED") {
-            console.log(`[${post.id}] Container expired. Resetting ig_container_id to retry.`);
-            await supabase
-              .from("scheduled_posts")
-              .update({ ig_container_id: null, locked_at: null })
-              .eq("id", post.id);
+          // ════════════════════════════════════════════
+          // PHASE 2: Check container status (with direct publish fallback)
+          // ════════════════════════════════════════════
+          let shouldPublish = false;
+          let isProcessing = false;
+
+          console.log(`[${post.id}] Checking container ${containerId} status...`);
+          try {
+            const statusRes = await fetch(
+              `${graphApiUrl}/${containerId}?fields=status_code&access_token=${encodeURIComponent(ig.access_token)}`,
+              {
+                headers: {
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                  "Accept": "application/json",
+                },
+              },
+            );
+
+            if (!statusRes.ok) {
+              const errBody = await statusRes.text();
+              throw new Error(`Status check returned ${statusRes.status}: ${errBody}`);
+            }
+
+            const statusData = await statusRes.json();
+            console.log(`[${post.id}] Container status: ${statusData.status_code}`);
+
+            if (statusData.status_code === "ERROR") {
+              throw new Error(`Instagram rejected the video: ${JSON.stringify(statusData)}`);
+            } else if (statusData.status_code === "FINISHED") {
+              shouldPublish = true;
+            } else if (statusData.status_code === "PUBLISHED") {
+              console.log(`[${post.id}] Reel already published on Instagram. Updating DB status...`);
+              await supabase
+                .from("scheduled_posts")
+                .update({
+                  status: "published",
+                  published_at: new Date().toISOString(),
+                  error_message: null,
+                  video_url: "",
+                  cover_url: null,
+                  locked_at: null,
+                })
+                .eq("id", post.id);
+
+              results.published++;
+              continue;
+            } else if (statusData.status_code === "EXPIRED") {
+              console.log(`[${post.id}] Container expired. Resetting ig_container_id to retry.`);
+              await supabase
+                .from("scheduled_posts")
+                .update({ ig_container_id: null, locked_at: null, updated_at: new Date().toISOString() })
+                .eq("id", post.id);
+
+              results.skipped++;
+              continue;
+            } else {
+              // Still processing (IN_PROGRESS)
+              // Auto-recover if stuck in IN_PROGRESS for more than 10 minutes
+              const postUpdatedAt = (post as any).updated_at ? new Date((post as any).updated_at).getTime() : 0;
+              const isStuck = postUpdatedAt > 0 && (Date.now() - postUpdatedAt > 10 * 60 * 1000);
+              if (isStuck) {
+                console.warn(`[${post.id}] Container ${containerId} stuck in IN_PROGRESS for >10min. Resetting to recreate fresh.`);
+                await supabase
+                  .from("scheduled_posts")
+                  .update({ ig_container_id: null, locked_at: null, updated_at: new Date().toISOString() })
+                  .eq("id", post.id);
+                results.skipped++;
+                continue;
+              }
+              isProcessing = true;
+            }
+          } catch (statusErr: any) {
+            // If status check fails (due to known Meta bug e.g. subcode 33), we fallback to direct publish attempt!
+            console.warn(
+              `[${post.id}] Status check failed. Attempting direct publish fallback. Error: ${statusErr.message}`,
+            );
+            shouldPublish = true; // Attempt to publish and let media_publish handle the state
+          }
+
+          if (isProcessing) {
+            console.log(`[${post.id}] Still processing (reported by API), will retry next run.`);
+            // Unlock the post so the next run can check it again
+            await supabase.from("scheduled_posts").update({ locked_at: null }).eq("id", post.id);
 
             results.skipped++;
             continue;
-          } else {
-            // Still processing (IN_PROGRESS)
-            isProcessing = true;
           }
-        } catch (statusErr: any) {
-          // If status check fails (due to known Meta bug e.g. subcode 33), we fallback to direct publish attempt!
-          console.warn(
-            `[${post.id}] Status check failed. Attempting direct publish fallback. Error: ${statusErr.message}`,
-          );
-          shouldPublish = true; // Attempt to publish and let media_publish handle the state
-        }
-
-        if (isProcessing) {
-          console.log(`[${post.id}] Still processing (reported by API), will retry next run.`);
-          // Unlock the post so the next run can check it again
-          await supabase.from("scheduled_posts").update({ locked_at: null }).eq("id", post.id);
-
-          results.skipped++;
-          continue;
-        }
 
         // ════════════════════════════════════════════
         // PHASE 3: Publish the Reel!
@@ -447,65 +469,6 @@ Deno.serve(async (req: Request) => {
 
           const pubData = await pubRes.json();
           console.log(`[${post.id}] ✅ Published! Media ID: ${pubData.id}`);
-
-          // ════════════════════════════════════════════
-          // PHASE 4: Verify Caption & First Comment Fallback
-          // ════════════════════════════════════════════
-          if (post.caption && post.caption.trim()) {
-            try {
-              // Wait 1.5s for media node replication
-              await new Promise((r) => setTimeout(r, 1500));
-              const verifyRes = await fetch(
-                `${graphApiUrl}/${pubData.id}?fields=caption&access_token=${encodeURIComponent(ig.access_token)}`,
-                {
-                  headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                    "Accept": "application/json",
-                  },
-                },
-              );
-
-              let hasCaption = false;
-              if (verifyRes.ok) {
-                const verifyData = await verifyRes.json();
-                if (verifyData.caption && verifyData.caption.trim()) {
-                  hasCaption = true;
-                  console.log(`[${post.id}] ✅ Main caption verified on published Reel!`);
-                }
-              }
-
-              if (!hasCaption) {
-                console.warn(
-                  `[${post.id}] ⚠️ Meta silently stripped caption from Reel! Posting caption as first comment fallback...`,
-                );
-                const commentParams = new URLSearchParams();
-                const commentText =
-                  post.caption.length > 2200 ? post.caption.substring(0, 2197) + "..." : post.caption;
-                commentParams.append("message", commentText);
-                commentParams.append("access_token", ig.access_token);
-
-                const commentRes = await fetch(`${graphApiUrl}/${pubData.id}/comments`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                    "Accept": "application/json",
-                  },
-                  body: commentParams.toString(),
-                });
-
-                if (commentRes.ok) {
-                  const commentData = await commentRes.json();
-                  console.log(`[${post.id}] ✅ Caption successfully posted as first comment! ID: ${commentData.id}`);
-                } else {
-                  const commentErr = await commentRes.text();
-                  console.error(`[${post.id}] ❌ Comment fallback error: ${commentErr}`);
-                }
-              }
-            } catch (vErr: any) {
-              console.warn(`[${post.id}] Caption verification check exception: ${vErr?.message}`);
-            }
-          }
 
           // Mark as published, clear video/cover URLs and reset locked_at
           await supabase
@@ -597,11 +560,14 @@ Deno.serve(async (req: Request) => {
               const message = (metaError.message ?? "").toLowerCase();
               const isTransient = metaError.is_transient ?? false;
 
-              // Check for permanent user content errors (e.g. caption too long)
+              // Check for permanent user content errors (e.g. caption too long, missing 404 video)
               if (
                 code === 36004 ||
                 subcode === 2207010 ||
-                message.includes("caption was too long")
+                subcode === 2207076 ||
+                message.includes("caption was too long") ||
+                message.includes("media download has failed") ||
+                message.includes("404")
               ) {
                 isPermanentError = true;
               }
@@ -715,6 +681,12 @@ Deno.serve(async (req: Request) => {
             results.errors.push(`Post ${post.id} (falha final após ${MAX_RETRIES} tentativas): ${msg}`);
           }
         }
+      }
+
+      // If less than 8 seconds remain before the safety threshold, break out
+      if (Date.now() - executionStart > 42000) {
+        console.log("Approaching execution time limit (42s), stopping loop to exit cleanly.");
+        break;
       }
     }
 
