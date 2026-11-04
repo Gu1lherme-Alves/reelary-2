@@ -210,35 +210,30 @@ Deno.serve(async (req: Request) => {
       timestamp: new Date().toISOString(),
     };
 
-    const executionStart = Date.now();
-    const MAX_RUN_TIME_MS = 50000; // 50s safety window within 120s cron timeout
+    // Fetch pending posts that are due using the atomic grab and lock function
+    // Process ONE batch per invocation to avoid burst-rate issues with Meta
+    const { data: posts, error: fetchErr } = await supabase.rpc("grab_pending_posts_to_publish", {
+      limit_count: 4,
+    });
 
-    while (Date.now() - executionStart < MAX_RUN_TIME_MS) {
-      // Fetch pending posts that are due using the atomic grab and lock function
-      const { data: posts, error: fetchErr } = await supabase.rpc("grab_pending_posts_to_publish", {
-        limit_count: 8,
-      });
+    if (fetchErr) {
+      console.error("DB fetch error:", fetchErr);
+      results.errors.push(`DB: ${fetchErr.message}`);
+      return Response.json(results, { status: 500 });
+    }
 
-      if (fetchErr) {
-        console.error("DB fetch error:", fetchErr);
-        results.errors.push(`DB: ${fetchErr.message}`);
-        break;
-      }
+    if (!posts || posts.length === 0) {
+      console.log("No pending posts due for publishing.");
+      return Response.json(results);
+    }
 
-      if (!posts || posts.length === 0) {
-        if (results.processed === 0) {
-          console.log("No pending posts due for publishing.");
-        }
-        break;
-      }
+    console.log(`Processing batch of ${posts.length} pending post(s)...`);
 
-      console.log(`Processing batch of ${posts.length} pending post(s)...`);
-
-      for (let postIndex = 0; postIndex < posts.length; postIndex++) {
+    for (let postIndex = 0; postIndex < posts.length; postIndex++) {
         const post = posts[postIndex];
         if (postIndex > 0) {
-          // Pacing delay (1.5s) between posts to avoid Meta IP burst rate limiting
-          await new Promise((r) => setTimeout(r, 1500));
+          // Pacing delay (5s) between posts to give Meta's CDN time to process each container
+          await new Promise((r) => setTimeout(r, 5000));
         }
         results.processed++;
         const ig = {
@@ -421,8 +416,8 @@ Deno.serve(async (req: Request) => {
         // PHASE 3: Publish the Reel!
         // ════════════════════════════════════════════
         if (shouldPublish) {
-          // Settling dwell time (1.5s) so Meta's backend synchronizes container metadata
-          await new Promise((r) => setTimeout(r, 1500));
+          // Settling dwell time (3s) so Meta's backend synchronizes container metadata (caption, cover)
+          await new Promise((r) => setTimeout(r, 3000));
           console.log(`[${post.id}] Publishing reel to @${ig.username}...`);
           const pubParams = new URLSearchParams();
           pubParams.append("creation_id", containerId);
@@ -468,7 +463,105 @@ Deno.serve(async (req: Request) => {
           }
 
           const pubData = await pubRes.json();
-          console.log(`[${post.id}] ✅ Published! Media ID: ${pubData.id}`);
+          const publishedMediaId = pubData.id;
+          console.log(`[${post.id}] ✅ Published! Media ID: ${publishedMediaId}`);
+
+          // ════════════════════════════════════════════
+          // PHASE 4: Verify caption was applied & auto-fix if dropped
+          // ════════════════════════════════════════════
+          if (post.caption && publishedMediaId) {
+            try {
+              // Wait a moment for Meta to finalize metadata
+              await new Promise((r) => setTimeout(r, 2000));
+
+              const verifyRes = await fetch(
+                `${graphApiUrl}/${publishedMediaId}?fields=caption&access_token=${encodeURIComponent(ig.access_token)}`,
+                {
+                  headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "Accept": "application/json",
+                  },
+                },
+              );
+
+              if (verifyRes.ok) {
+                const verifyData = await verifyRes.json();
+                const publishedCaption = (verifyData.caption ?? "").trim();
+                const expectedCaption = post.caption.trim();
+
+                if (!publishedCaption || publishedCaption.length < 10) {
+                  console.warn(
+                    `[${post.id}] ⚠️ Caption was DROPPED by Meta! Published caption length: ${publishedCaption.length}. Attempting to update caption via API...`,
+                  );
+
+                  // Attempt to update the caption on the published media
+                  const updateParams = new URLSearchParams();
+                  updateParams.append("caption", post.caption);
+                  updateParams.append("access_token", ig.access_token);
+
+                  const updateRes = await fetch(`${graphApiUrl}/${publishedMediaId}`, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                      "Accept": "application/json",
+                    },
+                    body: updateParams.toString(),
+                  });
+
+                  if (updateRes.ok) {
+                    const updateData = await updateRes.json();
+                    console.log(
+                      `[${post.id}] ✅ Caption successfully updated via API! Response: ${JSON.stringify(updateData)}`,
+                    );
+                  } else {
+                    const updateErr = await updateRes.text();
+                    console.warn(
+                      `[${post.id}] ⚠️ Caption update via API failed (${updateRes.status}): ${updateErr}. Falling back to first comment...`,
+                    );
+
+                    // Fallback: post caption as first comment
+                    const commentParams = new URLSearchParams();
+                    commentParams.append("message", post.caption);
+                    commentParams.append("access_token", ig.access_token);
+
+                    const commentRes = await fetch(`${graphApiUrl}/${publishedMediaId}/comments`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                        "Accept": "application/json",
+                      },
+                      body: commentParams.toString(),
+                    });
+
+                    if (commentRes.ok) {
+                      console.log(
+                        `[${post.id}] ✅ Caption posted as first comment as last-resort fallback.`,
+                      );
+                    } else {
+                      const commentErr = await commentRes.text();
+                      console.error(
+                        `[${post.id}] ❌ First comment fallback also failed: ${commentErr}`,
+                      );
+                    }
+                  }
+                } else {
+                  console.log(
+                    `[${post.id}] ✅ Caption verified OK (${publishedCaption.length} chars).`,
+                  );
+                }
+              } else {
+                console.warn(
+                  `[${post.id}] Could not verify caption (status ${verifyRes.status}). Skipping verification.`,
+                );
+              }
+            } catch (verifyErr: any) {
+              console.warn(
+                `[${post.id}] Caption verification error (non-fatal): ${verifyErr.message}`,
+              );
+            }
+          }
 
           // Mark as published, clear video/cover URLs and reset locked_at
           await supabase
@@ -681,12 +774,6 @@ Deno.serve(async (req: Request) => {
             results.errors.push(`Post ${post.id} (falha final após ${MAX_RETRIES} tentativas): ${msg}`);
           }
         }
-      }
-
-      // If less than 8 seconds remain before the safety threshold, break out
-      if (Date.now() - executionStart > 42000) {
-        console.log("Approaching execution time limit (42s), stopping loop to exit cleanly.");
-        break;
       }
     }
 
