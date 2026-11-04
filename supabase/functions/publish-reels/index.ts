@@ -277,30 +277,27 @@ Deno.serve(async (req: Request) => {
           // ════════════════════════════════════════════
           if (!containerId) {
             console.log(`[${post.id}] Creating media container for @${ig.username}...`);
-            console.log(`[${post.id}] CAPTION RAW: ${JSON.stringify(post.caption)} (type: ${typeof post.caption})`);
+            console.log(`[${post.id}] CAPTION RAW (${(post.caption || "").length} chars): ${JSON.stringify((post.caption || "").substring(0, 150))}...`);
 
-            const containerParams = new URLSearchParams();
-            containerParams.append("video_url", post.video_url);
-            containerParams.append("media_type", "REELS");
-            containerParams.append("share_to_feed", "true");
+            const formData = new FormData();
+            formData.append("video_url", post.video_url);
+            formData.append("media_type", "REELS");
+            formData.append("share_to_feed", "true");
 
             if (post.caption) {
-              containerParams.append("caption", post.caption);
+              formData.append("caption", post.caption);
             } else {
               console.warn(`[${post.id}] WARNING: post.caption is empty or falsy!`);
             }
 
             if (post.cover_url) {
               console.log(`[${post.id}] Using custom cover image: ${post.cover_url}`);
-              containerParams.append("cover_url", post.cover_url);
+              formData.append("cover_url", post.cover_url);
             }
 
-            containerParams.append("access_token", ig.access_token);
-
-            console.log(`[${post.id}] SENDING BODY TO META: ${containerParams.toString().substring(0, 500)}`);
+            formData.append("access_token", ig.access_token);
 
             const metaHeaders = {
-              "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
               "Accept": "application/json",
             };
@@ -308,7 +305,7 @@ Deno.serve(async (req: Request) => {
             const createRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media`, {
               method: "POST",
               headers: metaHeaders,
-              body: containerParams.toString(),
+              body: formData,
             });
 
             if (!createRes.ok) {
@@ -422,18 +419,17 @@ Deno.serve(async (req: Request) => {
           // Settling dwell time (3s) so Meta's backend synchronizes container metadata (caption, cover)
           await new Promise((r) => setTimeout(r, 3000));
           console.log(`[${post.id}] Publishing reel to @${ig.username}...`);
-          const pubParams = new URLSearchParams();
-          pubParams.append("creation_id", containerId);
-          pubParams.append("access_token", ig.access_token);
+          const pubFormData = new FormData();
+          pubFormData.append("creation_id", containerId);
+          pubFormData.append("access_token", ig.access_token);
 
           const pubRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media_publish`, {
             method: "POST",
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
               "Accept": "application/json",
             },
-            body: pubParams.toString(),
+            body: pubFormData,
           });
 
           if (!pubRes.ok) {
@@ -468,76 +464,6 @@ Deno.serve(async (req: Request) => {
           const pubData = await pubRes.json();
           const publishedMediaId = pubData.id;
           console.log(`[${post.id}] ✅ Published! Media ID: ${publishedMediaId}`);
-
-          // ════════════════════════════════════════════
-          // PHASE 4: Verify caption was applied & auto-fix if dropped
-          // ════════════════════════════════════════════
-          if (post.caption && publishedMediaId) {
-            try {
-              // Wait a moment for Meta to finalize metadata
-              await new Promise((r) => setTimeout(r, 2000));
-
-              const verifyRes = await fetch(
-                `${graphApiUrl}/${publishedMediaId}?fields=caption&access_token=${encodeURIComponent(ig.access_token)}`,
-                {
-                  headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                    "Accept": "application/json",
-                  },
-                },
-              );
-
-              if (verifyRes.ok) {
-                const verifyData = await verifyRes.json();
-                const publishedCaption = (verifyData.caption ?? "").trim();
-                const expectedCaption = post.caption.trim();
-
-                if (!publishedCaption || publishedCaption.length < 10) {
-                  console.warn(
-                    `[${post.id}] ⚠️ Caption was DROPPED by Meta! Published caption length: ${publishedCaption.length}. Posting caption as first comment fallback...`,
-                  );
-
-                  // Post caption as first comment as fallback
-                  const commentParams = new URLSearchParams();
-                  commentParams.append("message", post.caption);
-                  commentParams.append("access_token", ig.access_token);
-
-                  const commentRes = await fetch(`${graphApiUrl}/${publishedMediaId}/comments`, {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                      "Accept": "application/json",
-                    },
-                    body: commentParams.toString(),
-                  });
-
-                  if (commentRes.ok) {
-                    console.log(
-                      `[${post.id}] ✅ Caption posted as first comment as last-resort fallback.`,
-                    );
-                  } else {
-                    const commentErr = await commentRes.text();
-                    console.error(
-                      `[${post.id}] ❌ First comment fallback also failed: ${commentErr}`,
-                    );
-                  }
-                } else {
-                  console.log(
-                    `[${post.id}] ✅ Caption verified OK (${publishedCaption.length} chars).`,
-                  );
-                }
-              } else {
-                console.warn(
-                  `[${post.id}] Could not verify caption (status ${verifyRes.status}). Skipping verification.`,
-                );
-              }
-            } catch (verifyErr: any) {
-              console.warn(
-                `[${post.id}] Caption verification error (non-fatal): ${verifyErr.message}`,
-              );
-            }
-          }
 
           // Mark as published, clear video/cover URLs and reset locked_at
           await supabase
