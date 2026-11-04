@@ -211,9 +211,9 @@ Deno.serve(async (req: Request) => {
     };
 
     // Fetch pending posts that are due using the atomic grab and lock function
-    // Process ONE batch per invocation to avoid burst-rate issues with Meta
+    // Process up to 8 posts per invocation, distributed fairly across users and accounts
     const { data: posts, error: fetchErr } = await supabase.rpc("grab_pending_posts_to_publish", {
-      limit_count: 4,
+      limit_count: 8,
     });
 
     if (fetchErr) {
@@ -231,9 +231,12 @@ Deno.serve(async (req: Request) => {
 
     for (let postIndex = 0; postIndex < posts.length; postIndex++) {
         const post = posts[postIndex];
-        if (postIndex > 0) {
-          // Pacing delay (5s) between posts to give Meta's CDN time to process each container
-          await new Promise((r) => setTimeout(r, 5000));
+        const prevPost = postIndex > 0 ? posts[postIndex - 1] : null;
+        if (prevPost) {
+          // If the post belongs to the SAME account, delay 3.5s to avoid Meta container clash
+          // If it belongs to a DIFFERENT account, 500ms is sufficient since Meta rate limits are per-account
+          const sameAccount = (post as any).instagram_account_id === (prevPost as any).instagram_account_id;
+          await new Promise((r) => setTimeout(r, sameAccount ? 3500 : 500));
         }
         results.processed++;
         const ig = {
@@ -491,60 +494,33 @@ Deno.serve(async (req: Request) => {
 
                 if (!publishedCaption || publishedCaption.length < 10) {
                   console.warn(
-                    `[${post.id}] ⚠️ Caption was DROPPED by Meta! Published caption length: ${publishedCaption.length}. Attempting to update caption via API...`,
+                    `[${post.id}] ⚠️ Caption was DROPPED by Meta! Published caption length: ${publishedCaption.length}. Posting caption as first comment fallback...`,
                   );
 
-                  // Attempt to update the caption on the published media
-                  const updateParams = new URLSearchParams();
-                  updateParams.append("caption", post.caption);
-                  updateParams.append("access_token", ig.access_token);
+                  // Post caption as first comment as fallback
+                  const commentParams = new URLSearchParams();
+                  commentParams.append("message", post.caption);
+                  commentParams.append("access_token", ig.access_token);
 
-                  const updateRes = await fetch(`${graphApiUrl}/${publishedMediaId}`, {
+                  const commentRes = await fetch(`${graphApiUrl}/${publishedMediaId}/comments`, {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
                       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
                       "Accept": "application/json",
                     },
-                    body: updateParams.toString(),
+                    body: commentParams.toString(),
                   });
 
-                  if (updateRes.ok) {
-                    const updateData = await updateRes.json();
+                  if (commentRes.ok) {
                     console.log(
-                      `[${post.id}] ✅ Caption successfully updated via API! Response: ${JSON.stringify(updateData)}`,
+                      `[${post.id}] ✅ Caption posted as first comment as last-resort fallback.`,
                     );
                   } else {
-                    const updateErr = await updateRes.text();
-                    console.warn(
-                      `[${post.id}] ⚠️ Caption update via API failed (${updateRes.status}): ${updateErr}. Falling back to first comment...`,
+                    const commentErr = await commentRes.text();
+                    console.error(
+                      `[${post.id}] ❌ First comment fallback also failed: ${commentErr}`,
                     );
-
-                    // Fallback: post caption as first comment
-                    const commentParams = new URLSearchParams();
-                    commentParams.append("message", post.caption);
-                    commentParams.append("access_token", ig.access_token);
-
-                    const commentRes = await fetch(`${graphApiUrl}/${publishedMediaId}/comments`, {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                        "Accept": "application/json",
-                      },
-                      body: commentParams.toString(),
-                    });
-
-                    if (commentRes.ok) {
-                      console.log(
-                        `[${post.id}] ✅ Caption posted as first comment as last-resort fallback.`,
-                      );
-                    } else {
-                      const commentErr = await commentRes.text();
-                      console.error(
-                        `[${post.id}] ❌ First comment fallback also failed: ${commentErr}`,
-                      );
-                    }
                   }
                 } else {
                   console.log(
