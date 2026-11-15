@@ -16,6 +16,8 @@ import {
   Trash2,
   TrendingUp,
   Receipt,
+  Film,
+  FileText,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -149,6 +151,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       title: "FINANCEIRO",
       items: [
         { to: "/expenses", label: "Despesas", icon: Receipt },
+      ],
+    },
+    {
+      title: "BIBLIOTECA",
+      items: [
+        { to: "/videos", label: "Vídeos", icon: Film },
+        { to: "/captions", label: "Legendas", icon: FileText },
       ],
     },
     {

@@ -19,6 +19,10 @@ import {
   ShieldCheck,
   Eye,
   Repeat,
+  Folder,
+  FileText,
+  Film,
+  Check,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -51,6 +55,36 @@ type Account = {
   category_id?: string | null;
   account_categories?: { id: string; name: string; color: string } | null;
 };
+
+interface ScheduledVideoItem {
+  id: string;
+  name: string;
+  size?: number;
+  file?: File;
+  url?: string;
+  source: "upload" | "library";
+}
+
+interface VideoFolder {
+  id: string;
+  name: string;
+  color: string;
+}
+
+interface LibraryVideo {
+  id: string;
+  folder_id: string | null;
+  name: string;
+  video_url: string;
+  size_bytes: number | null;
+}
+
+interface CaptionTemplate {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+}
 
 function shuffleArray(arr: number[]): number[] {
   const result = [...arr];
@@ -175,7 +209,11 @@ function computeAccountBatchSlots(params: ComputeBatchSlotsParams): Date[] {
 function BulkSchedulePage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
-  const [videoFiles, setVideoFiles] = useState<File[]>([]);
+  const [videoItems, setVideoItems] = useState<ScheduledVideoItem[]>([]);
+  const [libraryFolders, setLibraryFolders] = useState<VideoFolder[]>([]);
+  const [libraryVideos, setLibraryVideos] = useState<LibraryVideo[]>([]);
+  const [selectedLibraryFolderId, setSelectedLibraryFolderId] = useState<string | null>(null);
+  const [captionTemplates, setCaptionTemplates] = useState<CaptionTemplate[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [uploadedVideoUrls, setUploadedVideoUrls] = useState<Record<string, string>>({});
@@ -262,6 +300,32 @@ function BulkSchedulePage() {
         }
         setLastScheduledDates(datesMap);
       });
+
+    // Load library folders and videos
+    supabase
+      .from("video_folders")
+      .select("id, name, color")
+      .order("name", { ascending: true })
+      .then(({ data }) => {
+        if (data) setLibraryFolders(data);
+      });
+
+    supabase
+      .from("library_videos")
+      .select("id, folder_id, name, video_url, size_bytes")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) setLibraryVideos(data as any);
+      });
+
+    // Load caption templates
+    supabase
+      .from("caption_templates")
+      .select("id, title, content, category")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) setCaptionTemplates(data as any);
+      });
   }, []);
 
   // Cleanup cover preview object url
@@ -274,7 +338,7 @@ function BulkSchedulePage() {
   // Synchronize and shuffle video orders per account reactively across all cycles
   useEffect(() => {
     const newOrders: Record<string, number[]> = {};
-    const totalAccountVideos = videoFiles.length * cycles;
+    const totalAccountVideos = videoItems.length * cycles;
     selectedAccounts.forEach((accId) => {
       const existing = accountVideoOrders[accId];
       if (existing && existing.length === totalAccountVideos) {
@@ -282,18 +346,18 @@ function BulkSchedulePage() {
       } else {
         const order: number[] = [];
         for (let c = 0; c < cycles; c++) {
-          const seq = Array.from({ length: videoFiles.length }, (_, i) => i);
+          const seq = Array.from({ length: videoItems.length }, (_, i) => i);
           order.push(...(randomize ? shuffleArray(seq) : seq));
         }
         newOrders[accId] = order;
       }
     });
     setAccountVideoOrders(newOrders);
-  }, [videoFiles.length, selectedAccounts, randomize, cycles]);
+  }, [videoItems.length, selectedAccounts, randomize, cycles]);
 
   // Generate random delay offsets per account and video within each batch reactively across all cycles
   useEffect(() => {
-    if (selectedAccounts.length === 0 || videoFiles.length === 0) {
+    if (selectedAccounts.length === 0 || videoItems.length === 0) {
       setStableBatchDelays({});
       return;
     }
@@ -302,7 +366,7 @@ function BulkSchedulePage() {
     const maxSec = Math.max(0, Math.max(batchMinDelaySeconds, batchMaxDelaySeconds));
 
     const newDelays: Record<string, number[]> = {};
-    const totalAccountVideos = videoFiles.length * cycles;
+    const totalAccountVideos = videoItems.length * cycles;
 
     selectedAccounts.forEach((accId) => {
       const delays: number[] = [];
@@ -327,7 +391,7 @@ function BulkSchedulePage() {
     setStableBatchDelays(newDelays);
   }, [
     selectedAccounts,
-    videoFiles.length,
+    videoItems.length,
     cycles,
     batchSize,
     batchMinDelaySeconds,
@@ -337,7 +401,7 @@ function BulkSchedulePage() {
 
   // Generate random posting times per account and day reactively in random mode across all cycles
   useEffect(() => {
-    if (!isRandomTimeMode || selectedAccounts.length === 0 || videoFiles.length === 0) {
+    if (!isRandomTimeMode || selectedAccounts.length === 0 || videoItems.length === 0) {
       return;
     }
 
@@ -347,7 +411,7 @@ function BulkSchedulePage() {
     const actualEndMin = Math.max(startMin, endMin);
 
     const newRandomTimes: Record<string, string[][]> = {};
-    const totalAccountVideos = videoFiles.length * cycles;
+    const totalAccountVideos = videoItems.length * cycles;
 
     selectedAccounts.forEach((accId) => {
       const accountTimes: string[][] = [];
@@ -378,7 +442,7 @@ function BulkSchedulePage() {
   }, [
     isRandomTimeMode,
     selectedAccounts,
-    videoFiles.length,
+    videoItems.length,
     cycles,
     randomStartHour,
     randomEndHour,
@@ -392,7 +456,7 @@ function BulkSchedulePage() {
     selectedAccounts.forEach((accId) => {
       const order: number[] = [];
       for (let c = 0; c < cycles; c++) {
-        const seq = Array.from({ length: videoFiles.length }, (_, i) => i);
+        const seq = Array.from({ length: videoItems.length }, (_, i) => i);
         order.push(...shuffleArray(seq));
       }
       newOrders[accId] = order;
@@ -419,25 +483,85 @@ function BulkSchedulePage() {
   const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
-      setVideoFiles((prev) => [...prev, ...filesArray]);
+      const newItems: ScheduledVideoItem[] = filesArray.map((file) => ({
+        id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 7)}`,
+        name: file.name,
+        size: file.size,
+        file,
+        source: "upload",
+      }));
+      setVideoItems((prev) => [...prev, ...newItems]);
+    }
+  };
+
+  const handleAddLibraryVideo = (video: LibraryVideo) => {
+    if (videoItems.some((item) => item.id === video.id || (item.url && item.url === video.video_url))) {
+      toast.info(`O vídeo "${video.name}" já está na lista.`);
+      return;
+    }
+    const newItem: ScheduledVideoItem = {
+      id: video.id,
+      name: video.name,
+      size: video.size_bytes || undefined,
+      url: video.video_url,
+      source: "library",
+    };
+    setVideoItems((prev) => [...prev, newItem]);
+    toast.success(`Vídeo "${video.name}" adicionado!`);
+  };
+
+  const handleAddFolderVideos = (folderId: string | null) => {
+    const folderVideos = libraryVideos.filter((v) =>
+      folderId === null ? true : v.folder_id === folderId
+    );
+    if (folderVideos.length === 0) {
+      toast.error("Nenhum vídeo nesta pasta.");
+      return;
+    }
+    let addedCount = 0;
+    setVideoItems((prev) => {
+      const existingIds = new Set(prev.map((i) => i.id));
+      const existingUrls = new Set(prev.map((i) => i.url).filter(Boolean));
+      const toAdd: ScheduledVideoItem[] = [];
+
+      folderVideos.forEach((v) => {
+        if (!existingIds.has(v.id) && !existingUrls.has(v.video_url)) {
+          toAdd.push({
+            id: v.id,
+            name: v.name,
+            size: v.size_bytes || undefined,
+            url: v.video_url,
+            source: "library",
+          });
+          addedCount++;
+        }
+      });
+
+      return [...prev, ...toAdd];
+    });
+
+    if (addedCount > 0) {
+      toast.success(`${addedCount} vídeos adicionados da biblioteca!`);
+    } else {
+      toast.info("Todos os vídeos selecionados já estão na lista.");
     }
   };
 
   const handleRemoveVideo = (index: number) => {
-    const fileObj = videoFiles[index];
-    if (fileObj) {
-      const fileKey = `${fileObj.name}-${fileObj.size}-${fileObj.lastModified}`;
+    const item = videoItems[index];
+    if (item?.file) {
+      const fileKey = `${item.file.name}-${item.file.size}-${item.file.lastModified}`;
       setUploadedVideoUrls((prev) => {
         const next = { ...prev };
         delete next[fileKey];
         return next;
       });
     }
-    setVideoFiles((prev) => prev.filter((_, i) => i !== index));
+    setVideoItems((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleClearVideos = () => {
-    setVideoFiles([]);
+    setVideoItems([]);
     setUploadedVideoUrls({});
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -459,7 +583,7 @@ function BulkSchedulePage() {
   }
 
   const getScheduleSlots = (): ScheduleSlot[] => {
-    if (videoFiles.length === 0 || selectedAccounts.length === 0 || !startDate) {
+    if (videoItems.length === 0 || selectedAccounts.length === 0 || !startDate) {
       return [];
     }
     if (!isRandomTimeMode && postingTimes.length === 0) {
@@ -468,7 +592,7 @@ function BulkSchedulePage() {
 
     const slots: ScheduleSlot[] = [];
     const sortedTimes = [...postingTimes].sort();
-    const totalAccountVideos = videoFiles.length * cycles;
+    const totalAccountVideos = videoItems.length * cycles;
     const totalBatchSlots = Math.ceil(totalAccountVideos / batchSize);
 
     selectedAccounts.forEach((accId) => {
@@ -488,7 +612,7 @@ function BulkSchedulePage() {
 
       const defaultOrder: number[] = [];
       for (let c = 0; c < cycles; c++) {
-        for (let v = 0; v < videoFiles.length; v++) {
+        for (let v = 0; v < videoItems.length; v++) {
           defaultOrder.push(v);
         }
       }
@@ -496,7 +620,7 @@ function BulkSchedulePage() {
       const order = accountVideoOrders[accId] || defaultOrder;
 
       order.forEach((videoIdx, i) => {
-        if (videoIdx >= videoFiles.length) return;
+        if (videoIdx >= videoItems.length) return;
 
         const slotIndex = Math.floor(i / batchSize);
         const baseSlotDate = batchSlots[slotIndex];
@@ -518,7 +642,7 @@ function BulkSchedulePage() {
         const formattedTime =
           batchSize > 1 || delaySec > 0 ? `${hStr}:${mStr}:${sStr}` : `${hStr}:${mStr}`;
 
-        const cycleNumber = Math.floor(i / videoFiles.length) + 1;
+        const cycleNumber = Math.floor(i / videoItems.length) + 1;
 
         slots.push({
           dateStr: formattedDate,
@@ -529,7 +653,7 @@ function BulkSchedulePage() {
           accountUsername: account.username,
           accountColor: account.account_categories?.color,
           videoIndex: videoIdx,
-          videoFileName: videoFiles[videoIdx].name,
+          videoFileName: videoItems[videoIdx]?.name || `Vídeo ${videoIdx + 1}`,
           scheduledTimestamp: slotDate.getTime(),
           cycleNumber,
           totalCycles: cycles,
@@ -567,7 +691,7 @@ function BulkSchedulePage() {
       toast.error("Selecione pelo menos uma conta do Instagram.");
       return;
     }
-    if (videoFiles.length === 0) {
+    if (videoItems.length === 0) {
       toast.error("Adicione pelo menos um vídeo para agendar.");
       return;
     }
@@ -589,12 +713,22 @@ function BulkSchedulePage() {
       const uid = userData.user?.id;
       if (!uid) throw new Error("Sessão expirada. Por favor faça login novamente.");
 
-      const totalVideos = videoFiles.length;
+      const totalVideos = videoItems.length;
       const uploadedUrls: string[] = [];
 
-      // 1. Upload Video Files sequentially with metadata cleaning and unique hash injection
+      // 1. Process Video Items (skip upload for library videos, sanitize & upload for local files)
       for (let i = 0; i < totalVideos; i++) {
-        const fileObj = videoFiles[i];
+        const item = videoItems[i];
+
+        // If from library, the video is already hosted on R2
+        if (item.source === "library" && item.url) {
+          setUploadStatus(`Vídeo da biblioteca ${i + 1} de ${totalVideos}: ${item.name}...`);
+          uploadedUrls.push(item.url);
+          setUploadProgress(Math.round(((i + 1) / totalVideos) * 90));
+          continue;
+        }
+
+        const fileObj = item.file!;
         const fileKey = `${fileObj.name}-${fileObj.size}-${fileObj.lastModified}`;
 
         let publicUrl = uploadedVideoUrls[fileKey];
@@ -915,19 +1049,145 @@ function BulkSchedulePage() {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <Label className="text-base font-bold text-foreground">
-                  2. Carregar Vídeos ({videoFiles.length})
+                  2. Carregar Vídeos ({videoItems.length})
                 </Label>
-                {videoFiles.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleClearVideos}
-                    className="text-xs text-destructive hover:bg-destructive/10"
-                  >
-                    Limpar tudo
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 h-7 cursor-pointer"
+                      >
+                        <Film className="size-3.5" />
+                        Escolher da Biblioteca
+                        <ChevronDown className="size-3" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 sm:w-96 p-3 bg-popover border-border/80 shadow-xl" align="end">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                            <Film className="size-3.5 text-primary" /> Biblioteca de Vídeos
+                          </span>
+                          <a
+                            href="/videos"
+                            className="text-[11px] text-primary hover:underline font-normal"
+                          >
+                            Gerenciar pastas →
+                          </a>
+                        </div>
+
+                        {libraryVideos.length === 0 ? (
+                          <div className="text-center py-4 text-xs text-muted-foreground space-y-2">
+                            <p>Nenhum vídeo cadastrado na biblioteca.</p>
+                            <a
+                              href="/videos"
+                              className="inline-block text-[11px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-md"
+                            >
+                              Fazer upload na biblioteca
+                            </a>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="space-y-1.5">
+                              <Label className="text-[11px] text-muted-foreground">Filtrar por Pasta:</Label>
+                              <div className="flex items-center gap-1.5">
+                                <select
+                                  value={selectedLibraryFolderId ?? ""}
+                                  onChange={(e) => setSelectedLibraryFolderId(e.target.value ? e.target.value : null)}
+                                  className="w-full text-xs bg-secondary/60 border border-border rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                >
+                                  <option value="">Todas as Pastas ({libraryVideos.length} vídeos)</option>
+                                  {libraryFolders.map((f) => {
+                                    const count = libraryVideos.filter((v) => v.folder_id === f.id).length;
+                                    return (
+                                      <option key={f.id} value={f.id}>
+                                        📁 {f.name} ({count})
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleAddFolderVideos(selectedLibraryFolderId)}
+                                  className="text-xs shrink-0 h-8 font-semibold cursor-pointer"
+                                >
+                                  + Adicionar todos
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div className="max-h-56 overflow-y-auto space-y-1.5 border border-border/30 rounded-lg p-1.5 bg-secondary/10">
+                              {libraryVideos
+                                .filter((v) =>
+                                  selectedLibraryFolderId === null
+                                    ? true
+                                    : v.folder_id === selectedLibraryFolderId
+                                )
+                                .map((vid) => {
+                                  const isAdded = videoItems.some(
+                                    (item) => item.id === vid.id || (item.url && item.url === vid.video_url)
+                                  );
+                                  return (
+                                    <div
+                                      key={vid.id}
+                                      className="flex items-center justify-between gap-2 p-1.5 rounded-md bg-card border border-border/20 text-xs"
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <FileVideo className="size-3.5 text-primary shrink-0" />
+                                        <div className="min-w-0">
+                                          <p className="font-medium text-foreground truncate max-w-[170px] text-[11px]">
+                                            {vid.name}
+                                          </p>
+                                          {vid.size_bytes && (
+                                            <span className="text-[10px] text-muted-foreground">
+                                              {(vid.size_bytes / 1024 / 1024).toFixed(1)} MB
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={isAdded ? "ghost" : "outline"}
+                                        disabled={isAdded}
+                                        onClick={() => handleAddLibraryVideo(vid)}
+                                        className="h-6 text-[11px] px-2 shrink-0 cursor-pointer"
+                                      >
+                                        {isAdded ? (
+                                          <span className="flex items-center gap-1 text-emerald-500 font-medium">
+                                            <Check className="size-3" /> Na lista
+                                          </span>
+                                        ) : (
+                                          "+ Adicionar"
+                                        )}
+                                      </Button>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  {videoItems.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearVideos}
+                      className="text-xs text-destructive hover:bg-destructive/10 h-7 cursor-pointer"
+                    >
+                      Limpar tudo
+                    </Button>
+                  )}
+                </div>
               </div>
               <label className="block cursor-pointer">
                 <input
@@ -945,35 +1205,46 @@ function BulkSchedulePage() {
                       Selecione ou arraste os vídeos
                     </span>
                     <span className="text-xs">
-                      Você pode selecionar múltiplos arquivos MP4, MOV.
+                      Você pode selecionar múltiplos arquivos MP4, MOV ou usar o botão "Escolher da Biblioteca" acima.
                     </span>
                   </div>
                 </div>
               </label>
 
               {/* Uploaded videos list */}
-              {videoFiles.length > 0 && (
+              {videoItems.length > 0 && (
                 <div className="max-h-48 overflow-y-auto space-y-2 border border-border/40 p-3 rounded-xl bg-secondary/15">
-                  {videoFiles.map((file, idx) => (
+                  {videoItems.map((item, idx) => (
                     <div
-                      key={idx}
+                      key={item.id || idx}
                       className="flex items-center justify-between gap-3 text-xs bg-card border border-border/30 rounded-lg p-2"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <FileVideo className="size-4 text-primary shrink-0" />
                         <span className="truncate font-semibold text-foreground/90">
-                          {file.name}
+                          {item.name}
                         </span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          ({(file.size / 1024 / 1024).toFixed(1)} MB)
-                        </span>
+                        {item.size ? (
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            ({(item.size / 1024 / 1024).toFixed(1)} MB)
+                          </span>
+                        ) : null}
+                        {item.source === "library" ? (
+                          <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded font-medium shrink-0">
+                            Biblioteca
+                          </span>
+                        ) : (
+                          <span className="text-[10px] bg-secondary text-muted-foreground px-1.5 py-0.5 rounded shrink-0">
+                            Upload
+                          </span>
+                        )}
                       </div>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => handleRemoveVideo(idx)}
-                        className="size-7 hover:bg-destructive/15 text-muted-foreground hover:text-destructive rounded-md shrink-0"
+                        className="size-7 hover:bg-destructive/15 text-muted-foreground hover:text-destructive rounded-md shrink-0 cursor-pointer"
                       >
                         <Trash2 className="size-3.5" />
                       </Button>
@@ -1051,29 +1322,90 @@ function BulkSchedulePage() {
                       </span>
                     )}
                   </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className="text-[11px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 cursor-pointer bg-transparent border-0"
-                      >
-                        <Sparkles className="size-3" />
-                        Como usar Spintax?
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80 text-xs space-y-2 p-3 bg-popover border-border/60">
-                      <p className="font-semibold text-foreground">Variação Automática de Texto (Spintax)</p>
-                      <p className="text-muted-foreground">
-                        Use chaves e barras para gerar variações de legendas automáticas entre as contas:
-                      </p>
-                      <div className="p-2 rounded bg-secondary/60 text-secondary-foreground font-mono text-[11px]">
-                        {"{Fala galera|E aí pessoal|Olha só}"} esse vídeo! {"{Veja até o final|Corre pros stories}"}
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">
-                        Cada post agendado para cada conta receberá uma combinação única.
-                      </p>
-                    </PopoverContent>
-                  </Popover>
+                  <div className="flex items-center gap-2">
+                    {/* Modelos de legenda dropdown */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-[11px] text-primary hover:text-primary/80 transition-colors flex items-center gap-1 cursor-pointer bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md font-medium"
+                        >
+                          <FileText className="size-3" />
+                          Usar Modelo Salvo
+                          <ChevronDown className="size-2.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-2.5 bg-popover border-border/80 shadow-xl" align="end">
+                        <div className="flex items-center justify-between text-xs font-bold text-foreground border-b border-border/40 pb-2 mb-2">
+                          <span className="flex items-center gap-1.5">
+                            <FileText className="size-3.5 text-primary" /> Modelos Salvos
+                          </span>
+                          <a
+                            href="/captions"
+                            className="text-[11px] text-primary hover:underline font-normal"
+                          >
+                            Gerenciar →
+                          </a>
+                        </div>
+                        {captionTemplates.length === 0 ? (
+                          <div className="text-center py-3 text-xs text-muted-foreground space-y-1">
+                            <p>Nenhum modelo salvo ainda.</p>
+                            <a href="/captions" className="text-primary hover:underline text-[11px] font-semibold">
+                              Criar modelo na aba Legendas
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="max-h-56 overflow-y-auto space-y-1">
+                            {captionTemplates.map((t) => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => {
+                                  setCaption(t.content);
+                                  toast.success(`Modelo "${t.title}" aplicado!`);
+                                }}
+                                className="w-full text-left p-2 rounded-lg hover:bg-secondary/70 border border-transparent hover:border-border transition-colors text-xs group cursor-pointer"
+                              >
+                                <div className="flex items-center justify-between font-semibold text-foreground group-hover:text-primary">
+                                  <span className="truncate">{t.title}</span>
+                                  <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.2 rounded shrink-0 ml-1">
+                                    {t.category}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground truncate mt-0.5 font-normal">
+                                  {t.content}
+                                </p>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-[11px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                        >
+                          <Sparkles className="size-3" />
+                          Como usar Spintax?
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 text-xs space-y-2 p-3 bg-popover border-border/60">
+                        <p className="font-semibold text-foreground">Variação Automática de Texto (Spintax)</p>
+                        <p className="text-muted-foreground">
+                          Use chaves e barras para gerar variações de legendas automáticas entre as contas:
+                        </p>
+                        <div className="p-2 rounded bg-secondary/60 text-secondary-foreground font-mono text-[11px]">
+                          {"{Fala galera|E aí pessoal|Olha só}"} esse vídeo! {"{Veja até o final|Corre pros stories}"}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          Cada post agendado para cada conta receberá uma combinação única.
+                        </p>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
                 <Textarea
                   id="caption"
@@ -1182,7 +1514,7 @@ function BulkSchedulePage() {
                       Ciclos de Repetição
                     </Label>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Quantas vezes repetir todo o lote de {videoFiles.length > 0 ? `${videoFiles.length} reels` : "reels"} sequencialmente no cronograma.
+                      Quantas vezes repetir todo o lote de {videoItems.length > 0 ? `${videoItems.length} reels` : "reels"} sequencialmente no cronograma.
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -1239,7 +1571,7 @@ function BulkSchedulePage() {
                   <div className="text-xs text-muted-foreground">
                     {cycles > 1 ? (
                       <span>
-                        Serão agendados <strong className="text-primary font-bold">{videoFiles.length * cycles}</strong> posts por conta ({cycles} voltas completas dos {videoFiles.length} vídeos).
+                        Serão agendados <strong className="text-primary font-bold">{videoItems.length * cycles}</strong> posts por conta ({cycles} voltas completas dos {videoItems.length} vídeos).
                       </span>
                     ) : (
                       <span>1 ciclo regular (cada vídeo postado 1 vez por conta).</span>
@@ -1516,7 +1848,7 @@ function BulkSchedulePage() {
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                {randomize && videoFiles.length > 1 && (
+                {randomize && videoItems.length > 1 && (
                   <Button
                     type="button"
                     size="sm"
@@ -1545,7 +1877,7 @@ function BulkSchedulePage() {
               disabled={
                 submitting ||
                 selectedAccounts.length === 0 ||
-                videoFiles.length === 0 ||
+                videoItems.length === 0 ||
                 (!isRandomTimeMode && postingTimes.length === 0)
               }
               className="w-full bg-gradient-brand text-primary-foreground border-0 hover:opacity-90 h-12 shadow-glow text-sm font-extrabold cursor-pointer"

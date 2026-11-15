@@ -55,6 +55,7 @@ Deno.serve(async (req: Request) => {
 
     const urlObj = new URL(req.url);
     const action = urlObj.searchParams.get("action");
+
     if (action === "delete_today") {
       console.log("Delete today action triggered!");
 
@@ -211,9 +212,9 @@ Deno.serve(async (req: Request) => {
     };
 
     // Fetch pending posts that are due using the atomic grab and lock function
-    // Process up to 8 posts per invocation, distributed fairly across users and accounts
+    // Process up to 100 distinct accounts concurrently across multiple cron triggers
     const { data: posts, error: fetchErr } = await supabase.rpc("grab_pending_posts_to_publish", {
-      limit_count: 8,
+      limit_count: 100,
     });
 
     if (fetchErr) {
@@ -227,17 +228,10 @@ Deno.serve(async (req: Request) => {
       return Response.json(results);
     }
 
-    console.log(`Processing batch of ${posts.length} pending post(s)...`);
+    console.log(`Processing concurrent batch of ${posts.length} pending post(s)...`);
 
-    for (let postIndex = 0; postIndex < posts.length; postIndex++) {
-        const post = posts[postIndex];
-        const prevPost = postIndex > 0 ? posts[postIndex - 1] : null;
-        if (prevPost) {
-          // If the post belongs to the SAME account, delay 3.5s to avoid Meta container clash
-          // If it belongs to a DIFFERENT account, 500ms is sufficient since Meta rate limits are per-account
-          const sameAccount = (post as any).instagram_account_id === (prevPost as any).instagram_account_id;
-          await new Promise((r) => setTimeout(r, sameAccount ? 3500 : 500));
-        }
+    await Promise.allSettled(
+      posts.map(async (post) => {
         results.processed++;
         const ig = {
           instagram_user_id: (post as any).instagram_user_id,
@@ -262,12 +256,54 @@ Deno.serve(async (req: Request) => {
           }
 
           results.errors.push(`Post ${post.id}: ${msg}`);
-          continue;
+          return;
         }
 
         const graphApiUrl = ig.access_token.startsWith("IG")
           ? "https://graph.instagram.com/v21.0"
           : "https://graph.facebook.com/v21.0";
+
+        // Proxy Residencial Dedicado (Allan Proxys):
+        // Cada conta possui sua porta residencial primária exclusiva (11000 - 15000).
+        // Se a porta primária estiver offline/lenta (>2s), utiliza o pool de reserva dinâmica (18000 - 19000).
+        const proxyHost = "sv2.allanproxys.com";
+        const proxyUser = "26769afd5b916fcb3787";
+        const proxyPass = "fe412ef49294f1de";
+
+        const primaryPort = (post as any).proxy_port && Number((post as any).proxy_port) >= 10000
+          ? Number((post as any).proxy_port)
+          : 11000;
+
+        // Monta a lista de portas candidatas:
+        // 1. A porta residencial primária da conta
+        // 2. Fallbacks na faixa de reserva (18000 a 19000) para nunca colidir com outra conta
+        const candidatePorts: number[] = [primaryPort];
+        // Reserva dinâmica exclusiva: hash determinístico baseado no ID do post/conta para dispersão
+        const reserveBase = 18000 + (Math.abs(primaryPort * 31) % 1000);
+        candidatePorts.push(reserveBase);
+        candidatePorts.push(18000 + Math.floor(Math.random() * 1000));
+
+        let proxyPort = primaryPort;
+        let proxyClient: any = undefined;
+
+        for (const tryPort of candidatePorts) {
+          const tryUrl = `http://${proxyUser}:${proxyPass}@${proxyHost}:${tryPort}`;
+          const tryClient = (Deno as any).createHttpClient?.({ proxy: { url: tryUrl } });
+          try {
+            const testRes = await fetch("https://httpbin.org/ip", {
+              ...(tryClient ? { client: tryClient } : {}),
+              signal: AbortSignal.timeout(2500),
+            });
+            if (testRes.ok) {
+              proxyPort = tryPort;
+              proxyClient = tryClient;
+              console.log(`[${post.id}] Proxy Residencial OK: porta ${tryPort} (${tryPort === primaryPort ? "porta primária dedicada" : "reserva dinâmica"}) selecionada para @${ig.username}`);
+              break;
+            }
+          } catch (_) {
+            console.warn(`[${post.id}] Porta residencial ${tryPort} não respondeu em 2.5s, testando reserva...`);
+          }
+        }
 
         try {
           let containerId = post.ig_container_id;
@@ -276,36 +312,38 @@ Deno.serve(async (req: Request) => {
           // PHASE 1: Create media container (if needed)
           // ════════════════════════════════════════════
           if (!containerId) {
-            console.log(`[${post.id}] Creating media container for @${ig.username}...`);
+            console.log(`[${post.id}] Creating media container for @${ig.username}... (Proxy: ${proxyClient ? `port ${proxyPort}` : "NONE"})`);
             console.log(`[${post.id}] CAPTION RAW (${(post.caption || "").length} chars): ${JSON.stringify((post.caption || "").substring(0, 150))}...`);
 
-            const formData = new FormData();
-            formData.append("video_url", post.video_url);
-            formData.append("media_type", "REELS");
-            formData.append("share_to_feed", "true");
+            // Use URLSearchParams (application/x-www-form-urlencoded) for 100% reliable UTF-8 caption & metadata delivery to Meta
+            const containerParams = new URLSearchParams();
+            containerParams.set("media_type", "REELS");
+            containerParams.set("video_url", post.video_url);
+            containerParams.set("access_token", ig.access_token);
+            containerParams.set("share_to_feed", "true");
 
             if (post.caption) {
-              formData.append("caption", post.caption);
+              containerParams.set("caption", post.caption);
+              console.log(`[${post.id}] Caption attached (${post.caption.length} chars)`);
             } else {
               console.warn(`[${post.id}] WARNING: post.caption is empty or falsy!`);
             }
 
-            if (post.cover_url) {
-              console.log(`[${post.id}] Using custom cover image: ${post.cover_url}`);
-              formData.append("cover_url", post.cover_url);
+            if (post.cover_url && typeof post.cover_url === "string" && post.cover_url.trim().length > 0) {
+              containerParams.set("cover_url", post.cover_url.trim());
+              console.log(`[${post.id}] Cover URL attached: ${post.cover_url}`);
             }
 
-            formData.append("access_token", ig.access_token);
-
-            const metaHeaders = {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-              "Accept": "application/json",
-            };
+            console.log(`[${post.id}] Creating container via URLSearchParams with caption (${(post.caption || "").length} chars) and share_to_feed=true`);
 
             const createRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media`, {
               method: "POST",
-              headers: metaHeaders,
-              body: formData,
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
+                "Accept": "application/json",
+              },
+              body: containerParams.toString(),
+              ...(proxyClient ? { client: proxyClient } : {}),
             });
 
             if (!createRes.ok) {
@@ -339,6 +377,7 @@ Deno.serve(async (req: Request) => {
                   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
                   "Accept": "application/json",
                 },
+                ...(proxyClient ? { client: proxyClient } : {}),
               },
             );
 
@@ -353,6 +392,9 @@ Deno.serve(async (req: Request) => {
             if (statusData.status_code === "ERROR") {
               throw new Error(`Instagram rejected the video: ${JSON.stringify(statusData)}`);
             } else if (statusData.status_code === "FINISHED") {
+              // Wait 4 seconds after container status reaches FINISHED to allow Meta's CDN to firmly index the caption text before publishing
+              console.log(`[${post.id}] Container FINISHED. Waiting 4s buffer for Meta caption indexing...`);
+              await new Promise((resolve) => setTimeout(resolve, 4000));
               shouldPublish = true;
             } else if (statusData.status_code === "PUBLISHED") {
               console.log(`[${post.id}] Reel already published on Instagram. Updating DB status...`);
@@ -369,7 +411,7 @@ Deno.serve(async (req: Request) => {
                 .eq("id", post.id);
 
               results.published++;
-              continue;
+              return;
             } else if (statusData.status_code === "EXPIRED") {
               console.log(`[${post.id}] Container expired. Resetting ig_container_id to retry.`);
               await supabase
@@ -378,7 +420,7 @@ Deno.serve(async (req: Request) => {
                 .eq("id", post.id);
 
               results.skipped++;
-              continue;
+              return;
             } else {
               // Still processing (IN_PROGRESS)
               // Auto-recover if stuck in IN_PROGRESS for more than 10 minutes
@@ -391,16 +433,23 @@ Deno.serve(async (req: Request) => {
                   .update({ ig_container_id: null, locked_at: null, updated_at: new Date().toISOString() })
                   .eq("id", post.id);
                 results.skipped++;
-                continue;
+                return;
               }
               isProcessing = true;
             }
           } catch (statusErr: any) {
-            // If status check fails (due to known Meta bug e.g. subcode 33), we fallback to direct publish attempt!
             console.warn(
-              `[${post.id}] Status check failed. Attempting direct publish fallback. Error: ${statusErr.message}`,
+              `[${post.id}] Status check failed: ${statusErr.message}`,
             );
-            shouldPublish = true; // Attempt to publish and let media_publish handle the state
+            const errMsg = statusErr?.message ?? "";
+            // Only fallback to direct publish if it's an explicit Meta container query bug, NOT a proxy/network failure!
+            if (errMsg.includes("33") || errMsg.includes("Unsupported get request")) {
+              console.log(`[${post.id}] Known Meta container query bug detected. Attempting direct publish fallback.`);
+              shouldPublish = true;
+            } else {
+              console.log(`[${post.id}] Transient network or status check error, will retry on next run.`);
+              isProcessing = true;
+            }
           }
 
           if (isProcessing) {
@@ -409,27 +458,27 @@ Deno.serve(async (req: Request) => {
             await supabase.from("scheduled_posts").update({ locked_at: null }).eq("id", post.id);
 
             results.skipped++;
-            continue;
+            return;
           }
 
         // ════════════════════════════════════════════
         // PHASE 3: Publish the Reel!
         // ════════════════════════════════════════════
         if (shouldPublish) {
-          // Settling dwell time (3s) so Meta's backend synchronizes container metadata (caption, cover)
-          await new Promise((r) => setTimeout(r, 3000));
           console.log(`[${post.id}] Publishing reel to @${ig.username}...`);
-          const pubFormData = new FormData();
-          pubFormData.append("creation_id", containerId);
-          pubFormData.append("access_token", ig.access_token);
+
+          const publishParams = new URLSearchParams();
+          publishParams.set("creation_id", containerId);
+          publishParams.set("access_token", ig.access_token);
 
           const pubRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media_publish`, {
             method: "POST",
             headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+              "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
               "Accept": "application/json",
             },
-            body: pubFormData,
+            body: publishParams.toString(),
+            ...(proxyClient ? { client: proxyClient } : {}),
           });
 
           if (!pubRes.ok) {
@@ -455,7 +504,7 @@ Deno.serve(async (req: Request) => {
               await supabase.from("scheduled_posts").update({ locked_at: null }).eq("id", post.id);
 
               results.skipped++;
-              continue;
+              return;
             }
 
             throw new Error(`Publish failed (${pubRes.status}): ${errBody}`);
@@ -539,6 +588,7 @@ Deno.serve(async (req: Request) => {
 
         let isTokenExpired = false;
         let isPermanentError = false;
+        let isRateLimitExceeded = false;
 
         try {
           // Meta errors are thrown with a JSON string inside the message.
@@ -555,6 +605,16 @@ Deno.serve(async (req: Request) => {
               const message = (metaError.message ?? "").toLowerCase();
               const isTransient = metaError.is_transient ?? false;
 
+              // Check for Meta 50 reels/24h rate limit
+              if (
+                subcode === 2207042 ||
+                message.includes("media publish limit exceeded") ||
+                message.includes("limite de publicação de mídia excedido") ||
+                message.includes("maximum number of posts that is allowed")
+              ) {
+                isRateLimitExceeded = true;
+              }
+
               // Check for permanent user content errors (e.g. caption too long, missing 404 video)
               if (
                 code === 36004 ||
@@ -567,19 +627,7 @@ Deno.serve(async (req: Request) => {
                 isPermanentError = true;
               }
 
-              if (isTransient) {
-                // If it is explicitly marked transient, it is NOT an expired token issue.
-                isTokenExpired = false;
-              } else {
-                // Meta Graph API error codes:
-                // 190: Access token error (expired, revoked, invalid)
-                // 102: Session key invalid or expired
-                // Common token invalidation subcodes:
-                // 458: App deauthorized
-                // 460: Password changed
-                // 463: Token expired
-                // 467: User logged out / invalid access token
-                // 490: User is checkpointed
+              if (!isTransient && !isRateLimitExceeded) {
                 isTokenExpired =
                   code === 190 ||
                   code === 102 ||
@@ -592,20 +640,41 @@ Deno.serve(async (req: Request) => {
             }
           }
         } catch (_) {
-          // Fallback to substring matching if parsing fails, but be more selective (exclude generic 'oauth' / 'oauthexception')
           const errorLower = msg.toLowerCase();
-          isTokenExpired =
-            errorLower.includes("session has expired") ||
-            errorLower.includes("checkpoint") ||
-            errorLower.includes("login to www.instagram.com") ||
-            errorLower.includes("invalid access token") ||
-            errorLower.includes("token has expired") ||
-            (errorLower.includes("190") && !errorLower.includes('is_transient":true'));
+          if (errorLower.includes("2207042") || errorLower.includes("media publish limit exceeded")) {
+            isRateLimitExceeded = true;
+          } else {
+            isTokenExpired =
+              errorLower.includes("session has expired") ||
+              errorLower.includes("checkpoint") ||
+              errorLower.includes("login to www.instagram.com") ||
+              errorLower.includes("invalid access token") ||
+              errorLower.includes("token has expired") ||
+              (errorLower.includes("190") && !errorLower.includes('is_transient":true'));
+          }
         }
 
         const accountId = (post as any).instagram_account_id;
 
-        if (isTokenExpired) {
+        if (isRateLimitExceeded) {
+          console.warn(
+            `[${post.id}] ⚠️ Conta @${ig.username} atingiu o limite de 50 posts/24h da Meta (2207042). Reagendando todos os posts pendentes da conta para daqui a 24h.`,
+          );
+          const postponeTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+          if (accountId) {
+            await supabase
+              .from("scheduled_posts")
+              .update({
+                scheduled_at: postponeTime,
+                locked_at: null,
+                retry_count: 0,
+                error_message: "[Meta Rate Limit 50/dia]: Limite diário de publicação atingido. Reagendado para daqui a 24h.",
+              })
+              .eq("instagram_account_id", accountId)
+              .eq("status", "pending");
+          }
+          results.errors.push(`Post ${post.id}: Limite diário da Meta atingido (50 posts/dia). Conta postergada por 24h.`);
+        } else if (isTokenExpired) {
           console.log(
             `[${post.id}] Token is expired or invalid. Marking account as token_invalid.`,
           );
@@ -677,7 +746,8 @@ Deno.serve(async (req: Request) => {
           }
         }
       }
-    }
+    })
+  );
 
     console.log(
       `Done. Processed: ${results.processed}, Published: ${results.published}, Skipped: ${results.skipped}, Errors: ${results.errors.length}`,

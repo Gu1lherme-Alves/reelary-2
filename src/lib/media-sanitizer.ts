@@ -230,17 +230,19 @@ export async function sanitizeImageCover(
           ? 0.94 + Math.random() * 0.03
           : 0.95;
 
+        // Instagram Graph API só aceita JPEG para capas de Reels (PNG não é suportado e quebra a publicação)
+        const targetMime = "image/jpeg";
         const cleanBlob = await new Promise<Blob | null>((resolve) => {
-          canvas.toBlob((b) => resolve(b), mimeType, quality);
+          canvas.toBlob((b) => resolve(b), targetMime, quality);
         });
 
         if (cleanBlob) {
           const originalName = (file as File).name || "cover.jpg";
           const fileName =
-            customFileName || `cover_clean_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${mimeType.includes("png") ? "png" : "jpg"}`;
+            customFileName || `cover_clean_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`;
 
           return new File([cleanBlob], fileName, {
-            type: mimeType,
+            type: targetMime,
             lastModified: Date.now(),
           });
         }

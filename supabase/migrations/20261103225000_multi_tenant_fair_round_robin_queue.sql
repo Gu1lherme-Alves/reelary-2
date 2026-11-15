@@ -82,3 +82,4 @@ BEGIN
   JOIN public.instagram_accounts ia ON lp.instagram_account_id = ia.id;
 END;
 $$;
+

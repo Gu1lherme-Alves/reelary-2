@@ -96,3 +96,4 @@ Para comprovar o diagnóstico:
 3. Postar 1 Reel manualmente, selecionando uma **música em alta da biblioteca oficial do Instagram** e marcando `Compartilhar no Feed`.
 4. **Resultado esperado:**
    - Se o vídeo bater de 200 a 1.500 visualizações, fica **100% comprovado** que o perfil não tem banimento e que a trava ocorria exclusivamente pela junção de *Conta Nova + API Oficial sem áudio comercial*.
+3

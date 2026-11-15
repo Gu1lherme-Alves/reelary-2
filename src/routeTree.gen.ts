@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as BulkRouteImport } from './routes/bulk'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as CaptionsRouteImport } from './routes/captions'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as FailedRouteImport } from './routes/failed'
@@ -20,6 +21,7 @@ import { Route as PerformanceRouteImport } from './routes/performance'
 import { Route as PostsRouteImport } from './routes/posts'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as VideosRouteImport } from './routes/videos'
 import { Route as AuthIndexRouteImport } from './routes/auth.index'
 import { Route as AuthFacebookCallbackRouteImport } from './routes/auth.facebook.callback'
 import { Route as AuthInstagramCallbackRouteImport } from './routes/auth.instagram.callback'
@@ -42,6 +44,11 @@ const BulkRoute = BulkRouteImport.update({
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CaptionsRoute = CaptionsRouteImport.update({
+  id: '/captions',
+  path: '/captions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -79,6 +86,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VideosRoute = VideosRouteImport.update({
+  id: '/videos',
+  path: '/videos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthIndexRoute = AuthIndexRouteImport.update({
   id: '/auth/',
   path: '/auth/',
@@ -100,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/accounts': typeof AccountsRoute
   '/bulk': typeof BulkRoute
   '/calendar': typeof CalendarRoute
+  '/captions': typeof CaptionsRoute
   '/dashboard': typeof DashboardRoute
   '/expenses': typeof ExpensesRoute
   '/failed': typeof FailedRoute
@@ -107,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/posts': typeof PostsRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
+  '/videos': typeof VideosRoute
   '/auth/': typeof AuthIndexRoute
   '/auth/facebook/callback': typeof AuthFacebookCallbackRoute
   '/auth/instagram/callback': typeof AuthInstagramCallbackRoute
@@ -116,6 +130,7 @@ export interface FileRoutesByTo {
   '/accounts': typeof AccountsRoute
   '/bulk': typeof BulkRoute
   '/calendar': typeof CalendarRoute
+  '/captions': typeof CaptionsRoute
   '/dashboard': typeof DashboardRoute
   '/expenses': typeof ExpensesRoute
   '/failed': typeof FailedRoute
@@ -123,6 +138,7 @@ export interface FileRoutesByTo {
   '/posts': typeof PostsRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
+  '/videos': typeof VideosRoute
   '/auth': typeof AuthIndexRoute
   '/auth/facebook/callback': typeof AuthFacebookCallbackRoute
   '/auth/instagram/callback': typeof AuthInstagramCallbackRoute
@@ -133,6 +149,7 @@ export interface FileRoutesById {
   '/accounts': typeof AccountsRoute
   '/bulk': typeof BulkRoute
   '/calendar': typeof CalendarRoute
+  '/captions': typeof CaptionsRoute
   '/dashboard': typeof DashboardRoute
   '/expenses': typeof ExpensesRoute
   '/failed': typeof FailedRoute
@@ -140,6 +157,7 @@ export interface FileRoutesById {
   '/posts': typeof PostsRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
+  '/videos': typeof VideosRoute
   '/auth/': typeof AuthIndexRoute
   '/auth/facebook/callback': typeof AuthFacebookCallbackRoute
   '/auth/instagram/callback': typeof AuthInstagramCallbackRoute
@@ -151,6 +169,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/bulk'
     | '/calendar'
+    | '/captions'
     | '/dashboard'
     | '/expenses'
     | '/failed'
@@ -158,6 +177,7 @@ export interface FileRouteTypes {
     | '/posts'
     | '/schedule'
     | '/settings'
+    | '/videos'
     | '/auth/'
     | '/auth/facebook/callback'
     | '/auth/instagram/callback'
@@ -167,6 +187,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/bulk'
     | '/calendar'
+    | '/captions'
     | '/dashboard'
     | '/expenses'
     | '/failed'
@@ -174,6 +195,7 @@ export interface FileRouteTypes {
     | '/posts'
     | '/schedule'
     | '/settings'
+    | '/videos'
     | '/auth'
     | '/auth/facebook/callback'
     | '/auth/instagram/callback'
@@ -183,6 +205,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/bulk'
     | '/calendar'
+    | '/captions'
     | '/dashboard'
     | '/expenses'
     | '/failed'
@@ -190,6 +213,7 @@ export interface FileRouteTypes {
     | '/posts'
     | '/schedule'
     | '/settings'
+    | '/videos'
     | '/auth/'
     | '/auth/facebook/callback'
     | '/auth/instagram/callback'
@@ -200,6 +224,7 @@ export interface RootRouteChildren {
   AccountsRoute: typeof AccountsRoute
   BulkRoute: typeof BulkRoute
   CalendarRoute: typeof CalendarRoute
+  CaptionsRoute: typeof CaptionsRoute
   DashboardRoute: typeof DashboardRoute
   ExpensesRoute: typeof ExpensesRoute
   FailedRoute: typeof FailedRoute
@@ -207,6 +232,7 @@ export interface RootRouteChildren {
   PostsRoute: typeof PostsRoute
   ScheduleRoute: typeof ScheduleRoute
   SettingsRoute: typeof SettingsRoute
+  VideosRoute: typeof VideosRoute
   AuthIndexRoute: typeof AuthIndexRoute
   AuthFacebookCallbackRoute: typeof AuthFacebookCallbackRoute
   AuthInstagramCallbackRoute: typeof AuthInstagramCallbackRoute
@@ -240,6 +266,13 @@ declare module '@tanstack/react-router' {
       path: '/calendar'
       fullPath: '/calendar'
       preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/captions': {
+      id: '/captions'
+      path: '/captions'
+      fullPath: '/captions'
+      preLoaderRoute: typeof CaptionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -291,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/videos': {
+      id: '/videos'
+      path: '/videos'
+      fullPath: '/videos'
+      preLoaderRoute: typeof VideosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/': {
       id: '/auth/'
       path: '/auth'
@@ -320,6 +360,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountsRoute: AccountsRoute,
   BulkRoute: BulkRoute,
   CalendarRoute: CalendarRoute,
+  CaptionsRoute: CaptionsRoute,
   DashboardRoute: DashboardRoute,
   ExpensesRoute: ExpensesRoute,
   FailedRoute: FailedRoute,
@@ -327,6 +368,7 @@ const rootRouteChildren: RootRouteChildren = {
   PostsRoute: PostsRoute,
   ScheduleRoute: ScheduleRoute,
   SettingsRoute: SettingsRoute,
+  VideosRoute: VideosRoute,
   AuthIndexRoute: AuthIndexRoute,
   AuthFacebookCallbackRoute: AuthFacebookCallbackRoute,
   AuthInstagramCallbackRoute: AuthInstagramCallbackRoute,
