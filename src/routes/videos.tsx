@@ -104,8 +104,18 @@ function VideosPage() {
       if (foldersRes.error) throw foldersRes.error;
       if (videosRes.error) throw videosRes.error;
 
-      setFolders((foldersRes.data as any) || []);
-      setVideos((videosRes.data as any) || []);
+      const loadedFolders: VideoFolder[] = (foldersRes.data as any) || [];
+      const loadedVideos: LibraryVideo[] = (videosRes.data as any) || [];
+
+      setFolders(loadedFolders);
+      setVideos(loadedVideos);
+
+      setSelectedFolderId((current) => {
+        if (current && loadedFolders.some((f) => f.id === current)) {
+          return current;
+        }
+        return loadedFolders.length > 0 ? loadedFolders[0].id : null;
+      });
     } catch (err: any) {
       console.error("Erro ao carregar dados de vídeos:", err);
       toast.error("Não foi possível carregar os vídeos.");
@@ -139,14 +149,21 @@ function VideosPage() {
         if (error) throw error;
         toast.success("Pasta atualizada com sucesso!");
       } else {
-        const { error } = await supabase.from("video_folders").insert({
-          user_id: uid,
-          name: folderName.trim(),
-          color: folderColor,
-        });
+        const { data: newFolder, error } = await supabase
+          .from("video_folders")
+          .insert({
+            user_id: uid,
+            name: folderName.trim(),
+            color: folderColor,
+          })
+          .select()
+          .single();
 
         if (error) throw error;
         toast.success("Pasta criada com sucesso!");
+        if (newFolder) {
+          setSelectedFolderId(newFolder.id);
+        }
       }
 
       setFolderDialogOpen(false);
@@ -159,23 +176,47 @@ function VideosPage() {
     }
   };
 
-  // Excluir Pasta
+  // Excluir Pasta e seus vídeos
   const handleDeleteFolder = async (folderId: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta pasta? Os vídeos nela serão movidos para 'Sem Pasta'.")) return;
+    const targetFolder = folders.find((f) => f.id === folderId);
+    if (!confirm(`Tem certeza que deseja excluir a pasta "${targetFolder?.name || ""}" e todos os vídeos dentro dela?`)) return;
     try {
+      await supabase.from("library_videos").delete().eq("folder_id", folderId);
       const { error } = await supabase.from("video_folders").delete().eq("id", folderId);
       if (error) throw error;
-      toast.success("Pasta excluída!");
-      if (selectedFolderId === folderId) setSelectedFolderId(null);
+      toast.success("Pasta e seus vídeos excluídos!");
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Erro ao excluir pasta.");
     }
   };
 
-  // Upload de vídeos para a biblioteca (Cloudflare R2 + DB)
+  // Disparar seleção de arquivos (bloqueia se não tiver pasta)
+  const handleUploadClick = () => {
+    if (folders.length === 0) {
+      toast.error("Crie uma pasta primeiro para carregar vídeos.");
+      setEditingFolder(null);
+      setFolderName("");
+      setFolderColor(FOLDER_COLORS[0]);
+      setFolderDialogOpen(true);
+      return;
+    }
+    if (!selectedFolderId) {
+      toast.error("Selecione uma pasta para enviar os vídeos.");
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  // Upload de vídeos para a pasta atualmente selecionada
   const handleUploadVideos = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
+    if (!selectedFolderId) {
+      toast.error("Crie ou selecione uma pasta primeiro.");
+      setFolderDialogOpen(true);
+      return;
+    }
+    const currentFolderId = selectedFolderId;
     const files = Array.from(e.target.files);
 
     try {
@@ -214,17 +255,17 @@ function VideosPage() {
           throw new Error(`Falha no upload do vídeo ${file.name}`);
         }
 
-        // Registrar na tabela library_videos
+        // Registrar na tabela library_videos com folder_id da pasta
         await supabase.from("library_videos").insert({
           user_id: uid,
-          folder_id: selectedFolderId === "uncategorized" ? null : selectedFolderId,
+          folder_id: currentFolderId,
           name: file.name,
           video_url: uploadInfo.publicUrl,
           size_bytes: file.size,
         });
       }
 
-      toast.success(`${files.length} vídeo(s) adicionado(s) à biblioteca!`);
+      toast.success(`${files.length} vídeo(s) adicionado(s) à pasta!`);
       loadData();
     } catch (err: any) {
       console.error("Erro no upload:", err);
@@ -250,7 +291,7 @@ function VideosPage() {
   };
 
   // Mover vídeo para outra pasta
-  const handleMoveVideo = async (videoId: string, targetFolderId: string | null) => {
+  const handleMoveVideo = async (videoId: string, targetFolderId: string) => {
     try {
       const { error } = await supabase
         .from("library_videos")
@@ -264,19 +305,16 @@ function VideosPage() {
     }
   };
 
-  // Filtragem
+  // Filtragem (somente vídeos da pasta selecionada)
+  const currentFolder = folders.find((f) => f.id === selectedFolderId);
+
   const filteredVideos = videos.filter((v) => {
     const matchesSearch = v.name.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
-
-    if (selectedFolderId === null) return true; // Todos
-    if (selectedFolderId === "uncategorized") return v.folder_id === null;
     return v.folder_id === selectedFolderId;
   });
 
-  const getFolderVideoCount = (folderId: string | null) => {
-    if (folderId === null) return videos.length;
-    if (folderId === "uncategorized") return videos.filter((v) => !v.folder_id).length;
+  const getFolderVideoCount = (folderId: string) => {
     return videos.filter((v) => v.folder_id === folderId).length;
   };
 
@@ -303,34 +341,31 @@ function VideosPage() {
             }}
             variant="outline"
             size="sm"
-            className="h-9 border-[#27272a] bg-[#18181b] hover:bg-[#202024] text-zinc-200 text-xs gap-1.5"
+            className="h-9 border-[#27272a] bg-[#18181b] hover:bg-[#202024] text-zinc-200 text-xs gap-1.5 cursor-pointer"
           >
             <FolderPlus className="size-4 text-amber-400" />
             Nova Pasta
           </Button>
 
-          <label className="cursor-pointer">
-            <input
-              type="file"
-              multiple
-              accept="video/*"
-              ref={fileInputRef}
-              className="sr-only"
-              onChange={handleUploadVideos}
-              disabled={uploading}
-            />
-            <Button
-              asChild
-              size="sm"
-              disabled={uploading}
-              className="h-9 bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs gap-1.5 cursor-pointer shadow-sm"
-            >
-              <span>
-                <Upload className="size-4" />
-                {uploading ? "Enviando..." : "Carregar Vídeos"}
-              </span>
-            </Button>
-          </label>
+          <Button
+            onClick={handleUploadClick}
+            size="sm"
+            disabled={uploading}
+            className="h-9 bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs gap-1.5 cursor-pointer shadow-sm"
+          >
+            <Upload className="size-4" />
+            {uploading ? "Enviando..." : "Carregar Vídeos"}
+          </Button>
+
+          <input
+            type="file"
+            multiple
+            accept="video/*"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={handleUploadVideos}
+            disabled={uploading}
+          />
         </div>
       </div>
 
@@ -347,103 +382,86 @@ function VideosPage() {
         <div className="space-y-2 md:col-span-1">
           <div className="flex items-center justify-between px-2 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Pastas</span>
-            <span className="text-[11px] text-zinc-400 font-mono">{folders.length + 2}</span>
+            <span className="text-[11px] text-zinc-400 font-mono">{folders.length}</span>
           </div>
 
           <div className="space-y-1">
-            {/* Todos os Vídeos */}
-            <button
-              onClick={() => setSelectedFolderId(null)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
-                selectedFolderId === null
-                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold"
-                  : "text-zinc-300 hover:bg-[#18181b] hover:text-white"
-              }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <Layers className="size-4 shrink-0 text-zinc-400" />
-                <span className="truncate">Todos os Vídeos</span>
-              </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">
-                {getFolderVideoCount(null)}
-              </span>
-            </button>
-
-            {/* Sem Pasta */}
-            <button
-              onClick={() => setSelectedFolderId("uncategorized")}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
-                selectedFolderId === "uncategorized"
-                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold"
-                  : "text-zinc-300 hover:bg-[#18181b] hover:text-white"
-              }`}
-            >
-              <div className="flex items-center gap-2.5 truncate">
-                <Folder className="size-4 shrink-0 text-zinc-500" />
-                <span className="truncate">Sem Pasta</span>
-              </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">
-                {getFolderVideoCount("uncategorized")}
-              </span>
-            </button>
-
-            {/* Pastas Criadas */}
-            {folders.map((folder) => {
-              const active = selectedFolderId === folder.id;
-              const count = getFolderVideoCount(folder.id);
-              return (
-                <div
-                  key={folder.id}
-                  className={`group flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition cursor-pointer ${
-                    active
-                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold"
-                      : "text-zinc-300 hover:bg-[#18181b] hover:text-white"
-                  }`}
-                  onClick={() => setSelectedFolderId(folder.id)}
+            {folders.length === 0 ? (
+              <div className="p-4 text-center border border-dashed border-[#27272a] rounded-xl bg-[#0c0c0e] space-y-2">
+                <Folder className="size-6 text-zinc-500 mx-auto" />
+                <p className="text-xs text-zinc-400">Nenhuma pasta criada.</p>
+                <Button
+                  onClick={() => {
+                    setEditingFolder(null);
+                    setFolderName("");
+                    setFolderColor(FOLDER_COLORS[0]);
+                    setFolderDialogOpen(true);
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs text-amber-400 border-amber-500/30 hover:bg-amber-500/10 h-7 cursor-pointer"
                 >
-                  <div className="flex items-center gap-2.5 truncate min-w-0">
-                    <span
-                      className="size-3 rounded-full shrink-0 ring-1 ring-white/10"
-                      style={{ backgroundColor: folder.color }}
-                    />
-                    <span className="truncate">{folder.name}</span>
-                  </div>
+                  <Plus className="size-3.5 mr-1" /> Criar Pasta
+                </Button>
+              </div>
+            ) : (
+              folders.map((folder) => {
+                const active = selectedFolderId === folder.id;
+                const count = getFolderVideoCount(folder.id);
+                return (
+                  <div
+                    key={folder.id}
+                    className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs transition cursor-pointer ${
+                      active
+                        ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold"
+                        : "text-zinc-300 hover:bg-[#18181b] hover:text-white"
+                    }`}
+                    onClick={() => setSelectedFolderId(folder.id)}
+                  >
+                    <div className="flex items-center gap-2.5 truncate min-w-0">
+                      <span
+                        className="size-3 rounded-full shrink-0 ring-1 ring-white/10"
+                        style={{ backgroundColor: folder.color }}
+                      />
+                      <span className="truncate">{folder.name}</span>
+                    </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">
-                      {count}
-                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">
+                        {count}
+                      </span>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <button className="size-5 rounded hover:bg-zinc-700/50 grid place-items-center opacity-0 group-hover:opacity-100 transition text-zinc-400 hover:text-white">
-                          <MoreVertical className="size-3" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-[#18181b] border-[#27272a] text-zinc-200">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setEditingFolder(folder);
-                            setFolderName(folder.name);
-                            setFolderColor(folder.color || FOLDER_COLORS[0]);
-                            setFolderDialogOpen(true);
-                          }}
-                          className="text-xs cursor-pointer gap-2"
-                        >
-                          <Edit2 className="size-3.5" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteFolder(folder.id)}
-                          className="text-xs cursor-pointer text-destructive focus:text-destructive gap-2"
-                        >
-                          <Trash2 className="size-3.5" /> Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <button className="size-5 rounded hover:bg-zinc-700/50 grid place-items-center opacity-0 group-hover:opacity-100 transition text-zinc-400 hover:text-white">
+                            <MoreVertical className="size-3" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-[#18181b] border-[#27272a] text-zinc-200">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditingFolder(folder);
+                              setFolderName(folder.name);
+                              setFolderColor(folder.color || FOLDER_COLORS[0]);
+                              setFolderDialogOpen(true);
+                            }}
+                            className="text-xs cursor-pointer gap-2"
+                          >
+                            <Edit2 className="size-3.5" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteFolder(folder.id)}
+                            className="text-xs cursor-pointer text-destructive focus:text-destructive gap-2"
+                          >
+                            <Trash2 className="size-3.5" /> Excluir Pasta e Vídeos
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -465,15 +483,38 @@ function VideosPage() {
           {/* Grid de Cards de Vídeo */}
           {loading ? (
             <div className="py-16 text-center text-zinc-500 text-xs">Carregando vídeos...</div>
+          ) : folders.length === 0 ? (
+            <div className="border border-dashed border-[#27272a] rounded-2xl p-12 text-center bg-[#0c0c0e]">
+              <FolderPlus className="size-10 text-amber-500 mx-auto mb-3" />
+              <h3 className="text-sm font-bold text-zinc-200">Crie sua primeira pasta</h3>
+              <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto">
+                Para carregar e organizar seus vídeos, você precisa criar uma pasta primeiro.
+              </p>
+              <Button
+                onClick={() => {
+                  setEditingFolder(null);
+                  setFolderName("");
+                  setFolderColor(FOLDER_COLORS[0]);
+                  setFolderDialogOpen(true);
+                }}
+                className="mt-4 bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs gap-1.5 h-9 cursor-pointer"
+              >
+                <Plus className="size-4" /> Criar Pasta Agora
+              </Button>
+            </div>
           ) : filteredVideos.length === 0 ? (
             <div className="border border-dashed border-[#27272a] rounded-2xl p-12 text-center bg-[#0c0c0e]">
               <Video className="size-10 text-zinc-400 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-zinc-200">Nenhum vídeo encontrado</h3>
+              <h3 className="text-sm font-bold text-zinc-200">Pasta vazia</h3>
               <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto">
-                {selectedFolderId
-                  ? "Esta pasta ainda não tem vídeos. Carregue vídeos ou mova arquivos para cá."
-                  : "Você ainda não possui vídeos na biblioteca. Clique em 'Carregar Vídeos' para começar."}
+                A pasta <strong className="text-amber-400 font-semibold">"{currentFolder?.name}"</strong> ainda não tem vídeos. Carregue vídeos diretamente para esta pasta.
               </p>
+              <Button
+                onClick={handleUploadClick}
+                className="mt-4 bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs gap-1.5 h-9 cursor-pointer"
+              >
+                <Upload className="size-4" /> Carregar Vídeos nesta Pasta
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
@@ -528,43 +569,44 @@ function VideosPage() {
 
                       {/* Ações */}
                       <div className="flex items-center justify-between pt-1 border-t border-[#1f1f23]">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="text-[11px] text-zinc-400 hover:text-zinc-200 font-medium flex items-center gap-1 cursor-pointer">
-                              <Folder className="size-3 text-amber-500" />
-                              <span className="truncate max-w-[70px]">Mover</span>
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="bg-[#18181b] border-[#27272a] text-zinc-200">
-                            <DropdownMenuItem
-                              onClick={() => handleMoveVideo(video.id, null)}
-                              className="text-xs cursor-pointer"
-                            >
-                              Sem Pasta
-                            </DropdownMenuItem>
-                            {folders.map((f) => (
-                              <DropdownMenuItem
-                                key={f.id}
-                                onClick={() => handleMoveVideo(video.id, f.id)}
-                                className="text-xs cursor-pointer gap-2"
-                              >
-                                <span
-                                  className="size-2 rounded-full shrink-0"
-                                  style={{ backgroundColor: f.color }}
-                                />
-                                {f.name}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {folders.length > 1 ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="text-[11px] text-zinc-400 hover:text-zinc-200 font-medium flex items-center gap-1 cursor-pointer">
+                                <Folder className="size-3 text-amber-500" />
+                                <span className="truncate max-w-[70px]">Mover</span>
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="bg-[#18181b] border-[#27272a] text-zinc-200">
+                              {folders
+                                .filter((f) => f.id !== video.folder_id)
+                                .map((f) => (
+                                  <DropdownMenuItem
+                                    key={f.id}
+                                    onClick={() => handleMoveVideo(video.id, f.id)}
+                                    className="text-xs cursor-pointer gap-2"
+                                  >
+                                    <span
+                                      className="size-2 rounded-full shrink-0"
+                                      style={{ backgroundColor: f.color }}
+                                    />
+                                    <span>{f.name}</span>
+                                  </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <div />
+                        )}
 
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleDeleteVideo(video)}
-                          className="text-zinc-400 hover:text-destructive p-1 rounded transition cursor-pointer"
-                          title="Excluir vídeo"
+                          className="size-6 text-zinc-500 hover:text-destructive hover:bg-destructive/10 rounded"
                         >
                           <Trash2 className="size-3.5" />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </div>

@@ -307,7 +307,10 @@ function BulkSchedulePage() {
       .select("id, name, color")
       .order("name", { ascending: true })
       .then(({ data }) => {
-        if (data) setLibraryFolders(data);
+        if (data && data.length > 0) {
+          setLibraryFolders(data);
+          setSelectedLibraryFolderId(data[0].id);
+        }
       });
 
     supabase
@@ -510,10 +513,12 @@ function BulkSchedulePage() {
     toast.success(`Vídeo "${video.name}" adicionado!`);
   };
 
-  const handleAddFolderVideos = (folderId: string | null) => {
-    const folderVideos = libraryVideos.filter((v) =>
-      folderId === null ? true : v.folder_id === folderId
-    );
+  const handleAddFolderVideos = (folderId: string | null | undefined) => {
+    if (!folderId) {
+      toast.error("Selecione uma pasta.");
+      return;
+    }
+    const folderVideos = libraryVideos.filter((v) => v.folder_id === folderId);
     if (folderVideos.length === 0) {
       toast.error("Nenhum vídeo nesta pasta.");
       return;
@@ -541,9 +546,9 @@ function BulkSchedulePage() {
     });
 
     if (addedCount > 0) {
-      toast.success(`${addedCount} vídeos adicionados da biblioteca!`);
+      toast.success(`${addedCount} vídeos adicionados da pasta!`);
     } else {
-      toast.info("Todos os vídeos selecionados já estão na lista.");
+      toast.info("Todos os vídeos desta pasta já estão na lista.");
     }
   };
 
@@ -1079,32 +1084,31 @@ function BulkSchedulePage() {
                           </a>
                         </div>
 
-                        {libraryVideos.length === 0 ? (
+                        {libraryFolders.length === 0 ? (
                           <div className="text-center py-4 text-xs text-muted-foreground space-y-2">
-                            <p>Nenhum vídeo cadastrado na biblioteca.</p>
+                            <p>Nenhuma pasta com vídeos criada.</p>
                             <a
                               href="/videos"
                               className="inline-block text-[11px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-md"
                             >
-                              Fazer upload na biblioteca
+                              Criar pasta na biblioteca
                             </a>
                           </div>
                         ) : (
                           <>
                             <div className="space-y-1.5">
-                              <Label className="text-[11px] text-muted-foreground">Filtrar por Pasta:</Label>
+                              <Label className="text-[11px] text-muted-foreground">Pasta da Biblioteca:</Label>
                               <div className="flex items-center gap-1.5">
                                 <select
-                                  value={selectedLibraryFolderId ?? ""}
-                                  onChange={(e) => setSelectedLibraryFolderId(e.target.value ? e.target.value : null)}
+                                  value={selectedLibraryFolderId ?? libraryFolders[0]?.id ?? ""}
+                                  onChange={(e) => setSelectedLibraryFolderId(e.target.value)}
                                   className="w-full text-xs bg-secondary/60 border border-border rounded-lg px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                                 >
-                                  <option value="">Todas as Pastas ({libraryVideos.length} vídeos)</option>
                                   {libraryFolders.map((f) => {
                                     const count = libraryVideos.filter((v) => v.folder_id === f.id).length;
                                     return (
                                       <option key={f.id} value={f.id}>
-                                        📁 {f.name} ({count})
+                                        📁 {f.name} ({count} vídeos)
                                       </option>
                                     );
                                   })}
@@ -1113,7 +1117,7 @@ function BulkSchedulePage() {
                                   type="button"
                                   variant="secondary"
                                   size="sm"
-                                  onClick={() => handleAddFolderVideos(selectedLibraryFolderId)}
+                                  onClick={() => handleAddFolderVideos(selectedLibraryFolderId || libraryFolders[0]?.id)}
                                   className="text-xs shrink-0 h-8 font-semibold cursor-pointer"
                                 >
                                   + Adicionar todos
@@ -1123,11 +1127,7 @@ function BulkSchedulePage() {
 
                             <div className="max-h-56 overflow-y-auto space-y-1.5 border border-border/30 rounded-lg p-1.5 bg-secondary/10">
                               {libraryVideos
-                                .filter((v) =>
-                                  selectedLibraryFolderId === null
-                                    ? true
-                                    : v.folder_id === selectedLibraryFolderId
-                                )
+                                .filter((v) => v.folder_id === (selectedLibraryFolderId || libraryFolders[0]?.id))
                                 .map((vid) => {
                                   const isAdded = videoItems.some(
                                     (item) => item.id === vid.id || (item.url && item.url === vid.video_url)
