@@ -132,6 +132,16 @@ function ProxyPage() {
     error?: string;
   }>({ tested: false, ok: false });
 
+  // Status de teste individual por linha da tabela de contas
+  const [rowTestResults, setRowTestResults] = useState<Record<string, {
+    testing: boolean;
+    ok?: boolean;
+    ip?: string;
+    latencyMs?: number;
+    error?: string;
+  }>>({});
+  const [testingAll, setTestingAll] = useState(false);
+
   // Accounts list
   const [accounts, setAccounts] = useState<ProxyAccountItem[]>([]);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
@@ -328,6 +338,84 @@ function ProxyPage() {
     } finally {
       setTesting(false);
     }
+  }
+
+  // Testa a porta de uma conta específica na tabela e exibe o resultado diretamente na linha
+  async function handleTestAccountPort(accountId: string, port: number) {
+    const parsed = parseAdsPowerProxyString(fullProxyInput);
+    const targetHost = (parsed?.host || host).trim() || "sv2.allanproxys.com";
+    const targetUser = (parsed?.username || username).trim();
+    const targetPass = (parsed?.password || password).trim();
+
+    if (!targetUser || !targetPass) {
+      toast.error("Informe o Usuário e a Senha do proxy antes de testar.");
+      return;
+    }
+
+    setRowTestResults((prev) => ({
+      ...prev,
+      [accountId]: { testing: true },
+    }));
+
+    try {
+      const res = await testConnFn({
+        data: {
+          host: targetHost,
+          username: targetUser,
+          password: targetPass,
+          port: Number(port),
+        },
+      });
+
+      if (res.ok) {
+        setRowTestResults((prev) => ({
+          ...prev,
+          [accountId]: {
+            testing: false,
+            ok: true,
+            ip: res.ip,
+            latencyMs: res.latencyMs,
+          },
+        }));
+        toast.success(`Porta ${port} conectada! IP: ${res.ip}`);
+      } else {
+        setRowTestResults((prev) => ({
+          ...prev,
+          [accountId]: {
+            testing: false,
+            ok: false,
+            error: res.error || "Falha na conexão",
+          },
+        }));
+        toast.error(`Porta ${port}: ${res.error}`);
+      }
+    } catch (err: any) {
+      setRowTestResults((prev) => ({
+        ...prev,
+        [accountId]: {
+          testing: false,
+          ok: false,
+          error: err.message || "Erro ao conectar",
+        },
+      }));
+      toast.error(`Erro ao testar porta ${port}: ${err.message}`);
+    }
+  }
+
+  // Testa todas as contas da tabela em lote
+  async function handleTestAllAccounts() {
+    if (!accounts.length) return;
+    setTestingAll(true);
+    toast.info(`Iniciando teste das ${accounts.length} contas...`);
+
+    for (const acc of accounts) {
+      if (acc.proxy_port) {
+        await handleTestAccountPort(acc.id, acc.proxy_port);
+      }
+    }
+
+    setTestingAll(false);
+    toast.success("Teste de todas as contas concluído!");
   }
 
   async function handleUpdatePort(accountId: string) {
@@ -666,9 +754,25 @@ function ProxyPage() {
               Portas Atribuídas às Suas Contas ({accounts.length})
             </h2>
           </div>
-          <span className="text-xs text-zinc-400">
-            Cada conta do Instagram possui uma porta fixa para manter o mesmo IP residencial em todos os posts.
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-zinc-400 hidden md:inline">
+              Cada conta possui uma porta fixa para manter o mesmo IP residencial em todos os posts.
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={testingAll || accounts.length === 0}
+              onClick={handleTestAllAccounts}
+              className="h-7 px-3 text-[11px] font-medium border-[#2e2e36] bg-[#18181c] hover:bg-[#222228] text-amber-400 hover:text-amber-300 gap-1.5 cursor-pointer"
+            >
+              {testingAll ? (
+                <Loader2 className="size-3 animate-spin text-amber-400" />
+              ) : (
+                <Wifi className="size-3" />
+              )}
+              {testingAll ? "Testando Todas..." : "Testar Todas"}
+            </Button>
+          </div>
         </div>
 
         {accounts.length === 0 ? (
@@ -683,12 +787,14 @@ function ProxyPage() {
                   <th className="py-3 px-3">Conta</th>
                   <th className="py-3 px-3">Status</th>
                   <th className="py-3 px-3">Porta Residencial</th>
+                  <th className="py-3 px-3">Status da Conexão / IP Residencial</th>
                   <th className="py-3 px-3 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#18181c]">
                 {accounts.map((acc) => {
                   const isEditing = editingAccountId === acc.id;
+                  const res = rowTestResults[acc.id];
 
                   return (
                     <tr key={acc.id} className="hover:bg-[#141417]/50 transition">
@@ -768,19 +874,54 @@ function ProxyPage() {
                         )}
                       </td>
 
+                      {/* Status da Conexão / IP Residencial na mesma linha */}
+                      <td className="py-3 px-3">
+                        {res?.testing ? (
+                          <div className="flex items-center gap-2 text-zinc-400 font-mono text-[11px]">
+                            <Loader2 className="size-3.5 animate-spin text-amber-400 shrink-0" />
+                            <span>Testando porta :{acc.proxy_port || 11000}...</span>
+                          </div>
+                        ) : res?.ok ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-mono text-[11px] font-semibold">
+                              <CheckCircle2 className="size-3.5 text-emerald-400 shrink-0" />
+                              <span>{res.ip}</span>
+                              <span className="text-zinc-500 font-normal">({res.latencyMs}ms)</span>
+                            </span>
+                          </div>
+                        ) : res && res.ok === false ? (
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[11px] max-w-[260px] truncate"
+                              title={res.error}
+                            >
+                              <AlertCircle className="size-3.5 text-rose-400 shrink-0" />
+                              <span className="truncate">{res.error}</span>
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-zinc-600 text-[11px] italic">
+                            Não testada
+                          </span>
+                        )}
+                      </td>
+
                       <td className="py-3 px-3 text-right">
                         <Button
                           variant="outline"
                           size="sm"
+                          disabled={res?.testing || testingAll}
                           onClick={() => {
-                            if (acc.proxy_port) {
-                              setTestPort(acc.proxy_port);
-                              handleTestConnection(acc.proxy_port);
-                            }
+                            const portToTest = acc.proxy_port || 11000;
+                            handleTestAccountPort(acc.id, portToTest);
                           }}
-                          className="h-7 px-2.5 text-[11px] font-medium border-[#27272d] bg-[#141417] hover:bg-[#1f1f25] text-zinc-300 gap-1 cursor-pointer"
+                          className="h-7 px-2.5 text-[11px] font-medium border-[#27272d] bg-[#141417] hover:bg-[#1f1f25] text-zinc-300 gap-1.5 cursor-pointer"
                         >
-                          <Wifi className="size-3 text-amber-400" />
+                          {res?.testing ? (
+                            <Loader2 className="size-3 animate-spin text-amber-400" />
+                          ) : (
+                            <Wifi className="size-3 text-amber-400" />
+                          )}
                           Testar Porta
                         </Button>
                       </td>
