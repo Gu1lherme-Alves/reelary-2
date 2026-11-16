@@ -19,7 +19,6 @@ import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as FailedRouteImport } from './routes/failed'
 import { Route as PerformanceRouteImport } from './routes/performance'
 import { Route as PostsRouteImport } from './routes/posts'
-import { Route as ProxyRouteImport } from './routes/proxy'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as VideosRouteImport } from './routes/videos'
@@ -77,11 +76,6 @@ const PostsRoute = PostsRouteImport.update({
   path: '/posts',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProxyRoute = ProxyRouteImport.update({
-  id: '/proxy',
-  path: '/proxy',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ScheduleRoute = ScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
@@ -124,7 +118,6 @@ export interface FileRoutesByFullPath {
   '/failed': typeof FailedRoute
   '/performance': typeof PerformanceRoute
   '/posts': typeof PostsRoute
-  '/proxy': typeof ProxyRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/videos': typeof VideosRoute
@@ -143,7 +136,6 @@ export interface FileRoutesByTo {
   '/failed': typeof FailedRoute
   '/performance': typeof PerformanceRoute
   '/posts': typeof PostsRoute
-  '/proxy': typeof ProxyRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/videos': typeof VideosRoute
@@ -163,7 +155,6 @@ export interface FileRoutesById {
   '/failed': typeof FailedRoute
   '/performance': typeof PerformanceRoute
   '/posts': typeof PostsRoute
-  '/proxy': typeof ProxyRoute
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/videos': typeof VideosRoute
@@ -184,7 +175,6 @@ export interface FileRouteTypes {
     | '/failed'
     | '/performance'
     | '/posts'
-    | '/proxy'
     | '/schedule'
     | '/settings'
     | '/videos'
@@ -203,7 +193,6 @@ export interface FileRouteTypes {
     | '/failed'
     | '/performance'
     | '/posts'
-    | '/proxy'
     | '/schedule'
     | '/settings'
     | '/videos'
@@ -222,7 +211,6 @@ export interface FileRouteTypes {
     | '/failed'
     | '/performance'
     | '/posts'
-    | '/proxy'
     | '/schedule'
     | '/settings'
     | '/videos'
@@ -242,7 +230,6 @@ export interface RootRouteChildren {
   FailedRoute: typeof FailedRoute
   PerformanceRoute: typeof PerformanceRoute
   PostsRoute: typeof PostsRoute
-  ProxyRoute: typeof ProxyRoute
   ScheduleRoute: typeof ScheduleRoute
   SettingsRoute: typeof SettingsRoute
   VideosRoute: typeof VideosRoute
@@ -323,13 +310,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PostsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/proxy': {
-      id: '/proxy'
-      path: '/proxy'
-      fullPath: '/proxy'
-      preLoaderRoute: typeof ProxyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/schedule': {
       id: '/schedule'
       path: '/schedule'
@@ -386,7 +366,6 @@ const rootRouteChildren: RootRouteChildren = {
   FailedRoute: FailedRoute,
   PerformanceRoute: PerformanceRoute,
   PostsRoute: PostsRoute,
-  ProxyRoute: ProxyRoute,
   ScheduleRoute: ScheduleRoute,
   SettingsRoute: SettingsRoute,
   VideosRoute: VideosRoute,
