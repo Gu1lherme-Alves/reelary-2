@@ -197,14 +197,10 @@ function ProxyPage() {
       if (parsed.host) setHost(parsed.host);
       if (parsed.username) setUsername(parsed.username);
       if (parsed.password) setPassword(parsed.password);
-      if (parsed.port) {
-        setPortStart(parsed.port);
-        setTestPort(parsed.port);
-        // Se a porta final for menor que a inicial, ajusta para dar margem
-        if (portEnd <= parsed.port) {
-          setPortEnd(parsed.port + 4000);
-        }
-      }
+      // A porta inicial para postagens residenciais sempre inicia em 11000
+      setPortStart(11000);
+      setTestPort(11000);
+      setPortEnd(15000);
     }
   }
 
@@ -219,7 +215,7 @@ function ProxyPage() {
       handleFullProxyChange(text);
       const parsed = parseAdsPowerProxyString(text);
       if (parsed) {
-        toast.success(`Proxy detectado: ${parsed.host}:${parsed.port || portStart} (Usuário: ${parsed.username})`);
+        toast.success(`Proxy detectado: ${parsed.host} (Porta inicial: 11000 | Usuário: ${parsed.username})`);
       } else {
         toast.info("Texto colado. Verifique se o formato é host:porta:usuário:senha");
       }
@@ -231,9 +227,9 @@ function ProxyPage() {
   // Sincroniza a string completa quando campos manuais são editados
   function syncFullProxyString(newHost: string, newPort: number, newUser: string, newPass: string) {
     if (newUser || newPass) {
-      setFullProxyInput(`${newHost}:${newPort}:${newUser}:${newPass}`);
+      setFullProxyInput(`${newHost}:11000:${newUser}:${newPass}`);
     } else {
-      setFullProxyInput(`${newHost}:${newPort}`);
+      setFullProxyInput(`${newHost}:11000`);
     }
   }
 
@@ -245,7 +241,7 @@ function ProxyPage() {
     const finalHost = (parsed?.host || host).trim();
     const finalUser = (parsed?.username || username).trim();
     const finalPass = (parsed?.password || password).trim();
-    const finalPort = parsed?.port || portStart || 11000;
+    const finalPort = 11000; // Sempre 11000 como porta inicial residencial
 
     if (!finalHost) {
       toast.error("Informe o host do servidor de proxy.");
@@ -286,7 +282,7 @@ function ProxyPage() {
     const targetHost = (parsed?.host || host).trim() || "sv2.allanproxys.com";
     const targetUser = (parsed?.username || username).trim();
     const targetPass = (parsed?.password || password).trim();
-    const targetPort = customPort || parsed?.port || testPort || 11000;
+    const targetPort = customPort || 11000;
 
     if (!targetUser || !targetPass) {
       toast.error("Cole ou informe o proxy completo (com usuário e senha) antes de testar.");
@@ -463,13 +459,13 @@ function ProxyPage() {
               </span>
             </div>
 
-            {/* Porta Base */}
+            {/* Porta Inicial */}
             <div className="p-3 rounded-lg bg-[#141417] border border-[#222227] space-y-1">
               <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
-                Porta Base
+                Porta Inicial
               </span>
               <span className="text-xs font-mono font-semibold text-amber-400 truncate block">
-                {parsedCurrent?.port || portStart || "—"}
+                11000 (Fixa)
               </span>
             </div>
 
