@@ -228,10 +228,43 @@ Deno.serve(async (req: Request) => {
       return Response.json(results);
     }
 
-    console.log(`Processing concurrent batch of ${posts.length} pending post(s)...`);
+    // ─── CADÊNCIA ORGÂNICA ANTI-SPAM (MÁXIMO 1 POST POR CONTA POR CICLO) ──────────
+    // Evita o disparo simultâneo de múltiplos vídeos no mesmo segundo para a mesma conta,
+    // que aciona o filtro anti-flood da Meta, derruba a legenda e zera o alcance (0 views).
+    // Contas diferentes continuam rodando em paralelo, mas cada conta publica 1 vídeo
+    // por minuto (ciclo do cron), garantindo cadência 100% natural.
+    const accountQueues = new Map<string, typeof posts>();
+    for (const post of posts) {
+      const accId = (post as any).instagram_account_id;
+      if (!accountQueues.has(accId)) accountQueues.set(accId, []);
+      accountQueues.get(accId)!.push(post);
+    }
+
+    const postsToProcess: typeof posts = [];
+    const postsToUnlockIds: string[] = [];
+
+    for (const [_accId, accPosts] of accountQueues.entries()) {
+      postsToProcess.push(accPosts[0]);
+      if (accPosts.length > 1) {
+        for (let i = 1; i < accPosts.length; i++) {
+          postsToUnlockIds.push(accPosts[i].id);
+        }
+      }
+    }
+
+    if (postsToUnlockIds.length > 0) {
+      await supabase
+        .from("scheduled_posts")
+        .update({ locked_at: null })
+        .in("id", postsToUnlockIds);
+    }
+
+    console.log(
+      `Processing paced batch: ${postsToProcess.length} conta(s) distintas em paralelo (1 post/conta). ${postsToUnlockIds.length} post(s) preservados para os próximos ciclos de 1 min.`,
+    );
 
     await Promise.allSettled(
-      posts.map(async (post) => {
+      postsToProcess.map(async (post) => {
         results.processed++;
         const ig = {
           instagram_user_id: (post as any).instagram_user_id,
@@ -530,6 +563,59 @@ Deno.serve(async (req: Request) => {
           const pubData = await pubRes.json();
           const publishedMediaId = pubData.id;
           console.log(`[${post.id}] ✅ Published! Media ID: ${publishedMediaId}`);
+
+          // ════════════════════════════════════════════
+          // PHASE 4: Verify caption was indexed & auto-fix if dropped
+          // ════════════════════════════════════════════
+          if (post.caption && publishedMediaId) {
+            try {
+              // Wait 2 seconds for Meta's CDN to finalize metadata
+              await new Promise((r) => setTimeout(r, 2000));
+              const verifyRes = await fetch(
+                `${graphApiUrl}/${publishedMediaId}?fields=caption&access_token=${encodeURIComponent(ig.access_token)}`,
+                {
+                  headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "Accept": "application/json",
+                  },
+                  ...(proxyClient ? { client: proxyClient } : {}),
+                },
+              );
+
+              if (verifyRes.ok) {
+                const verifyData = await verifyRes.json();
+                const publishedCaption = (verifyData.caption ?? "").trim();
+                if (!publishedCaption || publishedCaption.length < 5) {
+                  console.warn(`[${post.id}] ⚠️ Caption was DROPPED by Meta! Restoring caption via API update...`);
+                  const updateParams = new URLSearchParams();
+                  updateParams.set("caption", post.caption);
+                  updateParams.set("access_token", ig.access_token);
+
+                  const updateRes = await fetch(`${graphApiUrl}/${publishedMediaId}`, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
+                      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                      "Accept": "application/json",
+                    },
+                    body: updateParams.toString(),
+                    ...(proxyClient ? { client: proxyClient } : {}),
+                  });
+
+                  if (updateRes.ok) {
+                    console.log(`[${post.id}] ✅ Caption successfully restored via direct API update!`);
+                  } else {
+                    const errText = await updateRes.text().catch(() => "");
+                    console.warn(`[${post.id}] Direct caption update failed (${updateRes.status}): ${errText}`);
+                  }
+                } else {
+                  console.log(`[${post.id}] ✅ Caption verified OK on Instagram (${publishedCaption.length} chars).`);
+                }
+              }
+            } catch (verifyErr: any) {
+              console.warn(`[${post.id}] Caption verification check non-fatal error: ${verifyErr.message}`);
+            }
+          }
 
           // Mark as published, clear video/cover URLs and reset locked_at
           await supabase
