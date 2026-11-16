@@ -296,64 +296,11 @@ Deno.serve(async (req: Request) => {
           ? "https://graph.instagram.com/v21.0"
           : "https://graph.facebook.com/v21.0";
 
-        // Proxy Residencial Dedicado (Multi-tenant por usuário):
-        // Cada usuário pode cadastrar seu próprio proxy na aba 'Proxy' ou usar a configuração padrão.
-        const proxyHost = (post as any).proxy_host || Deno.env.get("RESIDENTIAL_PROXY_HOST") || "sv2.allanproxys.com";
-        const proxyUser = (post as any).proxy_username || Deno.env.get("RESIDENTIAL_PROXY_USER") || "26769afd5b916fcb3787";
-        const proxyPass = (post as any).proxy_password || Deno.env.get("RESIDENTIAL_PROXY_PASS") || "fe412ef49294f1de";
-        const proxyEnabled = (post as any).proxy_enabled !== false;
-
-        const primaryPort = (post as any).proxy_port && Number((post as any).proxy_port) >= 10000
-          ? Number((post as any).proxy_port)
-          : 11000;
-
-        // Monta a lista de portas candidatas:
-        // 1. A porta residencial primária da conta
-        // 2. Fallbacks na faixa de reserva (18000 a 19000) para nunca colidir com outra conta
-        const candidatePorts: number[] = [primaryPort];
-        // Reserva dinâmica exclusiva: hash determinístico baseado no ID do post/conta para dispersão
-        const reserveBase = 18000 + (Math.abs(primaryPort * 31) % 1000);
-        candidatePorts.push(reserveBase);
-        candidatePorts.push(18000 + Math.floor(Math.random() * 1000));
-
-        let proxyPort = primaryPort;
-        let proxyClient: any = undefined;
-
-        if (proxyEnabled && proxyUser && proxyPass) {
-          for (const tryPort of candidatePorts) {
-            const tryUrl = `http://${proxyUser}:${proxyPass}@${proxyHost}:${tryPort}`;
-            const tryClient = (Deno as any).createHttpClient?.({ proxy: { url: tryUrl } });
-            try {
-              const testRes = await fetch("https://httpbin.org/ip", {
-                ...(tryClient ? { client: tryClient } : {}),
-                signal: AbortSignal.timeout(2500),
-              });
-              if (testRes.ok) {
-                proxyPort = tryPort;
-                proxyClient = tryClient;
-                console.log(`[${post.id}] Proxy Residencial OK: porta ${tryPort} (${tryPort === primaryPort ? "porta primária dedicada" : "reserva dinâmica"}) selecionada para @${ig.username}`);
-                break;
-              }
-            } catch (_) {
-              console.warn(`[${post.id}] Porta residencial ${tryPort} não respondeu em 2.5s, testando reserva...`);
-            }
-          }
-
-          if (!proxyClient) {
-            const errMsg = `Proxy residencial (${proxyHost}) não respondeu ou franquia esgotada. Post pausado para evitar entrega zero via IP de datacenter.`;
-            console.error(`[${post.id}] ${errMsg}`);
-            await supabase
-              .from("scheduled_posts")
-              .update({
-                status: "failed",
-                error_message: errMsg,
-                locked_at: null,
-              })
-              .eq("id", post.id);
-            results.errors.push(`Post ${post.id}: ${errMsg}`);
-            return;
-          }
-        }
+        // ─── CONEXÃO DIRETA NATIVA (CONFIGURAÇÃO ORIGINAL DE SÁBADO) ──────────────
+        // Chamadas diretas da Edge Function para a Meta Graph API oficial, sem túnel de proxy.
+        // A API de desenvolvedor da Meta foi feita para servidores em nuvem, garantindo
+        // máxima velocidade, zero perda de pacotes e sem IPs residenciais marcados por scraping.
+        const proxyClient: any = undefined;
 
         try {
           let containerId = post.ig_container_id;
@@ -362,7 +309,7 @@ Deno.serve(async (req: Request) => {
           // PHASE 1: Create media container (if needed)
           // ════════════════════════════════════════════
           if (!containerId) {
-            console.log(`[${post.id}] Creating media container for @${ig.username}... (Proxy: ${proxyClient ? `port ${proxyPort}` : "NONE"})`);
+            console.log(`[${post.id}] Creating media container for @${ig.username}... (Conexão direta Meta Graph API)`);
             console.log(`[${post.id}] CAPTION RAW (${(post.caption || "").length} chars): ${JSON.stringify((post.caption || "").substring(0, 150))}...`);
 
             // Use URLSearchParams (application/x-www-form-urlencoded) for 100% reliable UTF-8 caption & metadata delivery to Meta
