@@ -445,14 +445,33 @@ function CalendarPage() {
       if (post) {
         if (post.video_url) {
           try {
-            await deleteR2File({ data: { url: post.video_url } });
+            const { data: otherPosts } = await supabase
+              .from("scheduled_posts")
+              .select("id")
+              .eq("video_url", post.video_url)
+              .neq("id", id);
+            const { data: libVideos } = await supabase
+              .from("library_videos")
+              .select("id")
+              .eq("video_url", post.video_url);
+
+            if ((!otherPosts || otherPosts.length === 0) && (!libVideos || libVideos.length === 0)) {
+              await deleteR2File({ data: { url: post.video_url } });
+            }
           } catch (err) {
             console.error("Erro ao deletar vídeo do R2:", err);
           }
         }
         if (post.cover_url) {
           try {
-            await deleteR2File({ data: { url: post.cover_url } });
+            const { data: otherCovers } = await supabase
+              .from("scheduled_posts")
+              .select("id")
+              .eq("cover_url", post.cover_url)
+              .neq("id", id);
+            if (!otherCovers || otherCovers.length === 0) {
+              await deleteR2File({ data: { url: post.cover_url } });
+            }
           } catch (err) {
             console.error("Erro ao deletar capa do R2:", err);
           }

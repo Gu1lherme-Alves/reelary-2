@@ -158,7 +158,7 @@ Deno.serve(async (req: Request) => {
         continuationToken = listResult.IsTruncated ? listResult.NextContinuationToken : undefined;
       } while (continuationToken);
 
-      // 2. Get all referenced files from DB
+      // 2. Get all referenced files from DB (scheduled_posts AND library_videos)
       const { data: posts, error: postsErr } = await supabase
         .from("scheduled_posts")
         .select("video_url, cover_url");
@@ -168,6 +168,15 @@ Deno.serve(async (req: Request) => {
         return Response.json({ error: postsErr.message }, { status: 500 });
       }
 
+      const { data: libVids, error: libErr } = await supabase
+        .from("library_videos")
+        .select("video_url");
+
+      if (libErr) {
+        console.error("Failed to fetch library videos:", libErr);
+        return Response.json({ error: libErr.message }, { status: 500 });
+      }
+
       const activeKeys = new Set<string>();
       if (posts) {
         for (const post of posts) {
@@ -175,6 +184,12 @@ Deno.serve(async (req: Request) => {
           if (videoKey) activeKeys.add(videoKey);
           const coverKey = getR2KeyFromUrl(post.cover_url, r2PublicDomain);
           if (coverKey) activeKeys.add(coverKey);
+        }
+      }
+      if (libVids) {
+        for (const vid of libVids) {
+          const videoKey = getR2KeyFromUrl(vid.video_url, r2PublicDomain);
+          if (videoKey) activeKeys.add(videoKey);
         }
       }
 
@@ -297,10 +312,8 @@ Deno.serve(async (req: Request) => {
           : "https://graph.facebook.com/v21.0";
 
         // ─── CONEXÃO DIRETA NATIVA (CONFIGURAÇÃO ORIGINAL DE SÁBADO) ──────────────
-        // Chamadas diretas da Edge Function para a Meta Graph API oficial, sem túnel de proxy.
-        // A API de desenvolvedor da Meta foi feita para servidores em nuvem, garantindo
-        // máxima velocidade, zero perda de pacotes e sem IPs residenciais marcados por scraping.
-        const proxyClient: any = undefined;
+        // Chamadas diretas da Edge Function para a Meta Graph API oficial.
+        // Máxima velocidade, zero perda de pacotes e IP direto da nuvem.
 
         try {
           let containerId = post.ig_container_id;
@@ -309,6 +322,42 @@ Deno.serve(async (req: Request) => {
           // PHASE 1: Create media container (if needed)
           // ════════════════════════════════════════════
           if (!containerId) {
+            if (!post.video_url || typeof post.video_url !== "string" || post.video_url.trim().length === 0) {
+              console.error(`[${post.id}] Video URL is missing or empty.`);
+              await supabase
+                .from("scheduled_posts")
+                .update({
+                  status: "failed",
+                  error_message: "URL do vídeo está vazia ou não foi informada.",
+                  locked_at: null,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", post.id);
+              results.failed++;
+              return;
+            }
+
+            // Quick check if the video file exists in storage before calling Meta
+            try {
+              const headRes = await fetch(post.video_url, { method: "HEAD" });
+              if (headRes.status === 404) {
+                console.error(`[${post.id}] Video file not found in Storage (404): ${post.video_url}`);
+                await supabase
+                  .from("scheduled_posts")
+                  .update({
+                    status: "failed",
+                    error_message: "Arquivo de vídeo não encontrado no Storage R2 (404 Not Found). O arquivo foi excluído ou o link expirou.",
+                    locked_at: null,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", post.id);
+                results.failed++;
+                return;
+              }
+            } catch (headErr) {
+              console.warn(`[${post.id}] Video HEAD check warning:`, headErr);
+            }
+
             console.log(`[${post.id}] Creating media container for @${ig.username}... (Conexão direta Meta Graph API)`);
             console.log(`[${post.id}] CAPTION RAW (${(post.caption || "").length} chars): ${JSON.stringify((post.caption || "").substring(0, 150))}...`);
 
@@ -340,7 +389,6 @@ Deno.serve(async (req: Request) => {
                 "Accept": "application/json",
               },
               body: containerParams.toString(),
-              ...(proxyClient ? { client: proxyClient } : {}),
             });
 
             if (!createRes.ok) {
@@ -374,7 +422,6 @@ Deno.serve(async (req: Request) => {
                   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
                   "Accept": "application/json",
                 },
-                ...(proxyClient ? { client: proxyClient } : {}),
               },
             );
 
@@ -387,7 +434,34 @@ Deno.serve(async (req: Request) => {
             console.log(`[${post.id}] Container status: ${statusData.status_code}`);
 
             if (statusData.status_code === "ERROR") {
-              throw new Error(`Instagram rejected the video: ${JSON.stringify(statusData)}`);
+              console.error(`[${post.id}] Instagram rejected the video container:`, statusData);
+              const currentRetry = (post.retry_count ?? 0) + 1;
+              if (currentRetry >= 2) {
+                await supabase
+                  .from("scheduled_posts")
+                  .update({
+                    status: "failed",
+                    error_message: `Instagram rejeitou o processamento do vídeo (${JSON.stringify(statusData)}). Verifique se o vídeo possui formato compatível e se está acessível no Storage.`,
+                    locked_at: null,
+                    retry_count: currentRetry,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", post.id);
+                results.failed++;
+                return;
+              } else {
+                await supabase
+                  .from("scheduled_posts")
+                  .update({
+                    ig_container_id: null,
+                    locked_at: null,
+                    retry_count: currentRetry,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", post.id);
+                results.skipped++;
+                return;
+              }
             } else if (statusData.status_code === "FINISHED") {
               // Wait 4 seconds after container status reaches FINISHED to allow Meta's CDN to firmly index the caption text before publishing
               console.log(`[${post.id}] Container FINISHED. Waiting 4s buffer for Meta caption indexing...`);
@@ -439,7 +513,7 @@ Deno.serve(async (req: Request) => {
               `[${post.id}] Status check failed: ${statusErr.message}`,
             );
             const errMsg = statusErr?.message ?? "";
-            // Only fallback to direct publish if it's an explicit Meta container query bug, NOT a proxy/network failure!
+            // Only fallback to direct publish if it's an explicit Meta container query bug, NOT a network failure!
             if (errMsg.includes("33") || errMsg.includes("Unsupported get request")) {
               console.log(`[${post.id}] Known Meta container query bug detected. Attempting direct publish fallback.`);
               shouldPublish = true;
@@ -475,7 +549,6 @@ Deno.serve(async (req: Request) => {
               "Accept": "application/json",
             },
             body: publishParams.toString(),
-            ...(proxyClient ? { client: proxyClient } : {}),
           });
 
           if (!pubRes.ok) {
@@ -525,7 +598,6 @@ Deno.serve(async (req: Request) => {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
                     "Accept": "application/json",
                   },
-                  ...(proxyClient ? { client: proxyClient } : {}),
                 },
               );
 
@@ -546,7 +618,6 @@ Deno.serve(async (req: Request) => {
                       "Accept": "application/json",
                     },
                     body: updateParams.toString(),
-                    ...(proxyClient ? { client: proxyClient } : {}),
                   });
 
                   if (updateRes.ok) {
@@ -594,14 +665,19 @@ Deno.serve(async (req: Request) => {
                   .eq("video_url", post.video_url)
                   .neq("id", post.id);
 
-                if (videoRefs && videoRefs.length === 0) {
+                const { data: libraryRefs } = await supabase
+                  .from("library_videos")
+                  .select("id")
+                  .eq("video_url", post.video_url);
+
+                if ((!videoRefs || videoRefs.length === 0) && (!libraryRefs || libraryRefs.length === 0)) {
                   console.log(
                     `[${post.id}] Deleting video from R2 (no other references): ${videoKey}`,
                   );
                   await s3.send(new DeleteObjectCommand({ Bucket: r2BucketName, Key: videoKey }));
                 } else {
                   console.log(
-                    `[${post.id}] Skipping video deletion, still referenced by ${videoRefs?.length ?? 0} other post(s).`,
+                    `[${post.id}] Skipping video deletion, still referenced by ${videoRefs?.length ?? 0} post(s) and ${libraryRefs?.length ?? 0} library video(s).`,
                   );
                 }
               }
