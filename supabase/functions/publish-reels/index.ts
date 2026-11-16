@@ -263,12 +263,12 @@ Deno.serve(async (req: Request) => {
           ? "https://graph.instagram.com/v21.0"
           : "https://graph.facebook.com/v21.0";
 
-        // Proxy Residencial Dedicado (Allan Proxys):
-        // Cada conta possui sua porta residencial primária exclusiva (11000 - 15000).
-        // Se a porta primária estiver offline/lenta (>2s), utiliza o pool de reserva dinâmica (18000 - 19000).
-        const proxyHost = "sv2.allanproxys.com";
-        const proxyUser = "26769afd5b916fcb3787";
-        const proxyPass = "fe412ef49294f1de";
+        // Proxy Residencial Dedicado (Multi-tenant por usuário):
+        // Cada usuário pode cadastrar seu próprio proxy na aba 'Proxy' ou usar a configuração padrão.
+        const proxyHost = (post as any).proxy_host || Deno.env.get("RESIDENTIAL_PROXY_HOST") || "sv2.allanproxys.com";
+        const proxyUser = (post as any).proxy_username || Deno.env.get("RESIDENTIAL_PROXY_USER") || "26769afd5b916fcb3787";
+        const proxyPass = (post as any).proxy_password || Deno.env.get("RESIDENTIAL_PROXY_PASS") || "fe412ef49294f1de";
+        const proxyEnabled = (post as any).proxy_enabled !== false;
 
         const primaryPort = (post as any).proxy_port && Number((post as any).proxy_port) >= 10000
           ? Number((post as any).proxy_port)
@@ -286,22 +286,39 @@ Deno.serve(async (req: Request) => {
         let proxyPort = primaryPort;
         let proxyClient: any = undefined;
 
-        for (const tryPort of candidatePorts) {
-          const tryUrl = `http://${proxyUser}:${proxyPass}@${proxyHost}:${tryPort}`;
-          const tryClient = (Deno as any).createHttpClient?.({ proxy: { url: tryUrl } });
-          try {
-            const testRes = await fetch("https://httpbin.org/ip", {
-              ...(tryClient ? { client: tryClient } : {}),
-              signal: AbortSignal.timeout(2500),
-            });
-            if (testRes.ok) {
-              proxyPort = tryPort;
-              proxyClient = tryClient;
-              console.log(`[${post.id}] Proxy Residencial OK: porta ${tryPort} (${tryPort === primaryPort ? "porta primária dedicada" : "reserva dinâmica"}) selecionada para @${ig.username}`);
-              break;
+        if (proxyEnabled && proxyUser && proxyPass) {
+          for (const tryPort of candidatePorts) {
+            const tryUrl = `http://${proxyUser}:${proxyPass}@${proxyHost}:${tryPort}`;
+            const tryClient = (Deno as any).createHttpClient?.({ proxy: { url: tryUrl } });
+            try {
+              const testRes = await fetch("https://httpbin.org/ip", {
+                ...(tryClient ? { client: tryClient } : {}),
+                signal: AbortSignal.timeout(2500),
+              });
+              if (testRes.ok) {
+                proxyPort = tryPort;
+                proxyClient = tryClient;
+                console.log(`[${post.id}] Proxy Residencial OK: porta ${tryPort} (${tryPort === primaryPort ? "porta primária dedicada" : "reserva dinâmica"}) selecionada para @${ig.username}`);
+                break;
+              }
+            } catch (_) {
+              console.warn(`[${post.id}] Porta residencial ${tryPort} não respondeu em 2.5s, testando reserva...`);
             }
-          } catch (_) {
-            console.warn(`[${post.id}] Porta residencial ${tryPort} não respondeu em 2.5s, testando reserva...`);
+          }
+
+          if (!proxyClient) {
+            const errMsg = `Proxy residencial (${proxyHost}) não respondeu ou franquia esgotada. Post pausado para evitar entrega zero via IP de datacenter.`;
+            console.error(`[${post.id}] ${errMsg}`);
+            await supabase
+              .from("scheduled_posts")
+              .update({
+                status: "failed",
+                error_message: errMsg,
+                locked_at: null,
+              })
+              .eq("id", post.id);
+            results.errors.push(`Post ${post.id}: ${errMsg}`);
+            return;
           }
         }
 
