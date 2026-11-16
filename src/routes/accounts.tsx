@@ -15,6 +15,8 @@ import {
   Palette,
   Check,
   Search,
+  ChevronDown,
+  Loader2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -35,6 +38,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { buildInstagramAuthUrl, buildFacebookAuthUrl } from "@/lib/instagram";
 import { getMetaAppId } from "@/lib/instagram.functions";
@@ -137,6 +142,13 @@ function AccountsPage() {
   const [manualUsername, setManualUsername] = useState("");
   const [manualAccessToken, setManualAccessToken] = useState("");
   const [savingManual, setSavingManual] = useState(false);
+
+  // Batch deletion state
+  const [selectedDeleteAccounts, setSelectedDeleteAccounts] = useState<string[]>([]);
+  const [deleteDropdownSearch, setDeleteDropdownSearch] = useState("");
+  const [showDeleteSelectedModal, setShowDeleteSelectedModal] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [deletingBatch, setDeletingBatch] = useState(false);
 
   const fetchAppId = useServerFn(getMetaAppId);
 
@@ -272,6 +284,62 @@ function AccountsPage() {
       load();
     } catch (err: any) {
       toast.error(err.message || "Erro ao desconectar conta");
+    }
+  }
+
+  async function handleDeleteSelected() {
+    if (selectedDeleteAccounts.length === 0) return;
+    try {
+      setDeletingBatch(true);
+      const count = selectedDeleteAccounts.length;
+      const { error } = await supabase
+        .from("instagram_accounts")
+        .delete()
+        .in("id", selectedDeleteAccounts);
+      if (error) throw error;
+
+      toast.success(`${count} conta(s) excluída(s) com sucesso!`);
+
+      const storedId = localStorage.getItem("active_ig_account_id");
+      if (storedId && selectedDeleteAccounts.includes(storedId)) {
+        localStorage.removeItem("active_ig_account_id");
+        window.dispatchEvent(new Event("active-account-changed"));
+      }
+
+      setSelectedDeleteAccounts([]);
+      setShowDeleteSelectedModal(false);
+      await load();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao excluir contas");
+    } finally {
+      setDeletingBatch(false);
+    }
+  }
+
+  async function handleDeleteAll() {
+    if (accounts.length === 0) return;
+    try {
+      setDeletingBatch(true);
+      const allIds = accounts.map((a) => a.id);
+      const count = allIds.length;
+      const { error } = await supabase
+        .from("instagram_accounts")
+        .delete()
+        .in("id", allIds);
+      if (error) throw error;
+
+      toast.success(`Todas as ${count} contas foram excluídas com sucesso!`);
+
+      localStorage.removeItem("active_ig_account_id");
+      window.dispatchEvent(new Event("active-account-changed"));
+
+      setSelectedDeleteAccounts([]);
+      setShowDeleteAllModal(false);
+      await load();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao excluir todas as contas");
+    } finally {
+      setDeletingBatch(false);
     }
   }
 
@@ -496,6 +564,16 @@ function AccountsPage() {
     );
   });
 
+  const dropdownFilteredAccounts = accounts.filter((a) => {
+    const term = deleteDropdownSearch.toLowerCase().trim();
+    if (!term) return true;
+    return (
+      a.username.toLowerCase().includes(term) ||
+      a.instagram_user_id.toLowerCase().includes(term) ||
+      (a.account_categories?.name.toLowerCase().includes(term) ?? false)
+    );
+  });
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -583,6 +661,213 @@ function AccountsPage() {
               <X className="size-4" />
             </button>
           )}
+        </div>
+      )}
+
+      {/* Barra de Seleção e Exclusão em Lote (Estilo Agendamento em Lote) */}
+      {accounts.length > 0 && (
+        <div className="bg-card/70 border border-border/60 rounded-2xl p-4 shadow-sm backdrop-blur-sm space-y-3 animate-in fade-in duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Trash2 className="size-4 text-destructive" />
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Exclusão de Contas em Lote
+              </span>
+            </div>
+            {selectedDeleteAccounts.length > 0 && (
+              <span className="text-xs font-semibold text-destructive">
+                {selectedDeleteAccounts.length} selecionada(s)
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
+              {/* Dropdown seletor de contas para exclusão no mesmo estilo do agendamento */}
+              <div className="w-full sm:w-80">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between border-border/60 hover:bg-secondary/60 rounded-xl text-xs font-medium h-10 px-3 flex items-center bg-card cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Instagram className="size-4 text-muted-foreground shrink-0" />
+                        {selectedDeleteAccounts.length === 0 ? (
+                          <span className="text-muted-foreground text-xs font-normal">
+                            Selecionar contas para excluir...
+                          </span>
+                        ) : selectedDeleteAccounts.length === 1 ? (
+                          <span className="flex items-center gap-1.5 truncate text-foreground font-semibold">
+                            {(() => {
+                              const acc = accounts.find((a) => a.id === selectedDeleteAccounts[0]);
+                              return (
+                                <>
+                                  {acc?.profile_picture_url ? (
+                                    <img
+                                      src={acc.profile_picture_url}
+                                      alt={acc.username}
+                                      className="size-4 rounded-full object-cover shrink-0"
+                                    />
+                                  ) : acc?.account_categories?.color ? (
+                                    <span
+                                      className="size-2 rounded-full shrink-0 ring-1 ring-white/10"
+                                      style={{ backgroundColor: acc.account_categories.color }}
+                                    />
+                                  ) : null}
+                                  @{acc?.username || "usuario"}
+                                </>
+                              );
+                            })()}
+                          </span>
+                        ) : (
+                          <span className="text-foreground font-semibold">
+                            {selectedDeleteAccounts.length} contas selecionadas
+                          </span>
+                        )}
+                      </div>
+                      <ChevronDown className="size-4 text-muted-foreground opacity-60 shrink-0 ml-2" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    className="w-80 sm:w-96 bg-popover border border-border/60 p-3 shadow-card rounded-xl z-50 space-y-2.5"
+                  >
+                    <div className="text-xs text-muted-foreground font-semibold flex items-center justify-between pb-2 border-b border-border/40">
+                      <span className="font-bold text-foreground">Selecionar para Excluir</span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDeleteAccounts(accounts.map((a) => a.id));
+                          }}
+                          className="text-[11px] text-primary hover:underline font-bold bg-transparent border-0 cursor-pointer"
+                        >
+                          Todas ({accounts.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDeleteAccounts([]);
+                          }}
+                          className="text-[11px] text-destructive hover:underline font-bold bg-transparent border-0 cursor-pointer"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Filtrar contas..."
+                        value={deleteDropdownSearch}
+                        onChange={(e) => setDeleteDropdownSearch(e.target.value)}
+                        className="pl-8 h-8 text-xs bg-secondary/50 border-border/50 rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+                      {dropdownFilteredAccounts.length === 0 ? (
+                        <div className="py-4 text-center text-xs text-muted-foreground">
+                          Nenhuma conta encontrada
+                        </div>
+                      ) : (
+                        dropdownFilteredAccounts.map((a) => {
+                          const isChecked = selectedDeleteAccounts.includes(a.id);
+                          return (
+                            <div
+                              key={a.id}
+                              onClick={() => {
+                                setSelectedDeleteAccounts((prev) =>
+                                  isChecked ? prev.filter((id) => id !== a.id) : [...prev, a.id]
+                                );
+                              }}
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-xs font-semibold select-none transition-colors ${
+                                isChecked
+                                  ? "bg-destructive/10 text-foreground"
+                                  : "hover:bg-secondary/60 text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedDeleteAccounts((prev) =>
+                                      checked ? [...prev, a.id] : prev.filter((id) => id !== a.id)
+                                    );
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                {a.profile_picture_url ? (
+                                  <img
+                                    src={a.profile_picture_url}
+                                    alt={a.username}
+                                    className="size-4 rounded-full object-cover shrink-0"
+                                  />
+                                ) : a.account_categories ? (
+                                  <span
+                                    className="size-2 rounded-full shrink-0 ring-1 ring-white/10"
+                                    style={{ backgroundColor: a.account_categories.color }}
+                                  />
+                                ) : (
+                                  <Instagram className="size-3.5 text-muted-foreground shrink-0" />
+                                )}
+                                <span className="truncate">@{a.username}</span>
+                              </div>
+                              {a.account_categories && (
+                                <span
+                                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ml-1.5"
+                                  style={{
+                                    backgroundColor: `${a.account_categories.color}20`,
+                                    color: a.account_categories.color,
+                                  }}
+                                >
+                                  {a.account_categories.name}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>
+                        {selectedDeleteAccounts.length} de {accounts.length} selecionada(s)
+                      </span>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Botão de Excluir Selecionadas */}
+              <Button
+                variant="destructive"
+                disabled={selectedDeleteAccounts.length === 0 || deletingBatch}
+                onClick={() => setShowDeleteSelectedModal(true)}
+                className="h-10 rounded-xl font-semibold px-4 gap-2 shadow-sm cursor-pointer"
+              >
+                <Trash2 className="size-4" />
+                {deletingBatch ? "Excluindo..." : `Excluir Selecionadas (${selectedDeleteAccounts.length})`}
+              </Button>
+            </div>
+
+            {/* Botão de Excluir Todas */}
+            <Button
+              variant="outline"
+              disabled={accounts.length === 0 || deletingBatch}
+              onClick={() => setShowDeleteAllModal(true)}
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 h-10 rounded-xl font-semibold px-4 gap-2 shrink-0 cursor-pointer"
+            >
+              <Trash2 className="size-4" />
+              Excluir Todas ({accounts.length})
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1161,6 +1446,101 @@ function AccountsPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Modal de Confirmação: Excluir Contas Selecionadas ───────────────── */}
+      <Dialog open={showDeleteSelectedModal} onOpenChange={setShowDeleteSelectedModal}>
+        <DialogContent className="max-w-md rounded-2xl bg-card border-border/60 p-6 shadow-glow">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive text-lg font-bold">
+              <AlertCircle className="size-5" />
+              Excluir Contas Selecionadas
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs leading-relaxed pt-1.5">
+              Tem certeza que deseja excluir as <strong>{selectedDeleteAccounts.length}</strong> conta(s) selecionada(s)?
+              Todos os agendamentos pendentes dessas contas serão cancelados e removidos.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-44 overflow-y-auto space-y-1.5 p-2.5 rounded-xl bg-secondary/30 border border-border/40 text-xs my-3">
+            {accounts
+              .filter((a) => selectedDeleteAccounts.includes(a.id))
+              .map((a) => (
+                <div key={a.id} className="flex items-center gap-2 text-foreground font-medium">
+                  <span className="size-1.5 rounded-full bg-destructive shrink-0" />
+                  <span>@{a.username}</span>
+                </div>
+              ))}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteSelectedModal(false)}
+              disabled={deletingBatch}
+              className="rounded-xl h-10 font-semibold cursor-pointer"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteSelected}
+              disabled={deletingBatch}
+              className="rounded-xl h-10 gap-2 font-semibold cursor-pointer"
+            >
+              {deletingBatch ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+              {deletingBatch ? "Excluindo..." : `Sim, Excluir (${selectedDeleteAccounts.length})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Modal de Confirmação: Excluir TODAS as Contas ──────────────────── */}
+      <Dialog open={showDeleteAllModal} onOpenChange={setShowDeleteAllModal}>
+        <DialogContent className="max-w-md rounded-2xl bg-card border-border/60 p-6 shadow-glow">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive text-lg font-bold">
+              <AlertCircle className="size-5" />
+              Excluir TODAS as Contas
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs leading-relaxed pt-1.5">
+              Atenção: Esta ação é <strong>irreversível</strong>. Todas as <strong>{accounts.length}</strong> contas do Instagram vinculadas ao seu usuário serão desconectadas e todos os seus agendamentos pendentes serão excluídos permanentemente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive font-medium flex items-center gap-2.5 my-3">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>Você precisará reconectar as contas individualmente ou via Facebook para utilizá-las de novo.</span>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteAllModal(false)}
+              disabled={deletingBatch}
+              className="rounded-xl h-10 font-semibold cursor-pointer"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAll}
+              disabled={deletingBatch}
+              className="rounded-xl h-10 gap-2 font-semibold bg-destructive hover:bg-destructive/90 cursor-pointer"
+            >
+              {deletingBatch ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+              {deletingBatch ? "Excluindo Todas..." : `Sim, Excluir Todas as ${accounts.length} Contas`}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
