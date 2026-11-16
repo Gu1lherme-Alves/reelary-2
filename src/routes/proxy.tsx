@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Network,
@@ -13,12 +13,15 @@ import {
   Eye,
   EyeOff,
   Wifi,
-  ExternalLink,
-  RefreshCw,
   Zap,
   Instagram,
   Edit2,
   Check,
+  ClipboardPaste,
+  Sliders,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -43,13 +46,74 @@ export const Route = createFileRoute("/proxy")({
   ),
 });
 
+// Helper de parsing robusto no estilo AdsPower / Dolphin Anty
+function parseAdsPowerProxyString(raw: string) {
+  if (!raw) return null;
+  const clean = raw
+    .trim()
+    .replace(/^['"`]|['"`]$/g, "")
+    .replace(/^[a-zA-Z0-9]+:\/\//, "");
+
+  if (!clean) return null;
+
+  // Formato: user:pass@host:port
+  if (clean.includes("@")) {
+    const [authPart, hostPart] = clean.split("@");
+    if (!authPart || !hostPart) return null;
+
+    const [user, ...passParts] = authPart.split(":");
+    const pass = passParts.join(":");
+    const [h, portStr] = hostPart.split(":");
+    const port = portStr ? parseInt(portStr.replace(/\D/g, ""), 10) : undefined;
+
+    return {
+      host: h ? h.trim() : "",
+      port: port && !isNaN(port) ? port : undefined,
+      username: user ? user.trim() : "",
+      password: pass ? pass.trim() : "",
+    };
+  }
+
+  // Formato clássico AdsPower: host:port:user:pass
+  const parts = clean.split(":");
+  if (parts.length >= 4) {
+    const h = parts[0].trim();
+    const port = parseInt(parts[1].replace(/\D/g, ""), 10);
+    const user = parts[2].trim();
+    const pass = parts.slice(3).join(":").trim();
+
+    return {
+      host: h,
+      port: !isNaN(port) ? port : undefined,
+      username: user,
+      password: pass,
+    };
+  }
+
+  // Formato: host:port (sem autenticação)
+  if (parts.length === 2 && !isNaN(parseInt(parts[1], 10))) {
+    return {
+      host: parts[0].trim(),
+      port: parseInt(parts[1], 10),
+      username: "",
+      password: "",
+    };
+  }
+
+  return null;
+}
+
 function ProxyPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Form states
+  // Input completo no estilo AdsPower
+  const [fullProxyInput, setFullProxyInput] = useState("");
+
+  // Campos individuais sincronizados
   const [host, setHost] = useState("sv2.allanproxys.com");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -90,15 +154,24 @@ function ProxyPage() {
       ]);
 
       if (settings) {
-        setHost(settings.proxy_host || "sv2.allanproxys.com");
-        setUsername(settings.proxy_username || "");
-        setPassword(settings.proxy_password || "");
-        setPortStart(settings.proxy_port_start || 11000);
-        setPortEnd(settings.proxy_port_end || 15000);
+        const h = settings.proxy_host || "sv2.allanproxys.com";
+        const u = settings.proxy_username || "";
+        const p = settings.proxy_password || "";
+        const pStart = settings.proxy_port_start || 11000;
+        const pEnd = settings.proxy_port_end || 15000;
+
+        setHost(h);
+        setUsername(u);
+        setPassword(p);
+        setPortStart(pStart);
+        setPortEnd(pEnd);
         setProxyEnabled(settings.proxy_enabled !== false);
         setHasCustomProxy(Boolean(settings.hasCustomProxy));
-        if (settings.proxy_port_start) {
-          setTestPort(settings.proxy_port_start);
+        setTestPort(pStart);
+
+        // Se já tiver credenciais, monta a string completa do AdsPower
+        if (u && p) {
+          setFullProxyInput(`${h}:${pStart}:${u}:${p}`);
         }
       }
 
@@ -115,9 +188,66 @@ function ProxyPage() {
     loadData();
   }, []);
 
+  // Manipula a digitação ou paste no campo completo do AdsPower
+  function handleFullProxyChange(val: string) {
+    setFullProxyInput(val);
+    const parsed = parseAdsPowerProxyString(val);
+
+    if (parsed) {
+      if (parsed.host) setHost(parsed.host);
+      if (parsed.username) setUsername(parsed.username);
+      if (parsed.password) setPassword(parsed.password);
+      if (parsed.port) {
+        setPortStart(parsed.port);
+        setTestPort(parsed.port);
+        // Se a porta final for menor que a inicial, ajusta para dar margem
+        if (portEnd <= parsed.port) {
+          setPortEnd(parsed.port + 4000);
+        }
+      }
+    }
+  }
+
+  // Permite colar diretamente da área de transferência com feedback
+  async function handlePasteClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) {
+        toast.error("Área de transferência vazia.");
+        return;
+      }
+      handleFullProxyChange(text);
+      const parsed = parseAdsPowerProxyString(text);
+      if (parsed) {
+        toast.success(`Proxy detectado: ${parsed.host}:${parsed.port || portStart} (Usuário: ${parsed.username})`);
+      } else {
+        toast.info("Texto colado. Verifique se o formato é host:porta:usuário:senha");
+      }
+    } catch (_) {
+      toast.error("Não foi possível ler a área de transferência automaticamente. Pressione Ctrl+V no campo.");
+    }
+  }
+
+  // Sincroniza a string completa quando campos manuais são editados
+  function syncFullProxyString(newHost: string, newPort: number, newUser: string, newPass: string) {
+    if (newUser || newPass) {
+      setFullProxyInput(`${newHost}:${newPort}:${newUser}:${newPass}`);
+    } else {
+      setFullProxyInput(`${newHost}:${newPort}`);
+    }
+  }
+
   async function handleSaveSettings(e?: React.FormEvent) {
     if (e) e.preventDefault();
-    if (!host.trim()) {
+
+    // Se o usuário digitou no campo AdsPower e não salvou os campos, faz o parse preventivo
+    const parsed = parseAdsPowerProxyString(fullProxyInput);
+    const finalHost = (parsed?.host || host).trim();
+    const finalUser = (parsed?.username || username).trim();
+    const finalPass = (parsed?.password || password).trim();
+    const finalPort = parsed?.port || portStart || 11000;
+
+    if (!finalHost) {
       toast.error("Informe o host do servidor de proxy.");
       return;
     }
@@ -126,16 +256,21 @@ function ProxyPage() {
       setSaving(true);
       await saveSettingsFn({
         data: {
-          proxy_host: host.trim(),
-          proxy_username: username.trim(),
-          proxy_password: password.trim(),
-          proxy_port_start: Number(portStart) || 11000,
+          proxy_host: finalHost,
+          proxy_username: finalUser,
+          proxy_password: finalPass,
+          proxy_port_start: Number(finalPort) || 11000,
           proxy_port_end: Number(portEnd) || 15000,
           proxy_enabled: proxyEnabled,
         },
       });
 
-      setHasCustomProxy(Boolean(username.trim() && password.trim()));
+      setHost(finalHost);
+      setUsername(finalUser);
+      setPassword(finalPass);
+      setPortStart(finalPort);
+      setHasCustomProxy(Boolean(finalUser && finalPass));
+
       toast.success("Configurações de proxy salvas com sucesso!");
     } catch (err: any) {
       console.error("Erro ao salvar proxy:", err);
@@ -146,9 +281,15 @@ function ProxyPage() {
   }
 
   async function handleTestConnection(customPort?: number) {
-    const targetPort = customPort || testPort;
-    if (!username.trim() || !password.trim()) {
-      toast.error("Informe o Usuário e a Senha do proxy antes de testar.");
+    // Garante que pega dados atualizados do campo AdsPower se houver
+    const parsed = parseAdsPowerProxyString(fullProxyInput);
+    const targetHost = (parsed?.host || host).trim() || "sv2.allanproxys.com";
+    const targetUser = (parsed?.username || username).trim();
+    const targetPass = (parsed?.password || password).trim();
+    const targetPort = customPort || parsed?.port || testPort || 11000;
+
+    if (!targetUser || !targetPass) {
+      toast.error("Cole ou informe o proxy completo (com usuário e senha) antes de testar.");
       return;
     }
 
@@ -158,10 +299,10 @@ function ProxyPage() {
 
       const res = await testConnFn({
         data: {
-          host: host.trim() || "sv2.allanproxys.com",
-          username: username.trim(),
-          password: password.trim(),
-          port: Number(targetPort) || 11000,
+          host: targetHost,
+          username: targetUser,
+          password: targetPass,
+          port: Number(targetPort),
         },
       });
 
@@ -172,7 +313,7 @@ function ProxyPage() {
           ip: res.ip,
           latencyMs: res.latencyMs,
         });
-        toast.success(`Porta ${targetPort} conectada com sucesso! IP: ${res.ip}`);
+        toast.success(`Porta ${targetPort} conectada com sucesso! IP Residencial: ${res.ip}`);
       } else {
         setTestResult({
           tested: true,
@@ -205,7 +346,6 @@ function ProxyPage() {
 
       toast.success(`Porta atualizada para ${editPortValue}!`);
       setEditingAccountId(null);
-      // Recarrega as contas
       const refreshed = await fetchAccounts();
       setAccounts(refreshed);
     } catch (err: any) {
@@ -214,6 +354,10 @@ function ProxyPage() {
       setUpdatingPort(false);
     }
   }
+
+  const parsedCurrent = useMemo(() => {
+    return parseAdsPowerProxyString(fullProxyInput);
+  }, [fullProxyInput]);
 
   if (loading) {
     return (
@@ -247,7 +391,7 @@ function ProxyPage() {
                 )}
               </h1>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Configure as credenciais do seu proxy residencial para que seus Reels sejam postados de forma 100% isolada, protegendo o alcance orgânico da sua conta contra shadowban.
+                Cole a linha de proxy no estilo AdsPower (<code>host:porta:usuário:senha</code>). O sistema interpreta tudo automaticamente.
               </p>
             </div>
           </div>
@@ -263,230 +407,256 @@ function ProxyPage() {
         </Button>
       </div>
 
-      {/* Grid: Configuração + Testador */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Coluna Principal: Formulário de Credenciais */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-[#0f0f12] border border-[#1f1f23] rounded-xl p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-[#1f1f23] pb-4">
-              <div className="flex items-center gap-2">
-                <Server className="size-4 text-amber-400" />
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                  Credenciais do Proxy (Allan Proxys)
-                </h2>
-              </div>
-              <span className="text-[11px] text-zinc-400 font-mono">
-                Sticky Session por Porta
+      {/* Card Principal: Importação Rápida Estilo AdsPower */}
+      <div className="bg-[#0f0f12] border border-[#1f1f23] rounded-xl p-6 space-y-5">
+        <div className="flex items-center justify-between border-b border-[#1f1f23] pb-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-amber-400" />
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+              Importação Rápida de Proxy (Estilo AdsPower)
+            </h2>
+          </div>
+          <span className="text-[11px] text-zinc-400 font-mono">
+            Auto-detecção de Host, Porta, Usuário e Senha
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-semibold text-zinc-300">
+              Cole a Linha Completa do seu Proxy
+            </Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handlePasteClipboard}
+              className="h-6 px-2 text-[11px] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 gap-1 cursor-pointer"
+            >
+              <ClipboardPaste className="size-3" />
+              Colar da Área de Transferência
+            </Button>
+          </div>
+
+          <div className="relative">
+            <Input
+              value={fullProxyInput}
+              onChange={(e) => handleFullProxyChange(e.target.value)}
+              placeholder="ex: sv2.allanproxys.com:823:26769afd5b916fcb3787:fe412ef49294f1de"
+              className="bg-[#141417] border-[#26262b] text-xs font-mono h-11 px-3.5 focus-visible:ring-amber-500/30 text-amber-300 placeholder:text-zinc-600"
+            />
+          </div>
+
+          <p className="text-[11px] text-zinc-400">
+            Formatos suportados: <code>host:porta:usuário:senha</code> ou <code>usuário:senha@host:porta</code>.
+          </p>
+
+          {/* Cards de visualização do parsing em tempo real */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
+            {/* Host */}
+            <div className="p-3 rounded-lg bg-[#141417] border border-[#222227] space-y-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+                Host
+              </span>
+              <span className="text-xs font-mono font-semibold text-white truncate block">
+                {parsedCurrent?.host || host || "—"}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Host */}
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-xs font-semibold text-zinc-300">
-                  Host do Servidor
-                </Label>
-                <div className="relative">
-                  <Input
-                    value={host}
-                    onChange={(e) => setHost(e.target.value)}
-                    placeholder="sv2.allanproxys.com"
-                    className="bg-[#141417] border-[#26262b] text-xs font-mono h-9 focus-visible:ring-amber-500/30"
-                  />
-                </div>
-                <p className="text-[10px] text-zinc-400">
-                  Endereço do gateway de conexão residencial (padrão: <code>sv2.allanproxys.com</code>).
-                </p>
-              </div>
-
-              {/* Usuário */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-zinc-300">
-                  Usuário do Proxy
-                </Label>
-                <div className="relative">
-                  <Input
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="ex: 26769afd5b916fcb3787"
-                    className="bg-[#141417] border-[#26262b] text-xs font-mono h-9 focus-visible:ring-amber-500/30"
-                  />
-                </div>
-                <p className="text-[10px] text-zinc-400">
-                  Seu login exclusivo na Allan Proxys.
-                </p>
-              </div>
-
-              {/* Senha */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-zinc-300">
-                  Senha do Proxy
-                </Label>
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••••••"
-                    className="bg-[#141417] border-[#26262b] text-xs font-mono h-9 pr-9 focus-visible:ring-amber-500/30"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </button>
-                </div>
-                <p className="text-[10px] text-zinc-400">
-                  Sua senha de autenticação da porta residencial.
-                </p>
-              </div>
-
-              {/* Faixa de Portas */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-zinc-300">
-                  Porta Inicial
-                </Label>
-                <Input
-                  type="number"
-                  value={portStart}
-                  onChange={(e) => setPortStart(Number(e.target.value))}
-                  placeholder="11000"
-                  className="bg-[#141417] border-[#26262b] text-xs font-mono h-9 focus-visible:ring-amber-500/30"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-zinc-300">
-                  Porta Final
-                </Label>
-                <Input
-                  type="number"
-                  value={portEnd}
-                  onChange={(e) => setPortEnd(Number(e.target.value))}
-                  placeholder="15000"
-                  className="bg-[#141417] border-[#26262b] text-xs font-mono h-9 focus-visible:ring-amber-500/30"
-                />
-              </div>
+            {/* Porta Base */}
+            <div className="p-3 rounded-lg bg-[#141417] border border-[#222227] space-y-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+                Porta Base
+              </span>
+              <span className="text-xs font-mono font-semibold text-amber-400 truncate block">
+                {parsedCurrent?.port || portStart || "—"}
+              </span>
             </div>
 
-            {/* Proteção anti-queda / Datacenter Fallback */}
-            <div className="pt-2 border-t border-[#1f1f23]">
-              <div className="flex items-center justify-between p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/15">
-                <div className="space-y-0.5 pr-4">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="size-4 text-amber-400" />
-                    <span className="text-xs font-bold text-white">
-                      Proteção Anti-Shadowban (Bloqueio de Datacenter)
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-zinc-400">
-                    Se a franquia de dados esgotar ou a porta não responder, o Reelary pausará o post em vez de publicar pelo IP de servidor da nuvem (o que evitará vídeos com 0 views).
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={proxyEnabled}
-                  onChange={(e) => setProxyEnabled(e.target.checked)}
-                  className="size-4 accent-amber-400 rounded cursor-pointer shrink-0"
-                />
+            {/* Usuário */}
+            <div className="p-3 rounded-lg bg-[#141417] border border-[#222227] space-y-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+                Usuário
+              </span>
+              <span className="text-xs font-mono font-semibold text-zinc-200 truncate block">
+                {parsedCurrent?.username || username ? `${(parsedCurrent?.username || username).slice(0, 10)}...` : "—"}
+              </span>
+            </div>
+
+            {/* Senha */}
+            <div className="p-3 rounded-lg bg-[#141417] border border-[#222227] space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">
+                  Senha
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                </button>
               </div>
+              <span className="text-xs font-mono font-semibold text-zinc-300 truncate block">
+                {parsedCurrent?.password || password
+                  ? showPassword
+                    ? (parsedCurrent?.password || password)
+                    : "••••••••••••"
+                  : "—"}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Coluna Lateral: Testador de Conexão em Tempo Real */}
-        <div className="space-y-6">
-          <div className="bg-[#0f0f12] border border-[#1f1f23] rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2 border-b border-[#1f1f23] pb-3">
-              <Zap className="size-4 text-amber-400" />
-              <h2 className="text-xs font-bold text-white uppercase tracking-wider">
-                Testador de Conexão
-              </h2>
+        {/* Botão de Teste Direto */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-[#1f1f23]">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={() => handleTestConnection()}
+              disabled={testing || (!username && !parsedCurrent?.username)}
+              className="bg-[#1c1c21] hover:bg-[#25252b] text-white border border-[#2d2d35] font-semibold text-xs h-9 px-4 gap-2 cursor-pointer"
+            >
+              {testing ? (
+                <Loader2 className="size-3.5 animate-spin text-amber-400" />
+              ) : (
+                <Wifi className="size-3.5 text-amber-400" />
+              )}
+              Testar Conexão Deste Proxy
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="text-zinc-400 hover:text-white text-xs h-9 gap-1 cursor-pointer"
+            >
+              <Sliders className="size-3.5" />
+              {showAdvanced ? "Ocultar Campos Manuais" : "Editar Campos Manualmente"}
+              {showAdvanced ? <ChevronUp className="size-3 ml-1" /> : <ChevronDown className="size-3 ml-1" />}
+            </Button>
+          </div>
+
+          {/* Resultado do Teste Inline */}
+          {testResult.tested && (
+            <div
+              className={`px-3 py-1.5 rounded-lg border text-xs flex items-center gap-2 ${
+                testResult.ok
+                  ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-300"
+                  : "bg-rose-500/10 border-rose-500/25 text-rose-300"
+              }`}
+            >
+              {testResult.ok ? (
+                <>
+                  <CheckCircle2 className="size-3.5 text-emerald-400 shrink-0" />
+                  <span>
+                    Conectado! IP: <strong className="text-white font-mono">{testResult.ip}</strong> ({testResult.latencyMs}ms)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="size-3.5 text-rose-400 shrink-0" />
+                  <span>{testResult.error}</span>
+                </>
+              )}
             </div>
+          )}
+        </div>
 
-            <p className="text-[11px] text-zinc-400 leading-relaxed">
-              Verifique em tempo real se suas credenciais são válidas, se a franquia de GBs está disponível e qual é o IP residencial emitido.
-            </p>
+        {/* Campos Manuais / Avançados (Colapsável) */}
+        {showAdvanced && (
+          <div className="pt-4 border-t border-[#1f1f23] space-y-4 animate-in fade-in-50 duration-200">
+            <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider block">
+              Ajuste Individual dos Parâmetros
+            </span>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-zinc-300">
-                Porta para Teste
-              </Label>
-              <div className="flex gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-zinc-300">Host</Label>
                 <Input
-                  type="number"
-                  value={testPort}
-                  onChange={(e) => setTestPort(Number(e.target.value))}
-                  placeholder="11000"
+                  value={host}
+                  onChange={(e) => {
+                    setHost(e.target.value);
+                    syncFullProxyString(e.target.value, portStart, username, password);
+                  }}
                   className="bg-[#141417] border-[#26262b] text-xs font-mono h-9"
                 />
-                <Button
-                  onClick={() => handleTestConnection()}
-                  disabled={testing}
-                  className="bg-[#1c1c21] hover:bg-[#25252b] text-white border border-[#2d2d35] font-semibold text-xs h-9 px-3 gap-1.5 cursor-pointer shrink-0"
-                >
-                  {testing ? (
-                    <Loader2 className="size-3.5 animate-spin text-amber-400" />
-                  ) : (
-                    <Wifi className="size-3.5 text-amber-400" />
-                  )}
-                  Testar
-                </Button>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-zinc-300">Usuário</Label>
+                <Input
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    syncFullProxyString(host, portStart, e.target.value, password);
+                  }}
+                  className="bg-[#141417] border-[#26262b] text-xs font-mono h-9"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-zinc-300">Senha</Label>
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    syncFullProxyString(host, portStart, username, e.target.value);
+                  }}
+                  className="bg-[#141417] border-[#26262b] text-xs font-mono h-9"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-zinc-300">Porta Inicial</Label>
+                  <Input
+                    type="number"
+                    value={portStart}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setPortStart(val);
+                      syncFullProxyString(host, val, username, password);
+                    }}
+                    className="bg-[#141417] border-[#26262b] text-xs font-mono h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-zinc-300">Porta Final</Label>
+                  <Input
+                    type="number"
+                    value={portEnd}
+                    onChange={(e) => setPortEnd(Number(e.target.value))}
+                    className="bg-[#141417] border-[#26262b] text-xs font-mono h-9"
+                  />
+                </div>
               </div>
             </div>
+          </div>
+        )}
 
-            {/* Resultado do Teste */}
-            {testResult.tested && (
-              <div
-                className={`p-3.5 rounded-lg border text-xs space-y-1.5 transition-all ${
-                  testResult.ok
-                    ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-300"
-                    : "bg-rose-500/10 border-rose-500/25 text-rose-300"
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-bold">
-                  {testResult.ok ? (
-                    <>
-                      <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
-                      <span>Conexão Residencial OK!</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="size-4 text-rose-400 shrink-0" />
-                      <span>Falha de Conexão</span>
-                    </>
-                  )}
-                </div>
-
-                {testResult.ok ? (
-                  <div className="text-[11px] space-y-0.5 text-zinc-300 pt-1">
-                    <div>
-                      <span className="text-zinc-400">IP de Saída:</span>{" "}
-                      <strong className="text-white font-mono">{testResult.ip}</strong>
-                    </div>
-                    <div>
-                      <span className="text-zinc-400">Latência:</span>{" "}
-                      <strong className="text-emerald-400 font-mono">{testResult.latencyMs} ms</strong>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-[11px] text-rose-200 pt-1 leading-snug">
-                    {testResult.error}
-                  </div>
-                )}
+        {/* Proteção Anti-Shadowban Toggle */}
+        <div className="pt-3 border-t border-[#1f1f23]">
+          <div className="flex items-center justify-between p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/15">
+            <div className="space-y-0.5 pr-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-amber-400" />
+                <span className="text-xs font-bold text-white">
+                  Proteção Anti-Shadowban (Bloqueio de Datacenter)
+                </span>
               </div>
-            )}
-
-            <div className="p-3 rounded-lg bg-[#141417] border border-[#202025] text-[11px] text-zinc-400 space-y-1">
-              <div className="font-semibold text-zinc-300 flex items-center gap-1">
-                <span>Dica de Uso:</span>
-              </div>
-              <p>
-                Cada requisição na porta primária conecta a um IP residencial limpo da sua assinatura. Se precisar de mais dados, recarregue no painel da Allan Proxys.
+              <p className="text-[11px] text-zinc-400">
+                Se a franquia de dados esgotar ou a porta não responder, o Reelary pausará o post em vez de publicar pelo IP de servidor da nuvem (evitando vídeos com 0 views).
               </p>
             </div>
+            <input
+              type="checkbox"
+              checked={proxyEnabled}
+              onChange={(e) => setProxyEnabled(e.target.checked)}
+              className="size-4 accent-amber-400 rounded cursor-pointer shrink-0"
+            />
           </div>
         </div>
       </div>
