@@ -34,6 +34,7 @@ import {
   testProxyConnection,
   getUserAccountsWithPorts,
   updateAccountProxyPort,
+  assignAndGetAccountPort,
   type ProxyAccountItem,
 } from "@/lib/proxy.functions";
 
@@ -154,6 +155,7 @@ function ProxyPage() {
   const testConnFn = useServerFn(testProxyConnection);
   const fetchAccounts = useServerFn(getUserAccountsWithPorts);
   const updatePortFn = useServerFn(updateAccountProxyPort);
+  const assignPortFn = useServerFn(assignAndGetAccountPort);
 
   async function loadData() {
     try {
@@ -341,7 +343,7 @@ function ProxyPage() {
   }
 
   // Testa a porta de uma conta específica na tabela e exibe o resultado diretamente na linha
-  async function handleTestAccountPort(accountId: string, port: number) {
+  async function handleTestAccountPort(accountId: string, port?: number | null) {
     const parsed = parseAdsPowerProxyString(fullProxyInput);
     const targetHost = (parsed?.host || host).trim() || "sv2.allanproxys.com";
     const targetUser = (parsed?.username || username).trim();
@@ -358,12 +360,23 @@ function ProxyPage() {
     }));
 
     try {
+      let finalPort = port;
+      // Se a conta ainda não possui porta atribuída, aloca a próxima porta livre em ordem crescente
+      if (!finalPort) {
+        const assignRes = await assignPortFn({ data: { accountId } });
+        finalPort = assignRes.proxy_port;
+        // Atualiza a porta na lista local de contas
+        setAccounts((prev) =>
+          prev.map((acc) => (acc.id === accountId ? { ...acc, proxy_port: finalPort } : acc))
+        );
+      }
+
       const res = await testConnFn({
         data: {
           host: targetHost,
           username: targetUser,
           password: targetPass,
-          port: Number(port),
+          port: Number(finalPort),
         },
       });
 
@@ -377,7 +390,7 @@ function ProxyPage() {
             latencyMs: res.latencyMs,
           },
         }));
-        toast.success(`Porta ${port} conectada! IP: ${res.ip}`);
+        toast.success(`Porta ${finalPort} conectada! IP: ${res.ip}`);
       } else {
         setRowTestResults((prev) => ({
           ...prev,
@@ -387,7 +400,7 @@ function ProxyPage() {
             error: res.error || "Falha na conexão",
           },
         }));
-        toast.error(`Porta ${port}: ${res.error}`);
+        toast.error(`Porta ${finalPort}: ${res.error}`);
       }
     } catch (err: any) {
       setRowTestResults((prev) => ({
@@ -398,7 +411,7 @@ function ProxyPage() {
           error: err.message || "Erro ao conectar",
         },
       }));
-      toast.error(`Erro ao testar porta ${port}: ${err.message}`);
+      toast.error(`Erro ao testar conta: ${err.message}`);
     }
   }
 
@@ -857,9 +870,15 @@ function ProxyPage() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-1 rounded-md bg-[#18181c] border border-[#26262b] font-mono text-amber-400 font-bold text-xs">
-                              :{acc.proxy_port || "Não atribuída"}
-                            </span>
+                            {acc.proxy_port ? (
+                              <span className="px-2.5 py-1 rounded-md bg-[#18181c] border border-[#26262b] font-mono text-amber-400 font-bold text-xs">
+                                :{acc.proxy_port}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-md bg-[#141417] border border-[#222227] text-zinc-500 font-medium text-[11px]">
+                                Não atribuída
+                              </span>
+                            )}
                             <button
                               onClick={() => {
                                 setEditingAccountId(acc.id);
@@ -879,7 +898,7 @@ function ProxyPage() {
                         {res?.testing ? (
                           <div className="flex items-center gap-2 text-zinc-400 font-mono text-[11px]">
                             <Loader2 className="size-3.5 animate-spin text-amber-400 shrink-0" />
-                            <span>Testando porta :{acc.proxy_port || 11000}...</span>
+                            <span>{acc.proxy_port ? `Testando porta :${acc.proxy_port}...` : "Alocando porta e testando..."}</span>
                           </div>
                         ) : res?.ok ? (
                           <div className="flex items-center gap-2">
@@ -911,10 +930,7 @@ function ProxyPage() {
                           variant="outline"
                           size="sm"
                           disabled={res?.testing || testingAll}
-                          onClick={() => {
-                            const portToTest = acc.proxy_port || 11000;
-                            handleTestAccountPort(acc.id, portToTest);
-                          }}
+                          onClick={() => handleTestAccountPort(acc.id, acc.proxy_port)}
                           className="h-7 px-2.5 text-[11px] font-medium border-[#27272d] bg-[#141417] hover:bg-[#1f1f25] text-zinc-300 gap-1.5 cursor-pointer"
                         >
                           {res?.testing ? (

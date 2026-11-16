@@ -253,3 +253,29 @@ export const updateAccountProxyPort = createServerFn({ method: "POST" })
 
     return { success: true };
   });
+
+// ─── Alocar próxima porta livre para uma conta que ainda não tem ──────────────
+export const assignAndGetAccountPort = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        accountId: z.string().uuid(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data: input, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: port, error } = await supabase.rpc("assign_next_proxy_port", {
+      p_account_id: input.accountId,
+      p_user_id: userId,
+    });
+
+    if (error) {
+      console.error("Erro ao alocar próxima porta:", error);
+      throw new Error(error.message);
+    }
+
+    return { proxy_port: port as number };
+  });
