@@ -279,33 +279,32 @@ Deno.serve(async (req: Request) => {
             console.log(`[${post.id}] Creating media container for @${ig.username}...`);
             console.log(`[${post.id}] CAPTION RAW (${(post.caption || "").length} chars): ${JSON.stringify((post.caption || "").substring(0, 150))}...`);
 
-            const formData = new FormData();
-            formData.append("video_url", post.video_url);
-            formData.append("media_type", "REELS");
-            formData.append("share_to_feed", "true");
+            // Use URLSearchParams (application/x-www-form-urlencoded) for 100% reliable UTF-8 caption & metadata delivery to Meta
+            const containerParams = new URLSearchParams();
+            containerParams.set("media_type", "REELS");
+            containerParams.set("video_url", post.video_url);
+            containerParams.set("share_to_feed", "true");
+            containerParams.set("access_token", ig.access_token);
 
             if (post.caption) {
-              formData.append("caption", post.caption);
+              containerParams.set("caption", post.caption);
             } else {
               console.warn(`[${post.id}] WARNING: post.caption is empty or falsy!`);
             }
 
-            if (post.cover_url) {
+            if (post.cover_url && typeof post.cover_url === "string" && post.cover_url.trim().length > 0) {
               console.log(`[${post.id}] Using custom cover image: ${post.cover_url}`);
-              formData.append("cover_url", post.cover_url);
+              containerParams.set("cover_url", post.cover_url.trim());
             }
-
-            formData.append("access_token", ig.access_token);
-
-            const metaHeaders = {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-              "Accept": "application/json",
-            };
 
             const createRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media`, {
               method: "POST",
-              headers: metaHeaders,
-              body: formData,
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
+                "Accept": "application/json",
+              },
+              body: containerParams.toString(),
             });
 
             if (!createRes.ok) {
@@ -353,6 +352,9 @@ Deno.serve(async (req: Request) => {
             if (statusData.status_code === "ERROR") {
               throw new Error(`Instagram rejected the video: ${JSON.stringify(statusData)}`);
             } else if (statusData.status_code === "FINISHED") {
+              // Wait 4 seconds buffer after FINISHED for Meta's CDN to firmly index caption metadata before publishing
+              console.log(`[${post.id}] Container FINISHED. Waiting 4s buffer for Meta caption indexing...`);
+              await new Promise((resolve) => setTimeout(resolve, 4000));
               shouldPublish = true;
             } else if (statusData.status_code === "PUBLISHED") {
               console.log(`[${post.id}] Reel already published on Instagram. Updating DB status...`);
@@ -416,20 +418,19 @@ Deno.serve(async (req: Request) => {
         // PHASE 3: Publish the Reel!
         // ════════════════════════════════════════════
         if (shouldPublish) {
-          // Settling dwell time (3s) so Meta's backend synchronizes container metadata (caption, cover)
-          await new Promise((r) => setTimeout(r, 3000));
           console.log(`[${post.id}] Publishing reel to @${ig.username}...`);
-          const pubFormData = new FormData();
-          pubFormData.append("creation_id", containerId);
-          pubFormData.append("access_token", ig.access_token);
+          const pubParams = new URLSearchParams();
+          pubParams.set("creation_id", containerId);
+          pubParams.set("access_token", ig.access_token);
 
           const pubRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media_publish`, {
             method: "POST",
             headers: {
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+              "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
               "Accept": "application/json",
             },
-            body: pubFormData,
+            body: pubParams.toString(),
           });
 
           if (!pubRes.ok) {
@@ -544,6 +545,7 @@ Deno.serve(async (req: Request) => {
 
         let isTokenExpired = false;
         let isPermanentError = false;
+        let isRateLimitExceeded = false;
 
         try {
           // Meta errors are thrown with a JSON string inside the message.
@@ -560,6 +562,16 @@ Deno.serve(async (req: Request) => {
               const message = (metaError.message ?? "").toLowerCase();
               const isTransient = metaError.is_transient ?? false;
 
+              // Check for Meta 50 reels/24h rate limit
+              if (
+                subcode === 2207042 ||
+                message.includes("media publish limit exceeded") ||
+                message.includes("limite de publicação de mídia excedido") ||
+                message.includes("maximum number of posts that is allowed")
+              ) {
+                isRateLimitExceeded = true;
+              }
+
               // Check for permanent user content errors (e.g. caption too long, missing 404 video)
               if (
                 code === 36004 ||
@@ -575,7 +587,7 @@ Deno.serve(async (req: Request) => {
               if (isTransient) {
                 // If it is explicitly marked transient, it is NOT an expired token issue.
                 isTokenExpired = false;
-              } else {
+              } else if (!isRateLimitExceeded) {
                 // Meta Graph API error codes:
                 // 190: Access token error (expired, revoked, invalid)
                 // 102: Session key invalid or expired
@@ -610,7 +622,25 @@ Deno.serve(async (req: Request) => {
 
         const accountId = (post as any).instagram_account_id;
 
-        if (isTokenExpired) {
+        if (isRateLimitExceeded) {
+          console.warn(
+            `[${post.id}] ⚠️ Conta @${ig.username} atingiu o limite de 50 posts/24h da Meta (2207042). Reagendando posts pendentes da conta para daqui a 24h.`,
+          );
+          const postponeTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+          if (accountId) {
+            await supabase
+              .from("scheduled_posts")
+              .update({
+                scheduled_at: postponeTime,
+                locked_at: null,
+                retry_count: 0,
+                error_message: "[Meta Rate Limit 50/dia]: Limite diário de publicação atingido. Reagendado para daqui a 24h.",
+              })
+              .eq("instagram_account_id", accountId)
+              .eq("status", "pending");
+          }
+          results.errors.push(`Post ${post.id}: Limite diário da Meta atingido (50 posts/dia). Conta postergada por 24h.`);
+        } else if (isTokenExpired) {
           console.log(
             `[${post.id}] Token is expired or invalid. Marking account as token_invalid.`,
           );
