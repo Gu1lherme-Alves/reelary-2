@@ -279,33 +279,33 @@ Deno.serve(async (req: Request) => {
             console.log(`[${post.id}] Creating media container for @${ig.username}...`);
             console.log(`[${post.id}] CAPTION RAW (${(post.caption || "").length} chars): ${JSON.stringify((post.caption || "").substring(0, 150))}...`);
 
-            const formData = new FormData();
-            formData.append("video_url", post.video_url);
-            formData.append("media_type", "REELS");
-            formData.append("share_to_feed", "true");
+            // Use JSON body (application/json) for full UTF-8 safety with emojis and multibyte chars (kanji, etc.)
+            const containerPayload: Record<string, string> = {
+              video_url: post.video_url,
+              media_type: "REELS",
+              share_to_feed: "true",
+              access_token: ig.access_token,
+            };
 
             if (post.caption) {
-              formData.append("caption", post.caption);
+              containerPayload.caption = post.caption;
             } else {
               console.warn(`[${post.id}] WARNING: post.caption is empty or falsy!`);
             }
 
             if (post.cover_url) {
               console.log(`[${post.id}] Using custom cover image: ${post.cover_url}`);
-              formData.append("cover_url", post.cover_url);
+              containerPayload.cover_url = post.cover_url;
             }
-
-            formData.append("access_token", ig.access_token);
-
-            const metaHeaders = {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-              "Accept": "application/json",
-            };
 
             const createRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media`, {
               method: "POST",
-              headers: metaHeaders,
-              body: formData,
+              headers: {
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+              },
+              body: JSON.stringify(containerPayload),
             });
 
             if (!createRes.ok) {
@@ -419,17 +419,17 @@ Deno.serve(async (req: Request) => {
           // Settling dwell time (3s) so Meta's backend synchronizes container metadata (caption, cover)
           await new Promise((r) => setTimeout(r, 3000));
           console.log(`[${post.id}] Publishing reel to @${ig.username}...`);
-          const pubFormData = new FormData();
-          pubFormData.append("creation_id", containerId);
-          pubFormData.append("access_token", ig.access_token);
-
           const pubRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media_publish`, {
             method: "POST",
             headers: {
+              "Content-Type": "application/json",
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
               "Accept": "application/json",
             },
-            body: pubFormData,
+            body: JSON.stringify({
+              creation_id: containerId,
+              access_token: ig.access_token,
+            }),
           });
 
           if (!pubRes.ok) {
