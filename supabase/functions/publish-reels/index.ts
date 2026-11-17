@@ -55,7 +55,6 @@ Deno.serve(async (req: Request) => {
 
     const urlObj = new URL(req.url);
     const action = urlObj.searchParams.get("action");
-
     if (action === "delete_today") {
       console.log("Delete today action triggered!");
 
@@ -158,7 +157,7 @@ Deno.serve(async (req: Request) => {
         continuationToken = listResult.IsTruncated ? listResult.NextContinuationToken : undefined;
       } while (continuationToken);
 
-      // 2. Get all referenced files from DB (scheduled_posts AND library_videos)
+      // 2. Get all referenced files from DB
       const { data: posts, error: postsErr } = await supabase
         .from("scheduled_posts")
         .select("video_url, cover_url");
@@ -168,15 +167,6 @@ Deno.serve(async (req: Request) => {
         return Response.json({ error: postsErr.message }, { status: 500 });
       }
 
-      const { data: libVids, error: libErr } = await supabase
-        .from("library_videos")
-        .select("video_url");
-
-      if (libErr) {
-        console.error("Failed to fetch library videos:", libErr);
-        return Response.json({ error: libErr.message }, { status: 500 });
-      }
-
       const activeKeys = new Set<string>();
       if (posts) {
         for (const post of posts) {
@@ -184,12 +174,6 @@ Deno.serve(async (req: Request) => {
           if (videoKey) activeKeys.add(videoKey);
           const coverKey = getR2KeyFromUrl(post.cover_url, r2PublicDomain);
           if (coverKey) activeKeys.add(coverKey);
-        }
-      }
-      if (libVids) {
-        for (const vid of libVids) {
-          const videoKey = getR2KeyFromUrl(vid.video_url, r2PublicDomain);
-          if (videoKey) activeKeys.add(videoKey);
         }
       }
 
@@ -227,9 +211,9 @@ Deno.serve(async (req: Request) => {
     };
 
     // Fetch pending posts that are due using the atomic grab and lock function
-    // Process up to 100 distinct accounts concurrently across multiple cron triggers
+    // Process up to 8 posts per invocation, distributed fairly across users and accounts
     const { data: posts, error: fetchErr } = await supabase.rpc("grab_pending_posts_to_publish", {
-      limit_count: 100,
+      limit_count: 8,
     });
 
     if (fetchErr) {
@@ -243,43 +227,17 @@ Deno.serve(async (req: Request) => {
       return Response.json(results);
     }
 
-    // ─── CADÊNCIA ORGÂNICA ANTI-SPAM (MÁXIMO 1 POST POR CONTA POR CICLO) ──────────
-    // Evita o disparo simultâneo de múltiplos vídeos no mesmo segundo para a mesma conta,
-    // que aciona o filtro anti-flood da Meta, derruba a legenda e zera o alcance (0 views).
-    // Contas diferentes continuam rodando em paralelo, mas cada conta publica 1 vídeo
-    // por minuto (ciclo do cron), garantindo cadência 100% natural.
-    const accountQueues = new Map<string, typeof posts>();
-    for (const post of posts) {
-      const accId = (post as any).instagram_account_id;
-      if (!accountQueues.has(accId)) accountQueues.set(accId, []);
-      accountQueues.get(accId)!.push(post);
-    }
+    console.log(`Processing batch of ${posts.length} pending post(s)...`);
 
-    const postsToProcess: typeof posts = [];
-    const postsToUnlockIds: string[] = [];
-
-    for (const [_accId, accPosts] of accountQueues.entries()) {
-      postsToProcess.push(accPosts[0]);
-      if (accPosts.length > 1) {
-        for (let i = 1; i < accPosts.length; i++) {
-          postsToUnlockIds.push(accPosts[i].id);
+    for (let postIndex = 0; postIndex < posts.length; postIndex++) {
+        const post = posts[postIndex];
+        const prevPost = postIndex > 0 ? posts[postIndex - 1] : null;
+        if (prevPost) {
+          // If the post belongs to the SAME account, delay 3.5s to avoid Meta container clash
+          // If it belongs to a DIFFERENT account, 500ms is sufficient since Meta rate limits are per-account
+          const sameAccount = (post as any).instagram_account_id === (prevPost as any).instagram_account_id;
+          await new Promise((r) => setTimeout(r, sameAccount ? 3500 : 500));
         }
-      }
-    }
-
-    if (postsToUnlockIds.length > 0) {
-      await supabase
-        .from("scheduled_posts")
-        .update({ locked_at: null })
-        .in("id", postsToUnlockIds);
-    }
-
-    console.log(
-      `Processing paced batch: ${postsToProcess.length} conta(s) distintas em paralelo (1 post/conta). ${postsToUnlockIds.length} post(s) preservados para os próximos ciclos de 1 min.`,
-    );
-
-    await Promise.allSettled(
-      postsToProcess.map(async (post) => {
         results.processed++;
         const ig = {
           instagram_user_id: (post as any).instagram_user_id,
@@ -304,16 +262,12 @@ Deno.serve(async (req: Request) => {
           }
 
           results.errors.push(`Post ${post.id}: ${msg}`);
-          return;
+          continue;
         }
 
         const graphApiUrl = ig.access_token.startsWith("IG")
           ? "https://graph.instagram.com/v21.0"
           : "https://graph.facebook.com/v21.0";
-
-        // ─── CONEXÃO DIRETA NATIVA (CONFIGURAÇÃO ORIGINAL DE SÁBADO) ──────────────
-        // Chamadas diretas da Edge Function para a Meta Graph API oficial.
-        // Máxima velocidade, zero perda de pacotes e IP direto da nuvem.
 
         try {
           let containerId = post.ig_container_id;
@@ -322,73 +276,36 @@ Deno.serve(async (req: Request) => {
           // PHASE 1: Create media container (if needed)
           // ════════════════════════════════════════════
           if (!containerId) {
-            if (!post.video_url || typeof post.video_url !== "string" || post.video_url.trim().length === 0) {
-              console.error(`[${post.id}] Video URL is missing or empty.`);
-              await supabase
-                .from("scheduled_posts")
-                .update({
-                  status: "failed",
-                  error_message: "URL do vídeo está vazia ou não foi informada.",
-                  locked_at: null,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", post.id);
-              results.failed++;
-              return;
-            }
-
-            // Quick check if the video file exists in storage before calling Meta
-            try {
-              const headRes = await fetch(post.video_url, { method: "HEAD" });
-              if (headRes.status === 404) {
-                console.error(`[${post.id}] Video file not found in Storage (404): ${post.video_url}`);
-                await supabase
-                  .from("scheduled_posts")
-                  .update({
-                    status: "failed",
-                    error_message: "Arquivo de vídeo não encontrado no Storage R2 (404 Not Found). O arquivo foi excluído ou o link expirou.",
-                    locked_at: null,
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq("id", post.id);
-                results.failed++;
-                return;
-              }
-            } catch (headErr) {
-              console.warn(`[${post.id}] Video HEAD check warning:`, headErr);
-            }
-
-            console.log(`[${post.id}] Creating media container for @${ig.username}... (Conexão direta Meta Graph API)`);
+            console.log(`[${post.id}] Creating media container for @${ig.username}...`);
             console.log(`[${post.id}] CAPTION RAW (${(post.caption || "").length} chars): ${JSON.stringify((post.caption || "").substring(0, 150))}...`);
 
-            // Use URLSearchParams (application/x-www-form-urlencoded) for 100% reliable UTF-8 caption & metadata delivery to Meta
-            const containerParams = new URLSearchParams();
-            containerParams.set("media_type", "REELS");
-            containerParams.set("video_url", post.video_url);
-            containerParams.set("access_token", ig.access_token);
-            containerParams.set("share_to_feed", "true");
+            const formData = new FormData();
+            formData.append("video_url", post.video_url);
+            formData.append("media_type", "REELS");
+            formData.append("share_to_feed", "true");
 
             if (post.caption) {
-              containerParams.set("caption", post.caption);
-              console.log(`[${post.id}] Caption attached (${post.caption.length} chars)`);
+              formData.append("caption", post.caption);
             } else {
               console.warn(`[${post.id}] WARNING: post.caption is empty or falsy!`);
             }
 
-            if (post.cover_url && typeof post.cover_url === "string" && post.cover_url.trim().length > 0) {
-              containerParams.set("cover_url", post.cover_url.trim());
-              console.log(`[${post.id}] Cover URL attached: ${post.cover_url}`);
+            if (post.cover_url) {
+              console.log(`[${post.id}] Using custom cover image: ${post.cover_url}`);
+              formData.append("cover_url", post.cover_url);
             }
 
-            console.log(`[${post.id}] Creating container via URLSearchParams with caption (${(post.caption || "").length} chars) and share_to_feed=true`);
+            formData.append("access_token", ig.access_token);
+
+            const metaHeaders = {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+              "Accept": "application/json",
+            };
 
             const createRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media`, {
               method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
-                "Accept": "application/json",
-              },
-              body: containerParams.toString(),
+              headers: metaHeaders,
+              body: formData,
             });
 
             if (!createRes.ok) {
@@ -434,38 +351,8 @@ Deno.serve(async (req: Request) => {
             console.log(`[${post.id}] Container status: ${statusData.status_code}`);
 
             if (statusData.status_code === "ERROR") {
-              console.error(`[${post.id}] Instagram rejected the video container:`, statusData);
-              const currentRetry = (post.retry_count ?? 0) + 1;
-              if (currentRetry >= 2) {
-                await supabase
-                  .from("scheduled_posts")
-                  .update({
-                    status: "failed",
-                    error_message: `Instagram rejeitou o processamento do vídeo (${JSON.stringify(statusData)}). Verifique se o vídeo possui formato compatível e se está acessível no Storage.`,
-                    locked_at: null,
-                    retry_count: currentRetry,
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq("id", post.id);
-                results.failed++;
-                return;
-              } else {
-                await supabase
-                  .from("scheduled_posts")
-                  .update({
-                    ig_container_id: null,
-                    locked_at: null,
-                    retry_count: currentRetry,
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq("id", post.id);
-                results.skipped++;
-                return;
-              }
+              throw new Error(`Instagram rejected the video: ${JSON.stringify(statusData)}`);
             } else if (statusData.status_code === "FINISHED") {
-              // Wait 4 seconds after container status reaches FINISHED to allow Meta's CDN to firmly index the caption text before publishing
-              console.log(`[${post.id}] Container FINISHED. Waiting 4s buffer for Meta caption indexing...`);
-              await new Promise((resolve) => setTimeout(resolve, 4000));
               shouldPublish = true;
             } else if (statusData.status_code === "PUBLISHED") {
               console.log(`[${post.id}] Reel already published on Instagram. Updating DB status...`);
@@ -482,7 +369,7 @@ Deno.serve(async (req: Request) => {
                 .eq("id", post.id);
 
               results.published++;
-              return;
+              continue;
             } else if (statusData.status_code === "EXPIRED") {
               console.log(`[${post.id}] Container expired. Resetting ig_container_id to retry.`);
               await supabase
@@ -491,7 +378,7 @@ Deno.serve(async (req: Request) => {
                 .eq("id", post.id);
 
               results.skipped++;
-              return;
+              continue;
             } else {
               // Still processing (IN_PROGRESS)
               // Auto-recover if stuck in IN_PROGRESS for more than 10 minutes
@@ -504,23 +391,16 @@ Deno.serve(async (req: Request) => {
                   .update({ ig_container_id: null, locked_at: null, updated_at: new Date().toISOString() })
                   .eq("id", post.id);
                 results.skipped++;
-                return;
+                continue;
               }
               isProcessing = true;
             }
           } catch (statusErr: any) {
+            // If status check fails (due to known Meta bug e.g. subcode 33), we fallback to direct publish attempt!
             console.warn(
-              `[${post.id}] Status check failed: ${statusErr.message}`,
+              `[${post.id}] Status check failed. Attempting direct publish fallback. Error: ${statusErr.message}`,
             );
-            const errMsg = statusErr?.message ?? "";
-            // Only fallback to direct publish if it's an explicit Meta container query bug, NOT a network failure!
-            if (errMsg.includes("33") || errMsg.includes("Unsupported get request")) {
-              console.log(`[${post.id}] Known Meta container query bug detected. Attempting direct publish fallback.`);
-              shouldPublish = true;
-            } else {
-              console.log(`[${post.id}] Transient network or status check error, will retry on next run.`);
-              isProcessing = true;
-            }
+            shouldPublish = true; // Attempt to publish and let media_publish handle the state
           }
 
           if (isProcessing) {
@@ -529,26 +409,27 @@ Deno.serve(async (req: Request) => {
             await supabase.from("scheduled_posts").update({ locked_at: null }).eq("id", post.id);
 
             results.skipped++;
-            return;
+            continue;
           }
 
         // ════════════════════════════════════════════
         // PHASE 3: Publish the Reel!
         // ════════════════════════════════════════════
         if (shouldPublish) {
+          // Settling dwell time (3s) so Meta's backend synchronizes container metadata (caption, cover)
+          await new Promise((r) => setTimeout(r, 3000));
           console.log(`[${post.id}] Publishing reel to @${ig.username}...`);
-
-          const publishParams = new URLSearchParams();
-          publishParams.set("creation_id", containerId);
-          publishParams.set("access_token", ig.access_token);
+          const pubFormData = new FormData();
+          pubFormData.append("creation_id", containerId);
+          pubFormData.append("access_token", ig.access_token);
 
           const pubRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media_publish`, {
             method: "POST",
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
               "Accept": "application/json",
             },
-            body: publishParams.toString(),
+            body: pubFormData,
           });
 
           if (!pubRes.ok) {
@@ -574,7 +455,7 @@ Deno.serve(async (req: Request) => {
               await supabase.from("scheduled_posts").update({ locked_at: null }).eq("id", post.id);
 
               results.skipped++;
-              return;
+              continue;
             }
 
             throw new Error(`Publish failed (${pubRes.status}): ${errBody}`);
@@ -583,57 +464,6 @@ Deno.serve(async (req: Request) => {
           const pubData = await pubRes.json();
           const publishedMediaId = pubData.id;
           console.log(`[${post.id}] ✅ Published! Media ID: ${publishedMediaId}`);
-
-          // ════════════════════════════════════════════
-          // PHASE 4: Verify caption was indexed & auto-fix if dropped
-          // ════════════════════════════════════════════
-          if (post.caption && publishedMediaId) {
-            try {
-              // Wait 2 seconds for Meta's CDN to finalize metadata
-              await new Promise((r) => setTimeout(r, 2000));
-              const verifyRes = await fetch(
-                `${graphApiUrl}/${publishedMediaId}?fields=caption&access_token=${encodeURIComponent(ig.access_token)}`,
-                {
-                  headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                    "Accept": "application/json",
-                  },
-                },
-              );
-
-              if (verifyRes.ok) {
-                const verifyData = await verifyRes.json();
-                const publishedCaption = (verifyData.caption ?? "").trim();
-                if (!publishedCaption || publishedCaption.length < 5) {
-                  console.warn(`[${post.id}] ⚠️ Caption was DROPPED by Meta! Restoring caption via API update...`);
-                  const updateParams = new URLSearchParams();
-                  updateParams.set("caption", post.caption);
-                  updateParams.set("access_token", ig.access_token);
-
-                  const updateRes = await fetch(`${graphApiUrl}/${publishedMediaId}`, {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
-                      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                      "Accept": "application/json",
-                    },
-                    body: updateParams.toString(),
-                  });
-
-                  if (updateRes.ok) {
-                    console.log(`[${post.id}] ✅ Caption successfully restored via direct API update!`);
-                  } else {
-                    const errText = await updateRes.text().catch(() => "");
-                    console.warn(`[${post.id}] Direct caption update failed (${updateRes.status}): ${errText}`);
-                  }
-                } else {
-                  console.log(`[${post.id}] ✅ Caption verified OK on Instagram (${publishedCaption.length} chars).`);
-                }
-              }
-            } catch (verifyErr: any) {
-              console.warn(`[${post.id}] Caption verification check non-fatal error: ${verifyErr.message}`);
-            }
-          }
 
           // Mark as published, clear video/cover URLs and reset locked_at
           await supabase
@@ -714,7 +544,6 @@ Deno.serve(async (req: Request) => {
 
         let isTokenExpired = false;
         let isPermanentError = false;
-        let isRateLimitExceeded = false;
 
         try {
           // Meta errors are thrown with a JSON string inside the message.
@@ -731,16 +560,6 @@ Deno.serve(async (req: Request) => {
               const message = (metaError.message ?? "").toLowerCase();
               const isTransient = metaError.is_transient ?? false;
 
-              // Check for Meta 50 reels/24h rate limit
-              if (
-                subcode === 2207042 ||
-                message.includes("media publish limit exceeded") ||
-                message.includes("limite de publicação de mídia excedido") ||
-                message.includes("maximum number of posts that is allowed")
-              ) {
-                isRateLimitExceeded = true;
-              }
-
               // Check for permanent user content errors (e.g. caption too long, missing 404 video)
               if (
                 code === 36004 ||
@@ -753,7 +572,19 @@ Deno.serve(async (req: Request) => {
                 isPermanentError = true;
               }
 
-              if (!isTransient && !isRateLimitExceeded) {
+              if (isTransient) {
+                // If it is explicitly marked transient, it is NOT an expired token issue.
+                isTokenExpired = false;
+              } else {
+                // Meta Graph API error codes:
+                // 190: Access token error (expired, revoked, invalid)
+                // 102: Session key invalid or expired
+                // Common token invalidation subcodes:
+                // 458: App deauthorized
+                // 460: Password changed
+                // 463: Token expired
+                // 467: User logged out / invalid access token
+                // 490: User is checkpointed
                 isTokenExpired =
                   code === 190 ||
                   code === 102 ||
@@ -766,41 +597,20 @@ Deno.serve(async (req: Request) => {
             }
           }
         } catch (_) {
+          // Fallback to substring matching if parsing fails, but be more selective (exclude generic 'oauth' / 'oauthexception')
           const errorLower = msg.toLowerCase();
-          if (errorLower.includes("2207042") || errorLower.includes("media publish limit exceeded")) {
-            isRateLimitExceeded = true;
-          } else {
-            isTokenExpired =
-              errorLower.includes("session has expired") ||
-              errorLower.includes("checkpoint") ||
-              errorLower.includes("login to www.instagram.com") ||
-              errorLower.includes("invalid access token") ||
-              errorLower.includes("token has expired") ||
-              (errorLower.includes("190") && !errorLower.includes('is_transient":true'));
-          }
+          isTokenExpired =
+            errorLower.includes("session has expired") ||
+            errorLower.includes("checkpoint") ||
+            errorLower.includes("login to www.instagram.com") ||
+            errorLower.includes("invalid access token") ||
+            errorLower.includes("token has expired") ||
+            (errorLower.includes("190") && !errorLower.includes('is_transient":true'));
         }
 
         const accountId = (post as any).instagram_account_id;
 
-        if (isRateLimitExceeded) {
-          console.warn(
-            `[${post.id}] ⚠️ Conta @${ig.username} atingiu o limite de 50 posts/24h da Meta (2207042). Reagendando todos os posts pendentes da conta para daqui a 24h.`,
-          );
-          const postponeTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-          if (accountId) {
-            await supabase
-              .from("scheduled_posts")
-              .update({
-                scheduled_at: postponeTime,
-                locked_at: null,
-                retry_count: 0,
-                error_message: "[Meta Rate Limit 50/dia]: Limite diário de publicação atingido. Reagendado para daqui a 24h.",
-              })
-              .eq("instagram_account_id", accountId)
-              .eq("status", "pending");
-          }
-          results.errors.push(`Post ${post.id}: Limite diário da Meta atingido (50 posts/dia). Conta postergada por 24h.`);
-        } else if (isTokenExpired) {
+        if (isTokenExpired) {
           console.log(
             `[${post.id}] Token is expired or invalid. Marking account as token_invalid.`,
           );
@@ -872,8 +682,7 @@ Deno.serve(async (req: Request) => {
           }
         }
       }
-    })
-  );
+    }
 
     console.log(
       `Done. Processed: ${results.processed}, Published: ${results.published}, Skipped: ${results.skipped}, Errors: ${results.errors.length}`,
