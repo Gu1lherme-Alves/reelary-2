@@ -10,7 +10,7 @@ export function buildInstagramAuthUrl(appId: string): string {
 
   const params = new URLSearchParams({
     enable_fb_login: "0",
-    force_authentication: "1",
+    force_reauth: "true",
     client_id: appId,
     redirect_uri: redirectUri,
     response_type: "code",

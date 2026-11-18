@@ -110,8 +110,7 @@ export async function getMetaCredentialsForUser(supabase: any, userId: string) {
     "984157640915216";
   const instagramAppSecret =
     process.env.INSTAGRAM_APP_SECRET ||
-    appSecret ||
-    "714a96aa24fc2baa717ea62146c1a8b4";
+    "3776224bab1473f194b6c8dea76f1e7d";
 
   return { appId: cleanedAppId, appSecret, instagramAppId, instagramAppSecret, profile };
 }
