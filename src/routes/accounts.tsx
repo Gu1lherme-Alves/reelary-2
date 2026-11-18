@@ -17,6 +17,7 @@ import {
   Search,
   ChevronDown,
   Loader2,
+  BookOpen,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -587,6 +588,16 @@ function AccountsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Button
+            asChild
+            variant="outline"
+            className="border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 font-semibold rounded-xl h-10 gap-2 cursor-pointer shadow-sm"
+          >
+            <Link to="/settings" search={{ tab: "tutorial" } as any}>
+              <BookOpen className="size-4" />
+              <span>Como Conectar? (Tutorial)</span>
+            </Link>
+          </Button>
           <Button
             onClick={openCreateCategory}
             variant="outline"

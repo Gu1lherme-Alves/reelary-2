@@ -105,12 +105,18 @@ export async function getMetaCredentialsForUser(supabase: any, userId: string) {
   // Clean the app ID
   const cleanedAppId = appId?.toString()?.match(/\d+/)?.[0] ?? null;
 
-  const instagramAppId =
+  let instagramAppId =
     process.env.INSTAGRAM_APP_ID ||
     "984157640915216";
-  const instagramAppSecret =
+  let instagramAppSecret =
     process.env.INSTAGRAM_APP_SECRET ||
     "3776224bab1473f194b6c8dea76f1e7d";
+
+  // Se o usuário estiver usando um perfil personalizado, usa as credenciais dele
+  if (profile === "custom") {
+    if (cleanedAppId) instagramAppId = cleanedAppId;
+    if (appSecret) instagramAppSecret = appSecret;
+  }
 
   return { appId: cleanedAppId, appSecret, instagramAppId, instagramAppSecret, profile };
 }
