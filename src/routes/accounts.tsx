@@ -594,6 +594,18 @@ function AccountsPage() {
             <Palette className="size-4 text-primary" /> Categorias
           </Button>
           <Button
+            onClick={connect}
+            disabled={connecting}
+            className="bg-gradient-to-r from-[#f09433] via-[#e6683c] to-[#dc2743] text-white border-0 hover:opacity-90 font-semibold rounded-xl h-10 gap-2 shadow-md"
+          >
+            {connecting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Instagram className="size-4" />
+            )}
+            Conectar via Instagram
+          </Button>
+          <Button
             onClick={connectFacebook}
             disabled={connectingFacebook}
             className="bg-[#1877F2] text-white border-0 hover:bg-[#166FE5] font-semibold rounded-xl h-10 gap-2 shadow-md"
