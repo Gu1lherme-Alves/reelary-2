@@ -123,6 +123,7 @@ function AccountsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [appId, setAppId] = useState<string | null>(null);
+  const [instagramAppId, setInstagramAppId] = useState<string | null>("984157640915216");
   const [connecting, setConnecting] = useState(false);
   const [connectingFacebook, setConnectingFacebook] = useState(false);
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
@@ -193,7 +194,10 @@ function AccountsPage() {
   useEffect(() => {
     Promise.all([load(), loadCategories()]);
     fetchAppId()
-      .then((r) => setAppId(r.appId))
+      .then((r: any) => {
+        setAppId(r.appId);
+        if (r.instagramAppId) setInstagramAppId(r.instagramAppId);
+      })
       .catch(() => setAppId(null));
 
     // Sync active account if changed elsewhere (e.g. topbar)
@@ -351,12 +355,9 @@ function AccountsPage() {
   }
 
   function connect() {
-    if (!appId) {
-      toast.error("Meta App ID não configurado no servidor");
-      return;
-    }
+    const targetId = instagramAppId || "984157640915216";
     setConnecting(true);
-    window.location.href = buildInstagramAuthUrl(appId);
+    window.location.href = buildInstagramAuthUrl(targetId);
   }
 
   function connectFacebook() {

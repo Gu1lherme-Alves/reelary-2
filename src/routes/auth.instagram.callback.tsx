@@ -25,7 +25,10 @@ function CallbackPage() {
     ran.current = true;
     const params = new URLSearchParams(window.location.search);
     const error = params.get("error_description") ?? params.get("error");
-    const code = params.get("code");
+    let code = params.get("code");
+    if (code) {
+      code = code.replace(/#_.*$/, "").replace(/#.*$/, "");
+    }
     console.log("[Callback] Params:", { error, code: code ? `${code.slice(0, 20)}...` : null });
 
     if (error) {

@@ -105,7 +105,15 @@ export async function getMetaCredentialsForUser(supabase: any, userId: string) {
   // Clean the app ID
   const cleanedAppId = appId?.toString()?.match(/\d+/)?.[0] ?? null;
 
-  return { appId: cleanedAppId, appSecret, profile };
+  const instagramAppId =
+    process.env.INSTAGRAM_APP_ID ||
+    "984157640915216";
+  const instagramAppSecret =
+    process.env.INSTAGRAM_APP_SECRET ||
+    appSecret ||
+    "714a96aa24fc2baa717ea62146c1a8b4";
+
+  return { appId: cleanedAppId, appSecret, instagramAppId, instagramAppSecret, profile };
 }
 
 // Returns the public Meta App ID and profile so the client can build the OAuth URL.
@@ -113,8 +121,8 @@ export const getMetaAppId = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { appId, profile } = await getMetaCredentialsForUser(supabase, userId);
-    return { appId, profile };
+    const { appId, instagramAppId, profile } = await getMetaCredentialsForUser(supabase, userId);
+    return { appId, instagramAppId, profile };
   });
 
 // ─── Método 1 (Instagram Login direto) ──────────────────────────────────────────
@@ -132,18 +140,22 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { appId, appSecret } = await getMetaCredentialsForUser(supabase, userId);
-    if (!appId || !appSecret) {
-      throw new Error("Meta App credentials não configuradas no servidor.");
+    const { appId, appSecret, instagramAppId, instagramAppSecret } = await getMetaCredentialsForUser(supabase, userId);
+    const clientId = instagramAppId || appId;
+    const clientSecret = instagramAppSecret || appSecret;
+    if (!clientId || !clientSecret) {
+      throw new Error("Meta/Instagram App credentials não configuradas no servidor.");
     }
+
+    const cleanCode = data.code.replace(/#_$/, "");
 
     // 1. Trocar code por short-lived access token (Instagram Login)
     const tokenParams = new URLSearchParams();
-    tokenParams.set("client_id", appId);
-    tokenParams.set("client_secret", appSecret);
+    tokenParams.set("client_id", clientId);
+    tokenParams.set("client_secret", clientSecret);
     tokenParams.set("grant_type", "authorization_code");
     tokenParams.set("redirect_uri", data.redirectUri);
-    tokenParams.set("code", data.code);
+    tokenParams.set("code", cleanCode);
 
     const tokenRes = await fetch("https://api.instagram.com/oauth/access_token", {
       method: "POST",
@@ -169,7 +181,7 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
     try {
       const llUrl = new URL("https://graph.instagram.com/access_token");
       llUrl.searchParams.set("grant_type", "ig_exchange_token");
-      llUrl.searchParams.set("client_secret", appSecret);
+      llUrl.searchParams.set("client_secret", clientSecret);
       llUrl.searchParams.set("access_token", accessToken);
       const llRes = await fetch(llUrl.toString());
       if (llRes.ok) {

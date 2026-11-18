@@ -9,6 +9,8 @@ export function buildInstagramAuthUrl(appId: string): string {
   const scope = "instagram_business_basic,instagram_business_content_publish";
 
   const params = new URLSearchParams({
+    enable_fb_login: "0",
+    force_authentication: "1",
     client_id: appId,
     redirect_uri: redirectUri,
     response_type: "code",
