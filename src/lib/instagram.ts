@@ -6,10 +6,10 @@ export const FACEBOOK_REDIRECT_PATH = "/auth/facebook/callback";
 
 export function buildInstagramAuthUrl(appId: string): string {
   const redirectUri = `${window.location.origin}${INSTAGRAM_REDIRECT_PATH}`;
-  const scope = "instagram_business_basic,instagram_business_content_publish";
+  const scope =
+    "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights";
 
   const params = new URLSearchParams({
-    enable_fb_login: "0",
     force_reauth: "true",
     client_id: appId,
     redirect_uri: redirectUri,
