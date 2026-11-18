@@ -10,7 +10,6 @@ export function buildInstagramAuthUrl(appId: string): string {
     "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights";
 
   const params = new URLSearchParams({
-    force_reauth: "true",
     client_id: appId,
     redirect_uri: redirectUri,
     response_type: "code",
