@@ -279,33 +279,32 @@ Deno.serve(async (req: Request) => {
             console.log(`[${post.id}] Creating media container for @${ig.username}...`);
             console.log(`[${post.id}] CAPTION RAW (${(post.caption || "").length} chars): ${JSON.stringify((post.caption || "").substring(0, 150))}...`);
 
-            // Use JSON body (application/json) for full UTF-8 safety with emojis and multibyte chars
-            const containerPayload: Record<string, string> = {
-              media_type: "REELS",
-              video_url: post.video_url,
-              share_to_feed: "true",
-              access_token: ig.access_token,
-            };
+            // Use URLSearchParams (application/x-www-form-urlencoded) for 100% reliable UTF-8 caption & metadata delivery to Meta
+            const containerParams = new URLSearchParams();
+            containerParams.set("media_type", "REELS");
+            containerParams.set("video_url", post.video_url);
+            containerParams.set("share_to_feed", "true");
+            containerParams.set("access_token", ig.access_token);
 
             if (post.caption) {
-              containerPayload.caption = post.caption;
+              containerParams.set("caption", post.caption);
             } else {
               console.warn(`[${post.id}] WARNING: post.caption is empty or falsy!`);
             }
 
             if (post.cover_url && typeof post.cover_url === "string" && post.cover_url.trim().length > 0) {
               console.log(`[${post.id}] Using custom cover image: ${post.cover_url}`);
-              containerPayload.cover_url = post.cover_url.trim();
+              containerParams.set("cover_url", post.cover_url.trim());
             }
 
             const createRes = await fetch(`${graphApiUrl}/${ig.instagram_user_id}/media`, {
               method: "POST",
               headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Content-Type": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
                 "Accept": "application/json",
               },
-              body: JSON.stringify(containerPayload),
+              body: containerParams.toString(),
             });
 
             if (!createRes.ok) {
