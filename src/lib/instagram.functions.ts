@@ -53,7 +53,7 @@ export async function getMetaCredentialsForUser(supabase: any, userId: string) {
   // Query user settings
   const { data, error } = await supabase
     .from("user_settings")
-    .select("meta_credential_profile, custom_meta_app_id, custom_meta_app_secret")
+    .select("meta_credential_profile, custom_meta_app_id, custom_meta_app_secret, custom_redirect_uri")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -118,7 +118,9 @@ export async function getMetaCredentialsForUser(supabase: any, userId: string) {
     if (appSecret) instagramAppSecret = appSecret;
   }
 
-  return { appId: cleanedAppId, appSecret, instagramAppId, instagramAppSecret, profile };
+  const customRedirectUri = data?.custom_redirect_uri || null;
+
+  return { appId: cleanedAppId, appSecret, instagramAppId, instagramAppSecret, redirectUri: customRedirectUri, profile };
 }
 
 // Returns the public Meta App ID and profile so the client can build the OAuth URL.
@@ -126,8 +128,8 @@ export const getMetaAppId = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { appId, instagramAppId, profile } = await getMetaCredentialsForUser(supabase, userId);
-    return { appId, instagramAppId, profile };
+    const { appId, instagramAppId, redirectUri, profile } = await getMetaCredentialsForUser(supabase, userId);
+    return { appId, instagramAppId, redirectUri, profile };
   });
 
 // ─── Método 1 (Instagram Login direto) ──────────────────────────────────────────
@@ -145,7 +147,7 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { appId, appSecret, instagramAppId, instagramAppSecret } = await getMetaCredentialsForUser(supabase, userId);
+    const { appId, appSecret, instagramAppId, instagramAppSecret, redirectUri } = await getMetaCredentialsForUser(supabase, userId);
     const clientId = instagramAppId || appId;
     const clientSecret = instagramAppSecret || appSecret;
     if (!clientId || !clientSecret) {
@@ -153,13 +155,14 @@ export const connectInstagramAccount = createServerFn({ method: "POST" })
     }
 
     const cleanCode = data.code.replace(/#_$/, "");
+    const effectiveRedirectUri = redirectUri?.trim() || data.redirectUri;
 
     // 1. Trocar code por short-lived access token (Instagram Login)
     const tokenParams = new URLSearchParams();
     tokenParams.set("client_id", clientId);
     tokenParams.set("client_secret", clientSecret);
     tokenParams.set("grant_type", "authorization_code");
-    tokenParams.set("redirect_uri", data.redirectUri);
+    tokenParams.set("redirect_uri", effectiveRedirectUri);
     tokenParams.set("code", cleanCode);
 
     const tokenRes = await fetch("https://api.instagram.com/oauth/access_token", {
@@ -409,8 +412,9 @@ export const saveCustomMetaCredentials = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z
       .object({
-        appId: z.string().trim().min(4, "Meta App ID inválido (deve conter pelo menos 4 dígitos)"),
-        appSecret: z.string().trim().min(8, "Chave API / App Secret inválida"),
+        appId: z.string().trim().min(4, "ID do App do Instagram inválido (deve conter pelo menos 4 dígitos)"),
+        appSecret: z.string().trim().min(8, "Chave Secreta do App inválida"),
+        redirectUri: z.string().trim().optional(),
         setActive: z.boolean().optional().default(true),
       })
       .parse(input),
@@ -419,9 +423,10 @@ export const saveCustomMetaCredentials = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const cleanedAppId = data.appId.replace(/\D/g, "");
     const cleanedSecret = data.appSecret.trim();
+    const cleanedRedirectUri = data.redirectUri?.trim() || "";
 
     if (!cleanedAppId) {
-      throw new Error("O Meta App ID deve conter números válidos.");
+      throw new Error("O ID do App do Instagram deve conter números válidos.");
     }
 
     // 1. Atualizar no banco de dados na tabela user_settings
@@ -429,6 +434,7 @@ export const saveCustomMetaCredentials = createServerFn({ method: "POST" })
       user_id: userId,
       custom_meta_app_id: cleanedAppId,
       custom_meta_app_secret: cleanedSecret,
+      custom_redirect_uri: cleanedRedirectUri || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -453,6 +459,8 @@ export const saveCustomMetaCredentials = createServerFn({ method: "POST" })
         META_APP_SECRET: cleanedSecret,
         META_APP_ID_CUSTOM: cleanedAppId,
         META_APP_SECRET_CUSTOM: cleanedSecret,
+        INSTAGRAM_APP_ID: cleanedAppId,
+        INSTAGRAM_APP_SECRET: cleanedSecret,
       });
     } catch (envError: any) {
       console.warn("Erro ao atualizar variáveis de ambiente (.env):", envError);
@@ -461,6 +469,7 @@ export const saveCustomMetaCredentials = createServerFn({ method: "POST" })
     return {
       success: true,
       appId: cleanedAppId,
+      redirectUri: cleanedRedirectUri,
       profile: data.setActive ? "custom" : undefined,
     };
   });
@@ -471,7 +480,7 @@ export const getUserCustomMetaSettings = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("user_settings")
-      .select("meta_credential_profile, custom_meta_app_id, custom_meta_app_secret")
+      .select("meta_credential_profile, custom_meta_app_id, custom_meta_app_secret, custom_redirect_uri")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -489,11 +498,13 @@ export const getUserCustomMetaSettings = createServerFn({ method: "GET" })
       process.env.META_APP_SECRET_CUSTOM ||
       process.env.META_APP_SECRET ||
       "";
+    const customRedirectUri = data?.custom_redirect_uri || "";
 
     return {
       profile: (data?.meta_credential_profile || "guilherme") as string,
       customAppId,
       customAppSecret,
+      customRedirectUri,
       hasCustomCredentials: Boolean(customAppId && customAppSecret),
     };
   });

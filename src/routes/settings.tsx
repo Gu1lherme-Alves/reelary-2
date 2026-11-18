@@ -2,42 +2,35 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  Check,
-  Shield,
-  User,
-  Loader2,
   Key,
+  Shield,
+  Loader2,
   Eye,
   EyeOff,
   Copy,
   ExternalLink,
   Save,
   CheckCircle2,
-  Code2,
-  AlertCircle,
   Sparkles,
   BookOpen,
-  HelpCircle,
   ArrowRight,
-  ShieldCheck,
   Smartphone,
   Globe,
-  Info,
-  CheckCheck,
+  Link2,
+  Instagram,
+  RotateCcw,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { supabase } from "@/integrations/supabase/client";
 import {
-  getAvailableMetaAppIds,
   saveCustomMetaCredentials,
   getUserCustomMetaSettings,
 } from "@/lib/instagram.functions";
 import { toast } from "sonner";
-import { INSTAGRAM_REDIRECT_PATH, FACEBOOK_REDIRECT_PATH } from "@/lib/instagram";
+import { INSTAGRAM_REDIRECT_PATH } from "@/lib/instagram";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "Configurações — Reelary" }] }),
+  head: () => ({ meta: [{ title: "Configurações da Conexão — Reelary" }] }),
   component: () => (
     <AppShell>
       <SettingsPage />
@@ -45,82 +38,9 @@ export const Route = createFileRoute("/settings")({
   ),
 });
 
-type ProfileType = "custom" | "guilherme" | "matheus" | "pedro" | "antonio" | "greg" | "esperanca";
-
-interface ProfileConfig {
-  id: ProfileType;
-  title: string;
-  description: string;
-  badge?: string;
-  badgeStyle?: string;
-  iconBg: string;
-  iconColor: string;
-}
-
-const PROFILES: ProfileConfig[] = [
-  {
-    id: "custom",
-    title: "Meu App Personalizado",
-    description:
-      "Aplicativo próprio configurado por você através do painel. Utiliza seu App ID e Chave Secreta da API personalizados.",
-    badge: "Seu App",
-    badgeStyle: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-    iconBg: "bg-emerald-500/10 border border-emerald-500/20",
-    iconColor: "text-emerald-400",
-  },
-  {
-    id: "guilherme",
-    title: "Guilherme",
-    description: "Configuração padrão do projeto utilizando as credenciais principais da Meta do Guilherme.",
-    badge: "Padrão",
-    badgeStyle: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-    iconBg: "bg-amber-500/10 border border-amber-500/20",
-    iconColor: "text-amber-500",
-  },
-  {
-    id: "matheus",
-    title: "Matheus",
-    description: "Configuração secundária utilizando as credenciais da Meta do Matheus para testes ou produção própria.",
-    iconBg: "bg-blue-500/10 border border-blue-500/20",
-    iconColor: "text-blue-500",
-  },
-  {
-    id: "pedro",
-    title: "Pedro",
-    description: "Configuração utilizando as credenciais da Meta do Pedro.",
-    iconBg: "bg-violet-500/10 border border-violet-500/20",
-    iconColor: "text-violet-500",
-  },
-  {
-    id: "antonio",
-    title: "Antonio",
-    description: "Configuração utilizando as credenciais da Meta do Antonio.",
-    iconBg: "bg-sky-500/10 border border-sky-500/20",
-    iconColor: "text-sky-500",
-  },
-  {
-    id: "greg",
-    title: "Greg",
-    description: "Configuração utilizando as credenciais da Meta do Greg.",
-    iconBg: "bg-teal-500/10 border border-teal-500/20",
-    iconColor: "text-teal-400",
-  },
-  {
-    id: "esperanca",
-    title: "Esperança",
-    description: "Configuração utilizando as credenciais da Meta de Esperança.",
-    badge: "Equipe",
-    badgeStyle: "bg-rose-500/15 text-rose-400 border-rose-500/30",
-    iconBg: "bg-rose-500/10 border border-rose-500/20",
-    iconColor: "text-rose-500",
-  },
-];
-
 function SettingsPage() {
-  const [profile, setProfile] = useState<ProfileType>("guilherme");
   const [loading, setLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [savingCustom, setSavingCustom] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== "undefined") {
       const p = new URLSearchParams(window.location.search);
@@ -129,54 +49,40 @@ function SettingsPage() {
     return "credentials";
   });
 
-  // Form custom credentials
-  const [customAppId, setCustomAppId] = useState("");
-  const [customAppSecret, setCustomAppSecret] = useState("");
+  // Campos do formulário de credenciais do Instagram
+  const [appId, setAppId] = useState("");
+  const [appSecret, setAppSecret] = useState("");
+  const [redirectUri, setRedirectUri] = useState("");
   const [showSecret, setShowSecret] = useState(false);
-  const [hasCustomSaved, setHasCustomSaved] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(false);
 
-  const [appIds, setAppIds] = useState<Record<ProfileType, string | null>>({
-    custom: null,
-    guilherme: null,
-    matheus: null,
-    pedro: null,
-    antonio: null,
-    greg: null,
-    esperanca: null,
-  });
-
-  const fetchAppIds = useServerFn(getAvailableMetaAppIds);
   const fetchCustomSettings = useServerFn(getUserCustomMetaSettings);
   const saveCustomFn = useServerFn(saveCustomMetaCredentials);
 
-  const originUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const igRedirectUri = `${originUrl}${INSTAGRAM_REDIRECT_PATH}`;
-  const fbRedirectUri = `${originUrl}${FACEBOOK_REDIRECT_PATH}`;
+  const originUrl = typeof window !== "undefined" ? window.location.origin : "https://reelary-2.vercel.app";
+  const defaultRedirectUri = `${originUrl}${INSTAGRAM_REDIRECT_PATH}`;
 
   async function loadSettings() {
     try {
-      const [customData, ids] = await Promise.all([
-        fetchCustomSettings(),
-        fetchAppIds(),
-      ]);
+      const customData = await fetchCustomSettings();
 
       if (customData) {
-        if (customData.profile) {
-          setProfile(customData.profile as ProfileType);
-        }
         if (customData.customAppId) {
-          setCustomAppId(customData.customAppId);
+          setAppId(customData.customAppId);
         }
         if (customData.customAppSecret) {
-          setCustomAppSecret(customData.customAppSecret);
+          setAppSecret(customData.customAppSecret);
         }
-        setHasCustomSaved(Boolean(customData.hasCustomCredentials));
+        if (customData.customRedirectUri) {
+          setRedirectUri(customData.customRedirectUri);
+        } else {
+          setRedirectUri(defaultRedirectUri);
+        }
+        setIsConfigured(Boolean(customData.hasCustomCredentials));
       }
-
-      setAppIds(ids as any);
     } catch (err: any) {
       console.error("Erro ao carregar configurações:", err);
-      toast.error("Erro ao carregar configurações de credenciais.");
+      toast.error("Erro ao carregar credenciais do Instagram.");
     } finally {
       setLoading(false);
     }
@@ -186,94 +92,45 @@ function SettingsPage() {
     loadSettings();
   }, []);
 
-  async function handleSaveCustomCredentials(e?: React.FormEvent) {
+  async function handleSave(e?: React.FormEvent) {
     if (e) e.preventDefault();
 
-    const cleanedId = customAppId.replace(/\D/g, "").trim();
-    const cleanedSecret = customAppSecret.trim();
+    const cleanedId = appId.replace(/\D/g, "").trim();
+    const cleanedSecret = appSecret.trim();
+    const cleanedRedirect = redirectUri.trim() || defaultRedirectUri;
 
     if (!cleanedId) {
-      toast.error("Por favor, informe um Meta App ID válido (apenas números).");
+      toast.error("Por favor, informe o ID do App do Instagram (apenas números).");
       return;
     }
 
     if (!cleanedSecret) {
-      toast.error("Por favor, informe a Chave API (App Secret) da Meta.");
+      toast.error("Por favor, informe a Chave Secreta do App do Instagram.");
       return;
     }
 
-    setSavingCustom(true);
+    setSaving(true);
     try {
       const res = await saveCustomFn({
         data: {
           appId: cleanedId,
           appSecret: cleanedSecret,
+          redirectUri: cleanedRedirect,
           setActive: true,
         },
       });
 
       if (res?.success) {
-        setProfile("custom");
-        setHasCustomSaved(true);
-        setAppIds((prev) => ({
-          ...prev,
-          custom: cleanedId,
-        }));
+        setIsConfigured(true);
         toast.success(
-          "Credenciais da Meta salvas com sucesso! Atualizadas nas variáveis de ambiente e ativadas no seu perfil.",
+          "Credenciais e URI de redirecionamento do Instagram salvas com sucesso!",
         );
       }
     } catch (err: any) {
-      console.error("Erro ao salvar credenciais da Meta:", err);
-      toast.error(err.message || "Erro ao salvar credenciais personalizadas.");
+      console.error("Erro ao salvar credenciais:", err);
+      toast.error(err.message || "Erro ao salvar credenciais do Instagram.");
     } finally {
-      setSavingCustom(false);
-    }
-  }
-
-  async function handleSelectProfile(selectedProfile: ProfileType) {
-    if (selectedProfile === profile) return;
-
-    if (selectedProfile === "custom" && !customAppId && !appIds.custom) {
-      toast.info(
-        "Preencha seu App ID e Chave API no formulário acima para ativar seu App Personalizado.",
-      );
-      return;
-    }
-
-    setSavingProfile(true);
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado.");
-
-      const { error } = await supabase.from("user_settings").upsert(
-        {
-          user_id: user.id,
-          meta_credential_profile: selectedProfile,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" } as any,
-      );
-
-      if (error) throw error;
-      setProfile(selectedProfile);
-
-      const profileNames: Record<ProfileType, string> = {
-        custom: "Meu App Personalizado",
-        guilherme: "Guilherme",
-        matheus: "Matheus",
-        pedro: "Pedro",
-        antonio: "Antonio",
-        greg: "Greg",
-        esperanca: "Esperança",
-      };
-      toast.success(`Painel da Meta "${profileNames[selectedProfile]}" ativado!`);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao salvar perfil.");
-    } finally {
-      setSavingProfile(false);
+      setSaving(false);
     }
   }
 
@@ -288,7 +145,7 @@ function SettingsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
         <Loader2 className="size-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Carregando configurações de credenciais…</p>
+        <p className="text-sm text-muted-foreground">Carregando configurações…</p>
       </div>
     );
   }
@@ -298,9 +155,13 @@ function SettingsPage() {
       {/* Cabeçalho */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configurações da Meta</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie as credenciais da Meta Developers para login e conexões automatizadas do Instagram
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-[#f09433]/15 via-[#e6683c]/15 to-[#dc2743]/15 border border-[#e6683c]/30 text-[#e6683c] text-xs font-bold uppercase tracking-wider mb-2">
+            <Instagram className="size-3.5" />
+            <span>API Oficial do Instagram</span>
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Conexão do Instagram</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Configure o seu ID, Chave Secreta e URI de redirecionamento para habilitar a conexão direta em 1 clique.
           </p>
         </div>
       </div>
@@ -312,7 +173,7 @@ function SettingsPage() {
             className="rounded-lg font-semibold text-xs sm:text-sm gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all"
           >
             <Key className="size-4" />
-            <span>Credenciais da Meta</span>
+            <span>Credenciais do Instagram</span>
           </TabsTrigger>
           <TabsTrigger
             value="tutorial"
@@ -327,10 +188,10 @@ function SettingsPage() {
         </TabsList>
 
         {/* ════════════════════════════════════════════════════════════════════════
-            ABA 1: CREDENCIAIS DA META
+            ABA 1: CREDENCIAIS DO INSTAGRAM
         ════════════════════════════════════════════════════════════════════════ */}
-        <TabsContent value="credentials" className="space-y-8 mt-0 animate-in fade-in duration-200">
-          {/* Card de Alerta/Atalho para o Tutorial */}
+        <TabsContent value="credentials" className="space-y-6 mt-0 animate-in fade-in duration-200">
+          {/* Card de Atalho para o Tutorial */}
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4.5 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <div className="size-10 rounded-xl bg-amber-500/20 border border-amber-500/30 grid place-items-center shrink-0 text-amber-400">
@@ -339,7 +200,7 @@ function SettingsPage() {
               <div>
                 <h3 className="font-bold text-sm text-foreground">É a sua primeira vez configurando?</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Preparamos um guia passo a passo ilustrado ensinando a criar seu app na Meta, adicionar testadores e ativar a conexão em 1 clique.
+                  Preparamos um guia passo a passo ensinando a criar seu app, pegar o ID e a Chave Secreta do Instagram e cadastrar o URI de redirecionamento.
                 </p>
               </div>
             </div>
@@ -353,26 +214,29 @@ function SettingsPage() {
             </button>
           </div>
 
-          {/* Bloco 1: Inserir ID e Chave API Personalizados */}
+          {/* Formulário Principal: ID, Chave Secreta e URI de Redirecionamento */}
           <div className="rounded-2xl border border-primary/30 bg-card p-6 md:p-7 shadow-card relative overflow-hidden">
             <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 relative">
               <div className="flex items-start gap-3">
-                <div className="size-11 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center shrink-0 mt-0.5">
-                  <Code2 className="size-5 text-primary" />
+                <div className="size-11 rounded-xl bg-gradient-to-br from-[#f09433]/20 via-[#e6683c]/20 to-[#dc2743]/20 border border-[#e6683c]/30 grid place-items-center shrink-0 mt-0.5">
+                  <Instagram className="size-5 text-[#e6683c]" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-lg font-bold text-foreground">
-                      Seu Próprio Meta Developers (App ID e Chave API)
+                      Credenciais da API do Instagram
                     </h2>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border bg-primary/15 text-primary border-primary/30">
-                      Personalizado
-                    </span>
+                    {isConfigured && (
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider inline-flex items-center gap-1">
+                        <CheckCircle2 className="size-3" />
+                        Ativo e Conectado
+                      </span>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Insira o seu <strong>ID do app do Instagram</strong> e a <strong>Chave secreta do app</strong> gerados no portal{" "}
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                    Insira o <strong>ID do app do Instagram</strong>, a <strong>Chave secreta do app do Instagram</strong> e a <strong>URI de redirecionamento</strong> configurada no portal{" "}
                     <a
                       href="https://developers.facebook.com/apps/"
                       target="_blank"
@@ -380,26 +244,18 @@ function SettingsPage() {
                       className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
                     >
                       Meta for Developers <ExternalLink className="size-3 inline" />
-                    </a>
-                    . Os valores são salvos com segurança para a sua conta.
+                    </a>.
                   </p>
                 </div>
               </div>
-
-              {profile === "custom" && (
-                <div className="shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold text-xs">
-                  <CheckCircle2 className="size-3.5" />
-                  <span>EM USO ATUALMENTE</span>
-                </div>
-              )}
             </div>
 
-            <form onSubmit={handleSaveCustomCredentials} className="space-y-5 relative">
+            <form onSubmit={handleSave} className="space-y-5 relative">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Campo Meta App ID */}
+                {/* Campo 1: ID do App do Instagram */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-                    <span>ID do App do Instagram (Client ID)</span>
+                    <span>ID do App do Instagram</span>
                     <span className="text-[10px] text-muted-foreground font-normal">Apenas números</span>
                   </label>
                   <div className="relative">
@@ -408,22 +264,22 @@ function SettingsPage() {
                     </div>
                     <input
                       type="text"
-                      value={customAppId}
-                      onChange={(e) => setCustomAppId(e.target.value.replace(/\D/g, ""))}
+                      value={appId}
+                      onChange={(e) => setAppId(e.target.value.replace(/\D/g, ""))}
                       placeholder="Ex: 984157640915216"
                       className="w-full pl-10 pr-4 py-2.5 bg-secondary/30 border border-border/70 rounded-xl text-sm font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
                     />
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Encontrado em <em>Casos de uso &gt; API do Instagram</em> (ex: 984157640915216).
+                    Encontrado em <em>Casos de uso &gt; API do Instagram &gt; Configuração da API com login do Instagram</em>.
                   </p>
                 </div>
 
-                {/* Campo Chave API / App Secret */}
+                {/* Campo 2: Chave Secreta do App do Instagram */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-foreground flex items-center justify-between">
                     <span>Chave Secreta do App do Instagram</span>
-                    <span className="text-[10px] text-muted-foreground font-normal">Chave secreta</span>
+                    <span className="text-[10px] text-muted-foreground font-normal">App Secret</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
@@ -431,8 +287,8 @@ function SettingsPage() {
                     </div>
                     <input
                       type={showSecret ? "text" : "password"}
-                      value={customAppSecret}
-                      onChange={(e) => setCustomAppSecret(e.target.value)}
+                      value={appSecret}
+                      onChange={(e) => setAppSecret(e.target.value)}
                       placeholder="Ex: 3776224bab1473f194b6c8dea76f1e7d"
                       className="w-full pl-10 pr-10 py-2.5 bg-secondary/30 border border-border/70 rounded-xl text-sm font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
                     />
@@ -446,31 +302,44 @@ function SettingsPage() {
                     </button>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Encontrado ao clicar no botão <em>"Mostrar"</em> ao lado do ID do seu app do Instagram.
+                    Encontrado clicando no botão <em>"Mostrar"</em> ao lado do ID do app do Instagram.
                   </p>
                 </div>
               </div>
 
-              {/* URIs de Redirecionamento (Redirect URIs) para configurar no Meta Developers */}
-              <div className="rounded-xl border border-border/50 bg-secondary/10 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="size-4 text-primary" />
-                  <h4 className="text-xs font-bold text-foreground">
-                    URIs de Redirecionamento OAuth (Obrigatório configurar no seu Meta App):
-                  </h4>
+              {/* Campo 3: URI de Redirecionamento configurada pelo usuário */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Link2 className="size-3.5 text-primary" />
+                    <span>URI de Redirecionamento do OAuth (Callback URL)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setRedirectUri(defaultRedirectUri)}
+                    className="text-[11px] text-primary hover:underline inline-flex items-center gap-1 cursor-pointer font-medium"
+                  >
+                    <RotateCcw className="size-3" />
+                    Restaurar URL padrão
+                  </button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  No portal da Meta, acesse <strong>Casos de uso &gt; API do Instagram &gt; Configurações do login da empresa</strong> e cadastre a URL abaixo no campo{" "}
-                  <em>URIs de redirecionamento do OAuth válidos</em>:
-                </p>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2 p-2 bg-background/80 rounded-lg border border-border/50 text-xs font-mono">
-                    <span className="truncate text-foreground/90 font-semibold">{igRedirectUri}</span>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
+                    <Globe className="size-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={redirectUri}
+                    onChange={(e) => setRedirectUri(e.target.value)}
+                    placeholder={defaultRedirectUri}
+                    className="w-full pl-10 pr-24 py-2.5 bg-secondary/30 border border-border/70 rounded-xl text-sm font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
+                  />
+                  <div className="absolute inset-y-0 right-1.5 flex items-center">
                     <button
                       type="button"
-                      onClick={() => copyToClipboard(igRedirectUri, "URI do Instagram")}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition shrink-0 font-sans font-bold text-[11px]"
+                      onClick={() => copyToClipboard(redirectUri || defaultRedirectUri, "URI de Redirecionamento")}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground font-sans text-xs font-semibold transition"
                       title="Copiar URL"
                     >
                       <Copy className="size-3" />
@@ -478,21 +347,37 @@ function SettingsPage() {
                     </button>
                   </div>
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Informe exatamente a URL que você cadastrou no seu app da Meta. O Reelary usará esta URL como callback no momento de autorizar a conexão.
+                </p>
+              </div>
+
+              {/* Box de Orientação para Configurar no Meta */}
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="size-4 text-amber-400" />
+                  <h4 className="text-xs font-bold text-foreground">
+                    Onde cadastrar esta URL no portal da Meta:
+                  </h4>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  No Meta Developers, acesse: <strong>Casos de uso &gt; API do Instagram &gt; Configuração da API com login do Instagram</strong>, role até a seção <strong>4. Configurar o login da empresa no Instagram</strong> e clique em <strong>[Configurações do login da empresa]</strong>. No campo <em>URIs de redirecionamento do OAuth válidos</em>, cole a URL acima e salve.
+                </p>
               </div>
 
               {/* Botões de Ação */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 <div className="text-xs text-muted-foreground flex items-center gap-1.5">
                   <Sparkles className="size-3.5 text-primary" />
-                  <span>Salvar ativa automaticamente o seu aplicativo próprio para conexões em 1 clique.</span>
+                  <span>As credenciais são salvas com segurança no seu perfil do Reelary.</span>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={savingCustom}
+                  disabled={saving}
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-95 transition shadow-sm disabled:opacity-50 cursor-pointer"
                 >
-                  {savingCustom ? (
+                  {saving ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
                       <span>Salvando Credenciais…</span>
@@ -500,121 +385,12 @@ function SettingsPage() {
                   ) : (
                     <>
                       <Save className="size-4" />
-                      <span>Salvar e Ativar Meu App</span>
+                      <span>Salvar Credenciais do Instagram</span>
                     </>
                   )}
                 </button>
               </div>
             </form>
-          </div>
-
-          {/* Bloco 2: Seleção de Perfis Existentes / Alternância */}
-          <div className="rounded-2xl border border-border/60 bg-card p-6 md:p-7 shadow-card">
-            <div className="flex items-start gap-3 mb-6">
-              <div className="size-10 rounded-xl bg-primary/10 border border-primary/20 grid place-items-center shrink-0 mt-0.5">
-                <Shield className="size-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">
-                  Perfis Compartilhados Pré-Configurados
-                </h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Se você fizer parte de uma conta de equipe com painel já cadastrado pelo administrador, você pode selecionar um dos perfis prontos abaixo:
-                </p>
-              </div>
-            </div>
-
-            {/* Cards Horizontais */}
-            <div className="flex flex-col gap-3">
-              {PROFILES.map((item) => {
-                const isSelected = profile === item.id;
-                const appIdValue = appIds[item.id] || (item.id === "custom" ? customAppId : null);
-                const isConfigured = Boolean(appIdValue);
-
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleSelectProfile(item.id)}
-                    disabled={savingProfile}
-                    className={`w-full text-left rounded-2xl border p-4 sm:p-4.5 transition-all duration-300 relative overflow-hidden group cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                      isSelected
-                        ? "border-primary/80 bg-primary/10 shadow-glow ring-1 ring-primary/40"
-                        : "border-border/60 bg-secondary/15 hover:bg-secondary/40 hover:border-border-hover"
-                    }`}
-                  >
-                    {/* Lado Esquerdo: Ícone + Título + Descrição */}
-                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                      {/* Avatar / Ícone */}
-                      <div
-                        className={`size-11 rounded-xl ${item.iconBg} grid place-items-center shrink-0 transition-transform duration-300 group-hover:scale-105`}
-                      >
-                        <User className={`size-5 ${item.iconColor}`} />
-                      </div>
-
-                      {/* Dados do Perfil */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                          <h3 className="font-bold text-base text-foreground tracking-tight">
-                            Painel: {item.title}
-                          </h3>
-                          {item.badge && (
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border ${item.badgeStyle}`}
-                            >
-                              {item.badge}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-1 sm:line-clamp-2">
-                          {item.description}
-                        </p>
-
-                        {/* App ID visível no mobile */}
-                        <div className="sm:hidden mt-2">
-                          <span
-                            className={`text-[10px] font-mono px-2 py-0.5 rounded bg-background/80 border border-border/50 inline-block ${
-                              !isConfigured ? "text-warning" : "text-muted-foreground"
-                            }`}
-                          >
-                            App ID: {appIdValue || "Não configurado"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Lado Direito: App ID no Desktop + Badge de Status */}
-                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/30">
-                      <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-background/60 border border-border/50">
-                        <Key className="size-3 text-muted-foreground" />
-                        <span
-                          className={`text-xs font-mono ${
-                            !isConfigured ? "text-warning" : "text-muted-foreground"
-                          }`}
-                        >
-                          {isConfigured ? `App ID: ${appIdValue}` : "Configuração pendente"}
-                        </span>
-                      </div>
-
-                      {/* Status Ativo ou Indicador de Seleção */}
-                      {isSelected ? (
-                        <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-success/20 text-success border border-success/30 font-bold text-xs shadow-sm">
-                          <Check className="size-3.5 stroke-[3]" />
-                          <span>ATIVO</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 group-hover:text-muted-foreground transition-colors px-2 py-1">
-                          <span className="text-xs hidden sm:inline">Selecionar</span>
-                          <div className="size-5 rounded-full border border-border/80 group-hover:border-primary/60 flex items-center justify-center transition-colors">
-                            <div className="size-2 rounded-full bg-transparent group-hover:bg-primary/60 transition-colors" />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </TabsContent>
 
@@ -630,10 +406,10 @@ function SettingsPage() {
                   <Sparkles className="size-3.5" /> Tutorial Completo
                 </div>
                 <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
-                  Como Configurar seu Meta App e Conectar em 1 Clique
+                  Como Configurar seu App do Instagram e Conectar em 1 Clique
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-                  Siga este passo a passo simples. Você só precisa fazer isso <strong>uma única vez</strong>. Depois disso, todas as suas contas do Instagram serão conectadas instantaneamente com o botão azul "Permitir", sem nunca mais precisar gerar nem copiar tokens manualmente!
+                  Siga este passo a passo simples. Você só precisa fazer isso <strong>uma única vez</strong>. Depois de salvar, todas as suas contas do Instagram serão conectadas instantaneamente com o botão "Permitir".
                 </p>
               </div>
 
@@ -665,12 +441,12 @@ function SettingsPage() {
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Acesse o portal da Meta com o seu perfil do Facebook. No canto superior direito, clique em <strong>"Meus Apps"</strong> e depois no botão verde <strong>"Criar aplicativo"</strong>.
+                    Acesse o portal do Meta Developers com o seu perfil do Facebook. No canto superior direito, clique em <strong>"Meus Apps"</strong> e depois no botão verde <strong>"Criar aplicativo"</strong>.
                   </p>
                   <div className="p-3 bg-secondary/30 rounded-xl border border-border/50 text-xs text-foreground space-y-1">
                     <p>• <strong>Caso de uso:</strong> Escolha <em>"Outro"</em> e selecione o tipo <strong>"Empresa"</strong> (ou <em>Consumidor</em>).</p>
-                    <p>• <strong>Nome de exibição:</strong> Digite um nome amigável para o seu app (exemplo: <code>Reelary - Minha Operação</code>).</p>
-                    <p>• Confirme a criação inserindo a sua senha do Facebook se solicitado.</p>
+                    <p>• <strong>Nome do app:</strong> Digite um nome para o seu app (exemplo: <code>Reelary - Minha Operação</code>).</p>
+                    <p>• Confirme a criação inserindo a sua senha se solicitado.</p>
                   </div>
                 </div>
               </div>
@@ -684,26 +460,26 @@ function SettingsPage() {
                 </div>
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-base text-foreground">Ativar o Caso de Uso da API do Instagram</h3>
+                    <h3 className="font-bold text-base text-foreground">Acessar a API do Instagram e Copiar o ID e a Chave Secreta</h3>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase">
                       Chaves da API
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Dentro do painel do seu app recém-criado, clique em <strong>"Casos de uso"</strong> no menu lateral esquerdo e procure pelo produto <strong>"API do Instagram"</strong> (ou <em>"Manage messaging & content on Instagram"</em>).
+                    No menu lateral esquerdo do seu aplicativo, clique em <strong>"Casos de uso"</strong> e selecione o produto <strong>"API do Instagram"</strong>. Em seguida, clique em <strong>"Configuração da API com login do Instagram"</strong>.
                   </p>
                   <div className="p-3 bg-secondary/30 rounded-xl border border-border/50 text-xs text-foreground space-y-1.5">
-                    <p className="font-semibold text-foreground">Na aba <em>"Configuração da API com login do Instagram"</em>, você verá dois dados cruciais:</p>
+                    <p className="font-semibold text-foreground">Você verá exatamente estes dois campos no topo da página:</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                       <div className="p-2.5 rounded-lg bg-background/80 border border-border/60">
-                        <span className="text-[10px] uppercase font-bold text-muted-foreground block">Dado 1</span>
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground block">Campo 1</span>
                         <strong className="text-foreground text-xs">ID do app do Instagram</strong>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">Um número de 15 a 16 dígitos.</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Exemplo: <code>984157640915216</code></p>
                       </div>
                       <div className="p-2.5 rounded-lg bg-background/80 border border-border/60">
-                        <span className="text-[10px] uppercase font-bold text-muted-foreground block">Dado 2</span>
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground block">Campo 2</span>
                         <strong className="text-foreground text-xs">Chave secreta do app do Instagram</strong>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">Clique no botão <em>"Mostrar"</em> para copiar.</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Clique em <em>"Mostrar"</em> para copiar o segredo.</p>
                       </div>
                     </div>
                   </div>
@@ -721,25 +497,23 @@ function SettingsPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-base text-foreground">Adicionar suas Contas como Testadores</h3>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 uppercase">
-                      Obrigatório em Modo de Teste
+                      Modo de Desenvolvimento
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Como o seu aplicativo está em desenvolvimento (modo seguro), a Meta exige que você convide o @ das contas do Instagram que irão utilizar o app.
+                    Enquanto o seu app estiver em desenvolvimento, a Meta exige que cada conta do Instagram que irá conectar seja cadastrada como testador.
                   </p>
                   <div className="p-3 bg-secondary/30 rounded-xl border border-border/50 text-xs text-foreground space-y-2">
-                    <p>1. No menu lateral esquerdo da Meta, clique em <strong>"Funções do app" → "Funções"</strong>.</p>
-                    <p>2. Clique em <strong>"Adicionar pessoas"</strong>, marque a opção <strong>"Testador do Instagram"</strong>.</p>
-                    <p>3. Digite o <code>@username</code> exato da conta do Instagram e clique em Adicionar.</p>
+                    <p>1. No menu lateral do Meta Developers, clique em <strong>"Funções do app" → "Funções"</strong>.</p>
+                    <p>2. Clique em <strong>"Adicionar pessoas"</strong>, marque <strong>"Testador do Instagram"</strong> e digite o <code>@username</code> da conta.</p>
                     
-                    {/* Alerta de aceitação */}
                     <div className="mt-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 space-y-1">
                       <div className="flex items-center gap-1.5 font-bold text-blue-400 text-xs">
                         <Smartphone className="size-3.5" />
-                        <span>AÇÃO OBRIGATÓRIA NO INSTAGRAM:</span>
+                        <span>AÇÃO NO APLICATIVO DO INSTAGRAM:</span>
                       </div>
                       <p className="text-[11px] text-foreground/90 leading-relaxed">
-                        Abra o Instagram da conta convidada (no celular ou computador) e acesse: <br />
+                        Abra o Instagram no celular ou navegador com a conta convidada, acesse: <br />
                         <strong>Configurações e atividade → Permissões do site → Apps e sites → Convites de testador</strong> e clique em <strong>Aceitar</strong>.
                       </p>
                     </div>
@@ -756,24 +530,24 @@ function SettingsPage() {
                 </div>
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-base text-foreground">Configurar a URL de Redirecionamento (Callback)</h3>
+                    <h3 className="font-bold text-base text-foreground">Cadastrar o URI de Redirecionamento na Meta</h3>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 uppercase">
                       Segurança OAuth
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    A Meta precisa saber para onde enviar o usuário com segurança após ele clicar em "Permitir" no Instagram.
+                    A Meta precisa saber exatamente qual endereço web deve receber o retorno seguro do login do Instagram.
                   </p>
                   <div className="p-3 bg-secondary/30 rounded-xl border border-border/50 text-xs text-foreground space-y-2">
                     <p>1. No Meta Developers, vá em: <strong>Casos de uso → API do Instagram → Configuração da API com login do Instagram</strong>.</p>
-                    <p>2. Role a tela até a seção <strong>"4. Configurar o login da empresa no Instagram"</strong> e clique no botão <strong>[Configurações do login da empresa]</strong>.</p>
-                    <p>3. No campo <strong>"URIs de redirecionamento do OAuth válidos"</strong>, cole exatamente a URL abaixo:</p>
+                    <p>2. Role até <strong>"4. Configurar o login da empresa no Instagram"</strong> e clique no botão <strong>[Configurações do login da empresa]</strong>.</p>
+                    <p>3. No campo <strong>"URIs de redirecionamento do OAuth válidos"</strong>, cole a URL abaixo:</p>
 
                     <div className="flex items-center justify-between gap-2 p-2 bg-background rounded-lg border border-border font-mono text-xs">
-                      <span className="truncate text-primary font-bold">{igRedirectUri}</span>
+                      <span className="truncate text-primary font-bold">{defaultRedirectUri}</span>
                       <button
                         type="button"
-                        onClick={() => copyToClipboard(igRedirectUri, "URL de Callback")}
+                        onClick={() => copyToClipboard(defaultRedirectUri, "URL de Redirecionamento")}
                         className="inline-flex items-center gap-1 px-3 py-1 rounded bg-primary text-primary-foreground font-sans font-bold text-xs hover:opacity-90 transition shrink-0"
                       >
                         <Copy className="size-3.5" />
@@ -782,7 +556,7 @@ function SettingsPage() {
                     </div>
 
                     <p className="text-[11px] text-muted-foreground pt-1">
-                      4. Role até o final da tela da Meta e clique em <strong>"Salvar alterações"</strong>.
+                      4. Role até o final da página e clique em <strong>"Salvar alterações"</strong>.
                     </p>
                   </div>
                 </div>
@@ -797,25 +571,26 @@ function SettingsPage() {
                 </div>
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-base text-foreground">Salvar suas Credenciais no Reelary</h3>
+                    <h3 className="font-bold text-base text-foreground">Salvar suas Credenciais e a URI no Reelary</h3>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400 border border-violet-500/30 uppercase">
                       Vinculação
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Agora pegue os dados do <strong>Passo 2</strong> e salve na aba de Credenciais do Reelary.
+                    Agora pegue o ID, a Chave Secreta e a URI de Redirecionamento e salve no formulário do Reelary.
                   </p>
                   <div className="p-3 bg-secondary/30 rounded-xl border border-border/50 text-xs text-foreground space-y-2">
-                    <p>• Cole o <strong>ID do app do Instagram</strong> no campo <em>ID do App do Instagram</em>.</p>
-                    <p>• Cole a <strong>Chave secreta do app</strong> no campo <em>Chave Secreta</em>.</p>
-                    <p>• Clique no botão <strong>"Salvar e Ativar Meu App"</strong>.</p>
+                    <p>• Cole o <strong>ID do app do Instagram</strong> no campo correspondente.</p>
+                    <p>• Cole a <strong>Chave secreta do app do Instagram</strong>.</p>
+                    <p>• Confirme ou informe a <strong>URI de Redirecionamento</strong> que você cadastrou no seu app da Meta.</p>
+                    <p>• Clique em <strong>"Salvar Credenciais do Instagram"</strong>.</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setActiveTab("credentials")}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white font-bold text-xs hover:bg-violet-500 transition cursor-pointer mt-1"
                   >
-                    <span>Ir para a aba Credenciais agora</span>
+                    <span>Ir para a aba Credenciais</span>
                     <ArrowRight className="size-3.5" />
                   </button>
                 </div>
@@ -836,14 +611,14 @@ function SettingsPage() {
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Tudo pronto! Com a sua conta do Instagram já aberta na outra aba do navegador:
+                    Tudo pronto! Com a conta do Instagram conectada na outra aba do navegador:
                   </p>
                   <div className="p-3 bg-secondary/40 rounded-xl border border-border/50 text-xs text-foreground space-y-1.5">
-                    <p>1. Acesse a tela de <strong>Contas do Instagram</strong> no Reelary.</p>
-                    <p>2. Clique no botão com gradiente colorido: <strong>"Conectar via Instagram"</strong>.</p>
-                    <p>3. A janela oficial da Meta abrirá pedindo permissão. Clique no botão azul <strong>"Permitir"</strong>.</p>
+                    <p>1. Vá até a tela de <strong>Contas do Instagram</strong> no Reelary.</p>
+                    <p>2. Clique no botão gradiente: <strong>"Conectar via Instagram"</strong>.</p>
+                    <p>3. A janela oficial do Instagram abrirá solicitando autorização. Basta clicar em <strong>"Permitir"</strong>.</p>
                     <p className="text-emerald-400 font-semibold pt-1">
-                      ✓ Pronto! A conta será adicionada imediatamente com token válido por 60 dias sem copiar nada.
+                      ✓ Pronto! Sua conta será vinculada instantaneamente com token de 60 dias sem precisar copiar nada manualmente.
                     </p>
                   </div>
                   <Link

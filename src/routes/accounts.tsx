@@ -125,6 +125,7 @@ function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [appId, setAppId] = useState<string | null>(null);
   const [instagramAppId, setInstagramAppId] = useState<string | null>("984157640915216");
+  const [customRedirectUri, setCustomRedirectUri] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [connectingFacebook, setConnectingFacebook] = useState(false);
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
@@ -198,6 +199,7 @@ function AccountsPage() {
       .then((r: any) => {
         setAppId(r.appId);
         if (r.instagramAppId) setInstagramAppId(r.instagramAppId);
+        if (r.redirectUri) setCustomRedirectUri(r.redirectUri);
       })
       .catch(() => setAppId(null));
 
@@ -358,7 +360,7 @@ function AccountsPage() {
   function connect() {
     const targetId = instagramAppId || "984157640915216";
     setConnecting(true);
-    window.location.href = buildInstagramAuthUrl(targetId);
+    window.location.href = buildInstagramAuthUrl(targetId, customRedirectUri);
   }
 
   function connectFacebook() {
