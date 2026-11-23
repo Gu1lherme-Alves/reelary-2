@@ -10,6 +10,10 @@ import {
   Filter,
   ExternalLink,
   Play,
+  Trash2,
+  Check,
+  Loader2,
+  CheckSquare,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -21,11 +25,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   getCachedInsightsFn,
   syncAccountInsightsFn,
-  syncAllAccountsInsightsFn,
 } from "@/lib/instagram.insights";
 
 export const Route = createFileRoute("/performance")({
@@ -75,6 +87,11 @@ function PerformancePage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<SortField>("totalViews");
 
+  // Batch deletion state
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const navigate = useNavigate();
 
   async function loadData() {
@@ -93,6 +110,57 @@ function PerformancePage() {
     loadData();
   }, []);
 
+  function toggleSelectAccount(accountId: string) {
+    setSelectedAccountIds((prev) =>
+      prev.includes(accountId)
+        ? prev.filter((id) => id !== accountId)
+        : [...prev, accountId]
+    );
+  }
+
+  function handleSelectAllFiltered() {
+    const visibleIds = filteredAndSortedAccounts.map((a) => a.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedAccountIds.includes(id));
+    if (allSelected) {
+      // Desmarcar todas as visíveis
+      setSelectedAccountIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    } else {
+      // Marcar todas as visíveis
+      setSelectedAccountIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  }
+
+  async function handleDeleteSelected() {
+    if (selectedAccountIds.length === 0) return;
+    try {
+      setDeleting(true);
+      const count = selectedAccountIds.length;
+      const { error } = await supabase
+        .from("instagram_accounts")
+        .delete()
+        .in("id", selectedAccountIds);
+
+      if (error) throw error;
+
+      toast.success(`${count} conta(s) excluída(s) com sucesso!`);
+
+      const storedId = localStorage.getItem("active_ig_account_id");
+      if (storedId && selectedAccountIds.includes(storedId)) {
+        localStorage.removeItem("active_ig_account_id");
+        window.dispatchEvent(new Event("active-account-changed"));
+      }
+
+      setSelectedAccountIds([]);
+      setShowDeleteModal(false);
+      await loadData();
+    } catch (err: any) {
+      console.error("Erro ao excluir contas:", err);
+      toast.error(err.message || "Erro ao excluir contas selecionadas.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function handleSyncAll() {
     if (!data?.accounts || data.accounts.length === 0) {
       toast.info("Nenhuma conta encontrada para sincronizar.");
@@ -110,8 +178,6 @@ function PerformancePage() {
     toast.loading(`Iniciando sincronização de ${total} conta(s)...`, { id: toastId });
 
     try {
-      // Process accounts client-side one-by-one to prevent serverless function timeouts
-      // and provide instant, accurate progress feedback to the user
       for (let i = 0; i < accountsToSync.length; i++) {
         const acc = accountsToSync[i];
         setSyncProgress({ current: i + 1, total, username: acc.username });
@@ -212,6 +278,10 @@ function PerformancePage() {
     return (sum / data.accounts.length).toFixed(1);
   }, [data?.accounts]);
 
+  const allFilteredSelected =
+    filteredAndSortedAccounts.length > 0 &&
+    filteredAndSortedAccounts.every((a) => selectedAccountIds.includes(a.id));
+
   return (
     <div className="space-y-5 max-w-7xl pb-12">
       {/* Top Action Bar */}
@@ -229,6 +299,42 @@ function PerformancePage() {
         </div>
 
         <div className="flex items-center gap-2.5">
+          {/* Mini lixeira no topo para excluir contas selecionadas */}
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (selectedAccountIds.length === 0) {
+                toast.info("Selecione uma ou mais contas usando os círculos de seleção para excluí-las.");
+                return;
+              }
+              setShowDeleteModal(true);
+            }}
+            disabled={deleting}
+            className={`h-9 px-3 gap-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              selectedAccountIds.length > 0
+                ? "border-rose-500/50 bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 hover:text-rose-300 shadow-sm ring-1 ring-rose-500/30"
+                : "border-[#26262b] text-zinc-400 hover:text-white hover:bg-[#18181c]"
+            }`}
+            title={
+              selectedAccountIds.length > 0
+                ? `Excluir ${selectedAccountIds.length} conta(s) selecionada(s)`
+                : "Selecione contas no círculo para excluir"
+            }
+          >
+            <Trash2
+              className={`size-3.5 ${
+                selectedAccountIds.length > 0 ? "text-rose-400" : "text-zinc-500"
+              }`}
+            />
+            {selectedAccountIds.length > 0 ? (
+              <span className="font-bold text-rose-400">
+                Excluir ({selectedAccountIds.length})
+              </span>
+            ) : (
+              <span className="hidden sm:inline">Excluir</span>
+            )}
+          </Button>
+
           <Button
             onClick={handleSyncAll}
             disabled={syncingAll || loading || data?.accounts?.length === 0}
@@ -277,7 +383,7 @@ function PerformancePage() {
         </div>
       ) : (
         <>
-          {/* Top KPI Cards (3 cards: Views, Engajamento, Seguidores — sem comentários) */}
+          {/* Top KPI Cards */}
           <div className="grid gap-3 sm:grid-cols-3">
             {/* Card 1: Total de Visualizações */}
             <div className="rounded-lg border border-[#232328] bg-[#121215] p-4 shadow-sm relative overflow-hidden">
@@ -345,7 +451,7 @@ function PerformancePage() {
             </div>
           </div>
 
-          {/* Ranking Container (Estilo Minimalista e Sóbrio) */}
+          {/* Ranking Container */}
           <div className="rounded-lg border border-[#232328] bg-[#101013] p-4 md:p-5 shadow-sm space-y-4">
             {/* Header da Seção */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[#1c1c20] pb-4">
@@ -358,14 +464,40 @@ function PerformancePage() {
                     Ranking de Performance de Contas
                   </h2>
                   <p className="text-[11px] text-zinc-400">
-                    Listagem completa das {data.accounts.length} contas conectadas, ordenadas por
-                    desempenho.
+                    Listagem completa das {data.accounts.length} contas conectadas.
+                    {selectedAccountIds.length > 0 && (
+                      <span className="ml-1 text-rose-400 font-semibold">
+                        ({selectedAccountIds.length} selecionada{selectedAccountIds.length > 1 ? "s" : ""})
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
 
-              {/* Filtros e Busca */}
+              {/* Filtros, Busca e Botão de Marcar */}
               <div className="flex flex-wrap items-center gap-2">
+                {/* Botão Marcar/Desmarcar todas visíveis */}
+                {filteredAndSortedAccounts.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSelectAllFiltered}
+                    className="h-8 px-2.5 text-xs text-zinc-400 hover:text-white hover:bg-[#18181c] border border-[#26262b] rounded-md gap-1.5 cursor-pointer"
+                    title={
+                      allFilteredSelected
+                        ? "Desmarcar todas as contas visíveis"
+                        : "Marcar todas as contas visíveis"
+                    }
+                  >
+                    <CheckSquare className="size-3 text-amber-400" />
+                    <span className="text-[11px]">
+                      {allFilteredSelected
+                        ? "Desmarcar Visíveis"
+                        : `Marcar Visíveis (${filteredAndSortedAccounts.length})`}
+                    </span>
+                  </Button>
+                )}
+
                 {/* Search */}
                 <div className="relative w-full sm:w-44">
                   <Search className="size-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -417,7 +549,7 @@ function PerformancePage() {
               </div>
             </div>
 
-            {/* Lista do Ranking (Cards Horizontais Minimalistas) */}
+            {/* Lista do Ranking */}
             <div className="space-y-2">
               {filteredAndSortedAccounts.length === 0 ? (
                 <div className="text-center py-10 text-zinc-500 text-xs">
@@ -429,6 +561,7 @@ function PerformancePage() {
                   const isTop2 = index === 1;
                   const isTop3 = index === 2;
                   const isSyncing = syncingAccountId === acc.id;
+                  const isSelected = selectedAccountIds.includes(acc.id);
 
                   const viewsPercent = Math.min(
                     100,
@@ -439,20 +572,42 @@ function PerformancePage() {
                     <div
                       key={acc.id}
                       className={`relative rounded-md transition-colors border ${
-                        isTop1
-                          ? "bg-[#141418] border-amber-500/30"
-                          : "bg-[#121215] border-[#202024] hover:border-[#2a2a30] hover:bg-[#151519]"
-                      } p-3.5 flex flex-col xl:flex-row xl:items-center justify-between gap-3.5`}
+                        isSelected
+                          ? "bg-rose-500/5 border-rose-500/40 shadow-sm"
+                          : isTop1
+                            ? "bg-[#141418] border-amber-500/30"
+                            : "bg-[#121215] border-[#202024] hover:border-[#2a2a30] hover:bg-[#151519]"
+                      } p-3 sm:p-3.5 flex flex-col xl:flex-row xl:items-center justify-between gap-3.5`}
                     >
-                      {/* Borda vertical dourada para o 1º lugar */}
-                      {isTop1 && (
+                      {/* Borda vertical para o 1º lugar */}
+                      {isTop1 && !isSelected && (
                         <div className="hidden xl:block absolute -left-[1px] top-2 bottom-2 w-1 bg-amber-500 rounded-r" />
                       )}
+                      {isSelected && (
+                        <div className="hidden xl:block absolute -left-[1px] top-2 bottom-2 w-1 bg-rose-500 rounded-r" />
+                      )}
 
-                      {/* Lado Esquerdo: Posição + Avatar + Nome + Top 1 Badge + Status */}
-                      <div className="flex items-center gap-3 min-w-[220px]">
+                      {/* Lado Esquerdo: Mini Circle Check + Posição + Avatar + Nome + Top 1 Badge + Status */}
+                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-[230px]">
+                        {/* Mini Circle Check para selecionar */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelectAccount(acc.id);
+                          }}
+                          className={`size-4.5 rounded-full border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                            isSelected
+                              ? "bg-rose-500 border-rose-500 text-white shadow-sm ring-1 ring-rose-400"
+                              : "border-zinc-700 hover:border-zinc-400 bg-[#16161a]"
+                          }`}
+                          title={isSelected ? "Desmarcar conta" : "Selecionar conta para exclusão"}
+                        >
+                          {isSelected && <Check className="size-2.5 stroke-[3]" />}
+                        </button>
+
                         {/* Posição / Medalha */}
-                        <div className="w-6 text-center shrink-0 flex items-center justify-center font-bold">
+                        <div className="w-5 sm:w-6 text-center shrink-0 flex items-center justify-center font-bold">
                           {isTop1 ? (
                             <span className="text-base" title="1º Lugar">
                               🥇
@@ -628,6 +783,70 @@ function PerformancePage() {
               )}
             </div>
           </div>
+
+          {/* Modal de Confirmação de Exclusão em Massa */}
+          <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+            <DialogContent className="max-w-md rounded-2xl bg-[#121215] border-[#232328] p-6 text-white shadow-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-rose-500 text-base font-bold">
+                  <Trash2 className="size-5" />
+                  Excluir {selectedAccountIds.length} conta(s) selecionada(s)?
+                </DialogTitle>
+                <DialogDescription className="text-zinc-400 text-xs leading-relaxed pt-2">
+                  Atenção: Esta ação é <strong>irreversível</strong>. As{" "}
+                  <strong>{selectedAccountIds.length}</strong> conta(s) selecionada(s) serão
+                  desconectadas do Reelary e todos os agendamentos pendentes vinculados a elas serão
+                  excluídos permanentemente.
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Lista das contas selecionadas para conferência */}
+              <div className="max-h-48 overflow-y-auto space-y-1.5 p-2 bg-[#0c0c0e] rounded-lg border border-[#1e1e24] my-2 text-xs">
+                {data?.accounts
+                  ?.filter((a) => selectedAccountIds.includes(a.id))
+                  .map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center justify-between text-zinc-300 px-2.5 py-1.5 rounded bg-[#151519] border border-[#222228]"
+                    >
+                      <span className="font-semibold text-white">@{a.username}</span>
+                      <span className="text-[10px] text-rose-400 font-medium">
+                        {a.pendingCount || 0} na fila
+                      </span>
+                    </div>
+                  ))}
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0 mt-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleting}
+                  className="rounded-lg h-9 text-xs border-[#26262b] text-zinc-300 hover:bg-[#1a1a1f] cursor-pointer"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteSelected}
+                  disabled={deleting}
+                  className="rounded-lg h-9 gap-1.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white cursor-pointer"
+                >
+                  {deleting ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" />
+                      <span>Excluindo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="size-3.5" />
+                      <span>Confirmar Exclusão ({selectedAccountIds.length})</span>
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>
